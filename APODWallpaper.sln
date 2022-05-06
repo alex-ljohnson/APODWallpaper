@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.1.32210.238
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConfiguratorGUI", "ConfiguratorGUI\ConfiguratorGUI.csproj", "{D7D25205-F995-4A47-A58F-0EF089C6523D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "APODWallpaper", "APODWallpaper\APODWallpaper.csproj", "{1A6F261C-33A2-49EE-B65D-1EA55D34DA11}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D7D25205-F995-4A47-A58F-0EF089C6523D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D7D25205-F995-4A47-A58F-0EF089C6523D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D7D25205-F995-4A47-A58F-0EF089C6523D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D7D25205-F995-4A47-A58F-0EF089C6523D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1A6F261C-33A2-49EE-B65D-1EA55D34DA11}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1A6F261C-33A2-49EE-B65D-1EA55D34DA11}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1A6F261C-33A2-49EE-B65D-1EA55D34DA11}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1A6F261C-33A2-49EE-B65D-1EA55D34DA11}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BA5CFDAC-498B-4DE4-97DE-88BEF5FE2885}
+	EndGlobalSection
+EndGlobal

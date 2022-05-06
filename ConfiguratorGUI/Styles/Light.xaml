@@ -1,0 +1,10 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <SolidColorBrush x:Key="Light" Color="{DynamicResource {x:Static SystemColors.ControlLightLightColorKey}}"/>
+    <SolidColorBrush x:Key="Mid" Color="{DynamicResource {x:Static SystemColors.ControlLightColorKey}}"/>
+    <SolidColorBrush x:Key="Dark" Color="{DynamicResource {x:Static SystemColors.ControlColorKey}}"/>
+    <SolidColorBrush x:Key="Selected" Color="{x:Static SystemParameters.WindowGlassColor}"/>
+    <SolidColorBrush x:Key="MouseOver" Color="{DynamicResource {x:Static SystemColors.ActiveCaptionColorKey}}"/>
+    <SolidColorBrush x:Key="Foreground" Color="{DynamicResource {x:Static SystemColors.ControlTextColorKey}}"/>
+
+</ResourceDictionary>
