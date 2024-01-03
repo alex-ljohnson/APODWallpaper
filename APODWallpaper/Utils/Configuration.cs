@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Reflection;
 using System.ComponentModel;
@@ -19,7 +17,7 @@ namespace APODWallpaper.Utils
     public class Configuration : INotifyPropertyChanged
     {
 
-        public static Configuration DefaultConfiguration = new(true) { BaseUrl = "https://api.nasa.gov/planetary/apod/", UseHD = true, ExplainImage = false, DownloadInfo = false,  WallpaperStyle = (long)WallpaperStyleEnum.Fill };
+        public static readonly Configuration DefaultConfiguration = new(true) { BaseUrl = "https://api.nasa.gov/planetary/apod", UseHD = true, ExplainImage = false, DownloadInfo = false,  WallpaperStyle = (long)WallpaperStyleEnum.Fill };
         public static Configuration Config = new(true) ;
 
         private readonly string base_path = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
@@ -47,9 +45,9 @@ namespace APODWallpaper.Utils
         public Configuration(bool autoSave = true)
         {
             this.autoSave = autoSave;
-            config_path = Path.GetFullPath("config.json", base_path);
+            config_path = Utilities.GetDataPath("config.json");
             if (File.Exists(config_path) == false) 
-            { 
+            {   
                 _configuration = new Dictionary<string, dynamic>();
                 foreach (var i in GetType().GetProperties())
                 {
@@ -59,7 +57,7 @@ namespace APODWallpaper.Utils
             }
             else
             {
-                string jsonString = File.ReadAllText(config_path);
+                string jsonString = File.ReadAllText(config_path);  
                 _configuration = JsonConvert.DeserializeAnonymousType(jsonString, new Dictionary<string, dynamic>())!;
             }
             Trace.WriteLine("_Loaded config;;");

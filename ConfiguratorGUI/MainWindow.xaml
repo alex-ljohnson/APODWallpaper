@@ -10,20 +10,18 @@
         Title="APODWallpaper Configurator" 
         
         Height="450" Width="800"
-        MinHeight="450" MinWidth="800"
-        MaxHeight="550" MaxWidth="900"
         Background="Transparent" WindowStyle="None" 
         AllowsTransparency="True"
         ResizeMode="CanResizeWithGrip"
-        Icon="D:\alexj\VSCode\C#\APODWallpaper\APODWallpaper\ConfiguratorGUI\Resources\Spanner.png" Closing="window_Closing" Loaded="window_Loaded">
+        Icon="/Resources/Spanner.png" Closing="window_Closing" Loaded="window_Loaded">
     <Window.Triggers>
         <EventTrigger RoutedEvent="Window.Loaded">
             <BeginStoryboard>
                 <Storyboard>
                     <DoubleAnimation Storyboard.TargetName="grdMain" Storyboard.TargetProperty="Opacity" 
-                                         From="0.0" To="1.0" Duration="0:0:0:0.75"/>
+                                         From="0.0" To="1.0" Duration="0:0:0:0.3"/>
                     <DoubleAnimation Storyboard.TargetName="window" Storyboard.TargetProperty="Height" 
-                                         From="400" To="500.0" Duration="0:0:0.75"/>
+                                         From="400" To="500.0" Duration="0:0:0.35"/>
                 </Storyboard>
             </BeginStoryboard>
         </EventTrigger>
@@ -33,9 +31,9 @@
         <local:InverseBoolConverter x:Key="inverseBoolConverter"/>
         <Storyboard x:Key="closeAnim" Completed="CloseStoryboard_Completed">
             <DoubleAnimation Storyboard.TargetName="grdMain" Storyboard.TargetProperty="Opacity"
-                             From="1.0" To="0.0" Duration="0:0:1"/>
+                             From="1.0" To="0.0" Duration="0:0:0.4"/>
             <DoubleAnimation Storyboard.TargetName="window" Storyboard.TargetProperty="Width" 
-                                         To="750" From="800.0" Duration="0:0:0.75"/>
+                                         To="750" From="800.0" Duration="0:0:0.2"/>
         </Storyboard>
         
         <ObjectDataProvider x:Key="StyleEnumSource" ObjectType="{x:Type sys:Enum}" MethodName="GetValues">
@@ -140,7 +138,7 @@
             </Setter>
         </Style>
     </Window.Resources>
-    <Grid x:Name="grdMain" Background="{DynamicResource Dark}">
+    <Grid x:Name="grdMain" Width="{Binding Width, ElementName=window}" Height="{Binding Height, ElementName=window}" Background="{DynamicResource Dark}">
         <Grid.RowDefinitions>
             <RowDefinition Height="30"/>
             <RowDefinition Height="*"/>
@@ -178,17 +176,20 @@
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="1*"/>
                         <RowDefinition Height="2*"/>
-                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="1*"/>
                     </Grid.RowDefinitions>
-                    <Rectangle Grid.Column="0" Grid.RowSpan="3" RadiusX="10" RadiusY="10" Fill="{DynamicResource Mid}" Margin="15"/>
-                    <TextBlock Text="Current:" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource Foreground}"/>
-                    <Image x:Name="ImgCurrent" Grid.Column="0" Grid.Row="1"/>
-                    <Button x:Name="BtnSelectCurrent" Content="Select..." Grid.Row="2" Margin="50 5 50 15" MinWidth="200" MinHeight="75" Click="BtnSelectCurrent_Click"/>
-                    <Rectangle Grid.Column="1" Grid.RowSpan="3" RadiusX="10" RadiusY="10" Fill="{DynamicResource Mid}" Margin="15"/>
-                    <TextBlock Text="Last:" HorizontalAlignment="Center" VerticalAlignment="Center" Grid.Column="1" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource Foreground}"/>
-                    <Image x:Name="ImgLast" Grid.Column="1" Grid.Row="1"/>
-                    <Button x:Name="BtnSelectLast" Content="Select..." Grid.Column="1" Grid.Row="2" Margin="50 5 50 15" MinWidth="200" MinHeight="75" Click="BtnSelectLast_Click"/>
+                    <Rectangle Grid.Column="0" Grid.RowSpan="4" RadiusX="10" RadiusY="10" Fill="{DynamicResource Mid}" Margin="15"/>
+                    <TextBlock x:Name="currentTitle" Text="Current:" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource Foreground}"/>
+                    <TextBlock x:Name="currentExplanation" Text="EXPLANATION" HorizontalAlignment="Center" VerticalAlignment="Center" Grid.Row="1" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Foreground}"/>
+                    <Image x:Name="ImgCurrent" Grid.Column="0" Grid.Row="2" Margin="25 5"/>
+                    <Button x:Name="BtnSelectCurrent" Content="Select..." Grid.Row="3" Margin="50 5 50 15" MinWidth="200" MinHeight="75" Click="BtnSelectCurrent_Click"/>
+                    <Rectangle Grid.Column="1" Grid.RowSpan="4" RadiusX="10" RadiusY="10" Fill="{DynamicResource Mid}" Margin="15"/>
+                    <TextBlock x:Name="lastTitle" Text="Last:" HorizontalAlignment="Center" VerticalAlignment="Center" Grid.Column="1" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource Foreground}"/>
+                    <TextBlock x:Name="lastExplanation" Text="EXPLANATION" HorizontalAlignment="Center" VerticalAlignment="Center" Grid.Column="1" Grid.Row="1" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Foreground}"/>
+                    <Image x:Name="ImgLast" Grid.Column="1" Grid.Row="2" Margin="25 5"/>
+                    <Button x:Name="BtnSelectLast" Content="Select..." Grid.Column="1" Grid.Row="3" Margin="50 5 50 15" MinWidth="200" MinHeight="75" Click="BtnSelectLast_Click"/>
                 </Grid>
             </TabItem>
             <TabItem x:Name="SettingsTab" Header="Settings">
@@ -242,6 +243,7 @@
                                 <ComboBox x:Name="CmbWallpaperStyle" Width="160" VerticalContentAlignment="Center" IsReadOnly="True" ItemsSource="{Binding Source={StaticResource StyleEnumSource}}" SelectedItem="{Binding WallpaperStyle, Mode=TwoWay, Converter={StaticResource enumConverter}, UpdateSourceTrigger=PropertyChanged}"/>
                                 <Button x:Name="BtnStyleChange" Content="Update Style" Margin="5 0" Height="30" Width="90" Click="BtnStyleChange_Click"/>
                             </StackPanel>
+                            <Button x:Name="BtnCheckNew" Content="Check for new image" Width="250" Height="32" Click="BtnCheckNew_Click"/>
                         </StackPanel>
                     </Grid>
                     <Border Grid.Column="0" Grid.Row="1" BorderThickness="10" CornerRadius="25" BorderBrush="{DynamicResource Light}"/>

@@ -2,17 +2,44 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
-    <BaseOutputPath>D:\alexj\VSCode\C#\APODWallpaper\build</BaseOutputPath>
+    <BaseOutputPath>..\..\build</BaseOutputPath>
     <ApplicationIcon>Resources\Spanner.ico</ApplicationIcon>
-    <UseWindowsForms>True</UseWindowsForms>
     <StartupObject>ConfiguratorGUI.App</StartupObject>
+    <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
-
+	
+	<!--Assembly info variables-->
+	<PropertyGroup>
+		<AssemblyVersion>1.0.0.1</AssemblyVersion>
+		<AssemblyCopyright>Copyright © Alexander Johnson 2023</AssemblyCopyright>
+		<AssemblyCompany>TransparentBox Co.</AssemblyCompany>
+		<AssemblyDescription>Configure APOD Options</AssemblyDescription>
+		<AssemblyProduct>APOD Configurator GUI</AssemblyProduct>
+		<Authors>Alexander Johnson</Authors>
+		<Product>$(AssemblyProduct)</Product>
+		<Company>$(AssemblyCompany)</Company>
+		<Copyright>$(AssemblyCopyright)</Copyright>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<Description>Configure APOD Options</Description>
+	</PropertyGroup>
+	
+    <PropertyGroup Condition="'$(PublishProfile)' == 'FolderProfile'">
+	    <DefineConstants>DEPENDANT</DefineConstants>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(PublishProfile)' == 'FolderContained'">
+	    <DefineConstants>CONTAINED</DefineConstants>
+    </PropertyGroup>
   <ItemGroup>
     <Content Include="Resources\Spanner.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
@@ -31,11 +58,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\APODWallpaper\APODWallpaper.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\NotAvailable.png" />
+    <Resource Include="Resources\Spanner.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -51,5 +83,7 @@
       <Generator>MSBuild:Compile</Generator>
     </None>
   </ItemGroup>
-
+	<Target Name="TestMsg" AfterTargets="Build">
+		<Message Text="pp: $(PublishProfile)" Importance="high" />
+	</Target>
 </Project>

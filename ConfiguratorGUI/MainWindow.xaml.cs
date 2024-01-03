@@ -1,11 +1,8 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using Microsoft.Win32;
 using System.Windows;
-using System.Windows.Markup;
-using System.Threading.Tasks;
+using System.Net.Http;
 using System.Windows.Input;
-using System.Collections.Generic;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
@@ -23,20 +20,25 @@ namespace ConfiguratorGUI
         private static readonly string base_path = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!;
         private static readonly SPath PathNotMax = new() { Data = new RectangleGeometry() { Rect = new Rect(0, 0, 8, 8) }, Stroke = new SolidColorBrush(MColor.FromRgb(240, 240, 240)) };
         private static readonly SPath PathMax = new() { Fill=new SolidColorBrush(MColor.FromRgb(70, 72, 89)), Data = new GeometryGroup() { Children = { new RectangleGeometry() { Rect = new Rect(0, 0, 8, 8) }, new RectangleGeometry() { Rect = new Rect(2, -2, 8, 8) } } }, Stroke = new SolidColorBrush(MColor.FromRgb(240, 240, 240)) };
-        //public Configuration Config = new(true);
-        StdOutRedirect redirect;
-        private APODWallpaper.APODWallpaper APOD = new();
-        public List<string> AvailableThemes { get; set; } = new() { "Light.xaml", "Dark.xaml" };
+            
+        private readonly StdOutRedirect redirect;
+        private static readonly HttpClient client = new();
+        private readonly APODWallpaper.APODWallpaper APOD = new();
+        public List<string> AvailableThemes { get; set; } = ["Light.xaml", "Dark.xaml"];
         public MainWindow()
         {
-            foreach (string i in AvailableThemes) { Trace.WriteLine(i); }   
             InitializeComponent();
+#if DEPENDANT
+            MessageBox.Show(Process.GetCurrentProcess().ProcessName);
+#endif
             DataContext = Configuration.Config;
             redirect = new StdOutRedirect(TxtOutput);
             Console.SetOut(redirect);
         }
 
-        #region Window Control
+
+
+#region Window Control
         private void BtnClose_Click(object sender, RoutedEventArgs e)
         {
             Close();
@@ -52,12 +54,27 @@ namespace ConfiguratorGUI
                 e.Cancel = true;
             }
         }
-        private void window_Loaded(object sender, RoutedEventArgs e)
+        private async void window_Loaded(object sender, RoutedEventArgs e)
         {
             BtnUpdateTheme_Click(sender, e);
+            APOD.info ??= await APOD.GetToday();
             try
             {
-                BitmapFrame source = BitmapFrame.Create(new FileStream(Path.GetFullPath("data\\current.jpg", base_path), FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite), BitmapCreateOptions.PreservePixelFormat | BitmapCreateOptions.IgnoreImageCache, BitmapCacheOption.OnLoad);
+                currentTitle.Text = $"Current: {APOD.info["title"]}";
+            } catch (Exception)
+            {
+                currentTitle.Text = "Current: (NO TITLE)";
+            }
+            try
+            {
+                currentExplanation.Text = File.ReadAllText(Utilities.GetDataPath("explanation.txt"));
+            } catch (FileNotFoundException)
+            {
+                currentExplanation.Text = "No explanation found";
+            }
+            try
+            {
+                BitmapFrame source = BitmapFrame.Create(new FileStream(Utilities.current, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite), BitmapCreateOptions.PreservePixelFormat | BitmapCreateOptions.IgnoreImageCache, BitmapCacheOption.OnLoad);
                 ImgCurrent.Source = source;
             }
             catch (FileNotFoundException)
@@ -67,13 +84,15 @@ namespace ConfiguratorGUI
             try
             {
 
-                BitmapFrame source = BitmapFrame.Create(new FileStream(Path.GetFullPath("data\\last.jpg", base_path), FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite), BitmapCreateOptions.PreservePixelFormat | BitmapCreateOptions.IgnoreImageCache, BitmapCacheOption.OnLoad);
+                BitmapFrame source = BitmapFrame.Create(new FileStream(Utilities.last, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite), BitmapCreateOptions.PreservePixelFormat | BitmapCreateOptions.IgnoreImageCache, BitmapCacheOption.OnLoad);
                 ImgLast.Source = source;
             }
             catch (FileNotFoundException)
             {
                 ImgLast.Source = null;
             }
+            _=Updater.CheckUpdate(true);
+
         }
 
         private void CloseStoryboard_Completed(object sender, EventArgs e)
@@ -113,7 +132,7 @@ namespace ConfiguratorGUI
                 }
             }
         }
-        #endregion
+#endregion
 
         async private void BtnForceRun_Click(object sender, RoutedEventArgs e)
         {
@@ -127,37 +146,34 @@ namespace ConfiguratorGUI
         {
             SaveFileDialog sf = new() { Title = "Save image as...", AddExtension = true, FileName = "Wallpaper.jpg", Filter = "JPEG Image (*.jpg)|*.jpg|Bitmap Image (*.bmp)|*.bmp" };
             sf.ShowDialog();
-            using FileStream fileStream = new(Path.GetFullPath("data\\current.jpg"), FileMode.Open, FileAccess.Read, FileShare.ReadWrite), outStream = (FileStream)sf.OpenFile();
+            using FileStream fileStream = new(Utilities.last, FileMode.Open, FileAccess.Read, FileShare.ReadWrite), outStream = (FileStream)sf.OpenFile();
             fileStream.CopyTo(outStream);
         }
 
-        private void BtnUpdate_Click(object sender, RoutedEventArgs e)
+        private async void BtnUpdate_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("This function is not yet available", "Not implemented");
+            await Updater.CheckUpdate();
+            //MessageBox.Show("This function is not yet available", "Not implemented");
         }
 
         private void BtnResetDefault_Click(object sender, RoutedEventArgs e)
         {
-            Trace.WriteLine(Configuration.Config.ToString());
             Configuration.Config.SetConfiguration(Configuration.DefaultConfiguration);
             BtnUpdateTheme_Click(sender, e);
-            Trace.WriteLine(Configuration.Config.ToString());
         }
         private void BtnSelectCurrent_Click(object sender, RoutedEventArgs e)
         {
-            string file = Path.GetFullPath("data\\current.jpg", base_path);
-            if (File.Exists(file))
+            if (File.Exists(Utilities.current))
             {
-                APOD.UpdateBackground(file, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
+                APOD.UpdateBackground(Utilities.current, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
             }
         }
 
         private void BtnSelectLast_Click(object sender, RoutedEventArgs e)
         {
-            string file = Path.GetFullPath("data\\last.jpg", base_path);
-            if (File.Exists(file))
+            if (File.Exists(Utilities.last))
             {
-                APOD.UpdateBackground(file, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
+                APOD.UpdateBackground(Utilities.last, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
             }
         }
         private void BtnClearOut_Click(object sender, RoutedEventArgs e)
@@ -173,6 +189,18 @@ namespace ConfiguratorGUI
         private void BtnUpdateTheme_Click(object sender, RoutedEventArgs e)
         {
             Application.Current.Resources.MergedDictionaries[0].Source = new Uri("/Styles/"+CmbConfiguratorTheme.SelectedItem.ToString(), UriKind.Relative);
+        }
+
+        private async void BtnCheckNew_Click(object sender, RoutedEventArgs e)
+        {
+            if (await APOD.CheckNew())
+            {
+                MessageBox.Show("New image found.", "Downloading image");
+                await APOD.Update(true);
+            } else
+            {
+                MessageBox.Show("No new image found.", "No new image");
+            }
         }
     }
 }
