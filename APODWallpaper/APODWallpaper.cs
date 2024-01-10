@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 using APODWallpaper.Utils;
 
 bool force = false;
-const string verName = "2024.01.02.f1";
+const string verName = "2024.01.10.1";
 if (args.Length > 0)
 {
     foreach (string i in args)
@@ -36,7 +36,7 @@ if (args.Length > 0)
         }
     }
 }
-APODWallpaper.APODWallpaper instance = new();
+APODWallpaper.APODWallpaper instance = APODWallpaper.APODWallpaper.Instance;
 await instance.Update(force);
 namespace APODWallpaper
 {
@@ -51,34 +51,58 @@ namespace APODWallpaper
 
         private readonly int hwnd = GetConsoleWindow();
         public readonly string base_path = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!;
-        private readonly string file_name;
+        //private readonly string file_name;
 
         private const string API_KEY = "5zgCnpExBIpD6hZvruRRJS48WfKYBe0PlVVaO5NZ";
 
         // Configuration
         private readonly HttpClient client;
-        public Dictionary<string, dynamic>? info;
+        private Dictionary<string, dynamic>? info;
 
-        public APODWallpaper()
+        public Dictionary<string, dynamic> Info
+        {
+            get
+            {
+                info ??= Task.Run(GetToday).Result;
+                return info;
+            }
+        }
+
+        private static readonly object padlock = new();
+        private static APODWallpaper? _instance = null;
+
+        public static APODWallpaper Instance
+        {
+            get
+            {
+                lock (padlock)
+                {
+                    _instance ??= new APODWallpaper();
+                    return _instance;
+                }
+            }
+        }
+        private APODWallpaper()
         {
             Directory.CreateDirectory(Utilities.GetDataPath(""));
-            file_name = Utilities.GetDataPath("current.jpg");
+            //file_name = Utilities.GetDataPath("current.jpg");
             client = new HttpClient();
 
         }
 
-        async public Task Update(bool force = false)
+        public async Task<Dictionary<string, dynamic>?> Update(bool force = false)
         {
-            info = await GetToday();
             if (force || await CheckNew())
             {
-                await DownloadImage();
-                UpdateBackground(style: (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
-                if (Configuration.Config.ExplainImage) { MessageBoxW(hwnd, info["explanation"], "Image Updated", 0x40 | 0x00); }
+                var fileInfo = await DownloadImage();
+                UpdateBackground(fileInfo["Source"], style: (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
+                if (Configuration.Config.ExplainImage) { MessageBoxW(hwnd, Info["explanation"], "Image Updated", 0x40 | 0x00); }
+                return fileInfo;
             }
             else
             {
                 Console.WriteLine("No new image");
+                return null;
             }
         }
 
@@ -91,7 +115,6 @@ namespace APODWallpaper
 
             string url = $"{Configuration.Config.BaseUrl}?api_key={API_KEY}";
             Dictionary<string, dynamic>? today;
-            Console.WriteLine(url);
             try
             {
                 string response = await client.GetStringAsync(url);
@@ -109,46 +132,32 @@ namespace APODWallpaper
             return today;
         }
 
-        public async Task<bool> DownloadImage()
+        public async Task<Dictionary<string, dynamic>> DownloadImage()
         {
             string url;
-            info ??= await GetToday();
-            if (Configuration.Config.UseHD && info.TryGetValue("hdurl", out dynamic? value))
+            if (Configuration.Config.UseHD && Info.TryGetValue("hdurl", out dynamic? value))
             {
                 url = value;
                 Console.WriteLine("HD");
             }
             else { 
-                url = info["url"];
+                url = Info["url"];
             }
-            if (info["media_type"] != "image") { throw new Exception("APOD was not an image"); }
-            await File.WriteAllTextAsync(Utilities.GetDataPath("explanation.txt"), info["explanation"]);
+            if (Info["media_type"] != "image") { throw new Exception("APOD was not an image"); }
             Console.WriteLine("Getting image data");
-            try
-            {
 
-                File.Move(file_name, Utilities.last, true);
-            }
-            catch (FileNotFoundException)
-            {
-                Console.WriteLine("current.jpg doesn't exist");
-            }
-            catch (UnauthorizedAccessException)
-            {
-                _ = MessageBoxW(hwnd, "The required image file is currently in use.\nClose the any programs which may be using it, update will try again in 10 secs.", "Permission error", 0x10);
-                await Task.Delay(10000);
-                return await DownloadImage();
-            }
-            DateTime startTime = DateTime.Now;
+            DateTime startTime = DateTime.Now;  
             client.DefaultRequestHeaders.Clear();
+            string filename;
+            Dictionary<string, dynamic> downloadedInfo;
             using (HttpResponseMessage response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
             {
                 Console.WriteLine(response.Content.Headers.ToString());
                 response.EnsureSuccessStatusCode();
                 var contentLength = response.Content.Headers.ContentLength;
-                var filename = response.Content.Headers.ContentDisposition?.FileName;
+                filename = Utilities.GetDataPath("images/") + (response.Content.Headers.ContentDisposition?.FileName ?? DateOnly.FromDateTime(DateTime.Now).ToString("D"));
                 using Stream contentStream = await response.Content.ReadAsStreamAsync();
-                using FileStream writer = new(file_name, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+                using FileStream writer = new(filename, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
                 if (Configuration.Config.DownloadInfo && contentLength.HasValue && false)
                 {
                     var totalRead = 0L;
@@ -169,18 +178,20 @@ namespace APODWallpaper
                 {
                     await contentStream.CopyToAsync(writer);
                 }
+                downloadedInfo = new Dictionary<string, dynamic>() { ["Name"] = Info["explanation"], ["Description"] = Info["title"], ["Source"] = filename };
+                var infoJson = JsonConvert.SerializeObject(downloadedInfo, Formatting.Indented );
+                await File.WriteAllTextAsync(filename + ".json", infoJson);
             }
             Console.WriteLine($"Time Taken: {(DateTime.Now - startTime).TotalSeconds} seconds");
             // Write date cache
-            File.WriteAllTextAsync(Utilities.GetDataPath("current_date.cache"), info["date"]);
-            return true;
+            File.WriteAllTextAsync(Utilities.GetDataPath("current_date.cache"), Info["date"]);
+            return downloadedInfo;
         }
 
         public async Task<bool> CheckNew()
         {
             string current_date;
-            info ??= await GetToday();
-            string date = info["date"];
+            string date = Info["date"];
             try
             {
                 current_date = File.ReadAllText(Utilities.GetDataPath("current_date.cache"));
@@ -192,12 +203,8 @@ namespace APODWallpaper
             return date != current_date;
         }
 
-        public void UpdateBackground(string? file = null, WallpaperStyleEnum style = WallpaperStyleEnum.Fill)
+        public void UpdateBackground(string file, WallpaperStyleEnum style = WallpaperStyleEnum.Fill)
         {
-            if (file == null)
-            {
-                file = file_name;
-            }
             RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop", true)!;
             if (key == null)
             {

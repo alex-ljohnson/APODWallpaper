@@ -4,26 +4,20 @@ using System.Windows.Controls;
 
 namespace ConfiguratorGUI
 {
-    public class StdOutRedirect : TextWriter
+    public class StdOutRedirect(TextBox output) : TextWriter
     {
-        TextBox textBox;
-        public StdOutRedirect(TextBox output)
-        {
-            textBox = output;
-        }
-
         public override void WriteLine(string? value)
         {
             if (value != null)
             {
-                textBox.Text += value+"\n";
+                output.Text += value+"\n";
             }
         }
         public override void Write(string? value)
         {
             if (value != null)
             {
-                textBox.Text += value;
+                output.Text += value;
             }
         }
 

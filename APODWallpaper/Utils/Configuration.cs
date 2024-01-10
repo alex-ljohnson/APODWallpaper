@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.ComponentModel;
+using System.Collections.ObjectModel;
 
 namespace APODWallpaper.Utils
 {
@@ -18,7 +19,20 @@ namespace APODWallpaper.Utils
     {
 
         public static readonly Configuration DefaultConfiguration = new(true) { BaseUrl = "https://api.nasa.gov/planetary/apod", UseHD = true, ExplainImage = false, DownloadInfo = false,  WallpaperStyle = (long)WallpaperStyleEnum.Fill };
-        public static Configuration Config = new(true) ;
+        
+        private static readonly object padlock = new();
+        private static Configuration? _instance = null;
+        public static Configuration Config
+        {
+            get
+            {
+                lock (padlock)
+                {
+                    _instance ??= new Configuration();
+                    return _instance;
+                }
+            }
+        }
 
         private readonly string base_path = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
         private readonly bool autoSave = false;
@@ -34,6 +48,7 @@ namespace APODWallpaper.Utils
         public string BaseUrl { get { return _configuration.GetValueOrDefault(nameof(BaseUrl), "https://api.nasa.gov/planetary/apod/"); } set { _configuration[nameof(BaseUrl)] = value; AutoSave(); OnPropertyChanged(nameof(BaseUrl)); } }
         public string ConfiguratorTheme { get { return _configuration.GetValueOrDefault(nameof(ConfiguratorTheme), "Light.xaml"); } set { _configuration[nameof(ConfiguratorTheme)] = value; AutoSave(); OnPropertyChanged(nameof(ConfiguratorTheme)); } }
         public long WallpaperStyle { get { return (long)_configuration.GetValueOrDefault(nameof(WallpaperStyle), WallpaperStyleEnum.Fill); } set { _configuration[nameof(WallpaperStyle)] = value; AutoSave(); OnPropertyChanged(nameof(WallpaperStyle)); } }
+        public ObservableCollection<string> AvailableThemes { get; set; } = ["Light.xaml", "Dark.xaml"];
 
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
@@ -41,8 +56,7 @@ namespace APODWallpaper.Utils
             Trace.WriteLine($"Changing {propertyName}");
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
-
-        public Configuration(bool autoSave = true)
+        private Configuration(bool autoSave = true)
         {
             this.autoSave = autoSave;
             config_path = Utilities.GetDataPath("config.json");

@@ -17,26 +17,20 @@ namespace ConfiguratorGUI
     /// </summary>
     public partial class MainWindow : Window
     {
-        private static readonly string base_path = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!;
         private static readonly SPath PathNotMax = new() { Data = new RectangleGeometry() { Rect = new Rect(0, 0, 8, 8) }, Stroke = new SolidColorBrush(MColor.FromRgb(240, 240, 240)) };
         private static readonly SPath PathMax = new() { Fill=new SolidColorBrush(MColor.FromRgb(70, 72, 89)), Data = new GeometryGroup() { Children = { new RectangleGeometry() { Rect = new Rect(0, 0, 8, 8) }, new RectangleGeometry() { Rect = new Rect(2, -2, 8, 8) } } }, Stroke = new SolidColorBrush(MColor.FromRgb(240, 240, 240)) };
-            
+
+        private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
         private readonly StdOutRedirect redirect;
-        private static readonly HttpClient client = new();
-        private readonly APODWallpaper.APODWallpaper APOD = new();
-        public List<string> AvailableThemes { get; set; } = ["Light.xaml", "Dark.xaml"];
         public MainWindow()
         {
             InitializeComponent();
-#if DEPENDANT
+            #if DEPENDANT
             MessageBox.Show(Process.GetCurrentProcess().ProcessName);
-#endif
-            DataContext = Configuration.Config;
+            #endif  
             redirect = new StdOutRedirect(TxtOutput);
             Console.SetOut(redirect);
         }
-
-
 
 #region Window Control
         private void BtnClose_Click(object sender, RoutedEventArgs e)
@@ -54,43 +48,9 @@ namespace ConfiguratorGUI
                 e.Cancel = true;
             }
         }
-        private async void window_Loaded(object sender, RoutedEventArgs e)
+        private void window_Loaded(object sender, RoutedEventArgs e)
         {
             BtnUpdateTheme_Click(sender, e);
-            APOD.info ??= await APOD.GetToday();
-            try
-            {
-                currentTitle.Text = $"Current: {APOD.info["title"]}";
-            } catch (Exception)
-            {
-                currentTitle.Text = "Current: (NO TITLE)";
-            }
-            try
-            {
-                currentExplanation.Text = File.ReadAllText(Utilities.GetDataPath("explanation.txt"));
-            } catch (FileNotFoundException)
-            {
-                currentExplanation.Text = "No explanation found";
-            }
-            try
-            {
-                BitmapFrame source = BitmapFrame.Create(new FileStream(Utilities.current, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite), BitmapCreateOptions.PreservePixelFormat | BitmapCreateOptions.IgnoreImageCache, BitmapCacheOption.OnLoad);
-                ImgCurrent.Source = source;
-            }
-            catch (FileNotFoundException)
-            {
-                ImgCurrent.Source = null;
-            }
-            try
-            {
-
-                BitmapFrame source = BitmapFrame.Create(new FileStream(Utilities.last, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite), BitmapCreateOptions.PreservePixelFormat | BitmapCreateOptions.IgnoreImageCache, BitmapCacheOption.OnLoad);
-                ImgLast.Source = source;
-            }
-            catch (FileNotFoundException)
-            {
-                ImgLast.Source = null;
-            }
             _=Updater.CheckUpdate(true);
 
         }
@@ -183,7 +143,7 @@ namespace ConfiguratorGUI
 
         private void BtnStyleChange_Click(object sender, RoutedEventArgs e)
         {
-            APOD.UpdateBackground(null, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
+            APOD.UpdateBackground(APOD.Info["Source"], (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
         }
 
         private void BtnUpdateTheme_Click(object sender, RoutedEventArgs e)
@@ -197,6 +157,7 @@ namespace ConfiguratorGUI
             {
                 MessageBox.Show("New image found.", "Downloading image");
                 await APOD.Update(true);
+                
             } else
             {
                 MessageBox.Show("No new image found.", "No new image");

@@ -9,7 +9,7 @@ namespace ConfiguratorGUI
     {
         //private List<string> Themes { get; set; } = new();
 
-        public const string AppVersion = "2024.01.02.f1";
+        public const string AppVersion = "2024.01.10.1";
         protected override void OnStartup(StartupEventArgs e)
         {
             // Theme detection

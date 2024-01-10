@@ -14,6 +14,9 @@
         AllowsTransparency="True"
         ResizeMode="CanResizeWithGrip"
         Icon="/Resources/Spanner.png" Closing="window_Closing" Loaded="window_Loaded">
+    <Window.DataContext>
+        <local:ViewModel/>
+    </Window.DataContext>
     <Window.Triggers>
         <EventTrigger RoutedEvent="Window.Loaded">
             <BeginStoryboard>
@@ -42,6 +45,9 @@
             </ObjectDataProvider.MethodParameters>
         </ObjectDataProvider>
         <Style x:Key="Dark_light" TargetType="Grid">
+            <Setter Property="Background" Value="{DynamicResource Light}"/>
+        </Style>
+        <Style TargetType="{x:Type ListView}">
             <Setter Property="Background" Value="{DynamicResource Light}"/>
         </Style>
         <!-- Dark_mid-->
@@ -171,28 +177,38 @@
             <TabItem x:Name="ImageTab" Header="Image manager">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="1*" />
+                        <ColumnDefinition Width="30" />
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="1*"/>
-                        <RowDefinition Height="2*"/>
-                        <RowDefinition Height="1*"/>
+                        <RowDefinition Height="1*" />
+                        <RowDefinition Height="50" />
                     </Grid.RowDefinitions>
-                    <Rectangle Grid.Column="0" Grid.RowSpan="4" RadiusX="10" RadiusY="10" Fill="{DynamicResource Mid}" Margin="15"/>
-                    <TextBlock x:Name="currentTitle" Text="Current:" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource Foreground}"/>
-                    <TextBlock x:Name="currentExplanation" Text="EXPLANATION" HorizontalAlignment="Center" VerticalAlignment="Center" Grid.Row="1" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Foreground}"/>
-                    <Image x:Name="ImgCurrent" Grid.Column="0" Grid.Row="2" Margin="25 5"/>
-                    <Button x:Name="BtnSelectCurrent" Content="Select..." Grid.Row="3" Margin="50 5 50 15" MinWidth="200" MinHeight="75" Click="BtnSelectCurrent_Click"/>
-                    <Rectangle Grid.Column="1" Grid.RowSpan="4" RadiusX="10" RadiusY="10" Fill="{DynamicResource Mid}" Margin="15"/>
-                    <TextBlock x:Name="lastTitle" Text="Last:" HorizontalAlignment="Center" VerticalAlignment="Center" Grid.Column="1" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource Foreground}"/>
-                    <TextBlock x:Name="lastExplanation" Text="EXPLANATION" HorizontalAlignment="Center" VerticalAlignment="Center" Grid.Column="1" Grid.Row="1" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Foreground}"/>
-                    <Image x:Name="ImgLast" Grid.Column="1" Grid.Row="2" Margin="25 5"/>
-                    <Button x:Name="BtnSelectLast" Content="Select..." Grid.Column="1" Grid.Row="3" Margin="50 5 50 15" MinWidth="200" MinHeight="75" Click="BtnSelectLast_Click"/>
+                    <ListView ItemsSource="{Binding MyPictureData}" x:Name="wallpaperView">
+                        <ListView.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ListView.ItemsPanel>
+                        <ListView.ItemTemplate>
+                            <DataTemplate DataType="utils:PictureData">
+                                <Button Command="{Binding DataContext.SelectCommand, Source={x:Reference wallpaperView}}" 
+                            CommandParameter="{Binding Source}">
+                                    <!--<Button>-->
+                                    <StackPanel Width="200" Height="200" Margin="5">
+                                        <TextBlock Text="{Binding Path=Name}" FontWeight="Bold"/>
+                                        <TextBlock Text="{Binding Path=Description}"/>
+                                        <Image Source="{Binding Path=Source}" Stretch="UniformToFill"/>
+
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <Button x:Name="BtnCheckNew" Content="Check for new image" Grid.Row="1" Width="250" Height="32" Command="{Binding CheckNewCommand}"/>
                 </Grid>
             </TabItem>
-            <TabItem x:Name="SettingsTab" Header="Settings">
+            <TabItem x:Name="SettingsTab" Header="Settings" DataContext="{Binding Source={x:Static utils:Configuration.Config}}">
                 <Grid Style="{DynamicResource Dark_light}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -223,7 +239,7 @@
                         <StackPanel Grid.Row="1" Margin="10">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Configurator Theme: " VerticalAlignment="Center"/>
-                                <ComboBox x:Name="CmbConfiguratorTheme" Width="160" VerticalContentAlignment="Center" IsReadOnly="True" ItemsSource="{Binding ElementName=window, Path=AvailableThemes}" SelectedItem="{Binding ConfiguratorTheme, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                <ComboBox x:Name="CmbConfiguratorTheme" Width="160" VerticalContentAlignment="Center" IsReadOnly="True" ItemsSource="{Binding AvailableThemes}" SelectedItem="{Binding ConfiguratorTheme, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                 <Button x:Name="BtnUpdateTheme" Margin="5 0" Content="Update..." Height="30" Width="70" Click="BtnUpdateTheme_Click"/>
                             </StackPanel>
                         </StackPanel>
@@ -237,13 +253,12 @@
                         </Grid.RowDefinitions>
                         <Label Content="   Image" FontWeight="Bold" FontSize="14" Height="30"/>
                         <StackPanel Grid.Row="1" Margin="10">
-                            <CheckBox x:Name="ChkUseHD" Content="Download HD Images (when available)" IsChecked="{Binding UseHD, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <CheckBox x:Name="ChkUseHD" Content="Download HD Images (when available)" IsChecked="{Binding Path=UseHD, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Desktop Fill type:  " VerticalAlignment="Center"/>
                                 <ComboBox x:Name="CmbWallpaperStyle" Width="160" VerticalContentAlignment="Center" IsReadOnly="True" ItemsSource="{Binding Source={StaticResource StyleEnumSource}}" SelectedItem="{Binding WallpaperStyle, Mode=TwoWay, Converter={StaticResource enumConverter}, UpdateSourceTrigger=PropertyChanged}"/>
                                 <Button x:Name="BtnStyleChange" Content="Update Style" Margin="5 0" Height="30" Width="90" Click="BtnStyleChange_Click"/>
                             </StackPanel>
-                            <Button x:Name="BtnCheckNew" Content="Check for new image" Width="250" Height="32" Click="BtnCheckNew_Click"/>
                         </StackPanel>
                     </Grid>
                     <Border Grid.Column="0" Grid.Row="1" BorderThickness="10" CornerRadius="25" BorderBrush="{DynamicResource Light}"/>
