@@ -56,7 +56,7 @@ namespace ConfiguratorGUI
                 var newData = await APOD.Update(true);
                 if (newData != null )
                 {
-                    MyPictureData.Add(new PictureData(newData));
+                    MyPictureData.Insert(0, new PictureData(newData));
                 }
             }
             else
@@ -66,7 +66,9 @@ namespace ConfiguratorGUI
         }
         public ViewModel() 
         {
-            foreach (var item in Directory.EnumerateFiles(Utilities.GetDataPath("images")))
+            var imagesPath = Utilities.GetDataPath("images");
+            Directory.CreateDirectory(imagesPath);
+            foreach (var item in Directory.EnumerateFiles(imagesPath))
             {
                 if (item.EndsWith(".json"))
                 {

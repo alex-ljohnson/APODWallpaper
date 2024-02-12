@@ -85,7 +85,6 @@ namespace APODWallpaper
         private APODWallpaper()
         {
             Directory.CreateDirectory(Utilities.GetDataPath(""));
-            //file_name = Utilities.GetDataPath("current.jpg");
             client = new HttpClient();
 
         }
@@ -106,10 +105,6 @@ namespace APODWallpaper
             }
         }
 
-        //public async Task<Dictionary<string, dynamic>> LoadInfo()
-        //{
-            
-        //}
         public async Task<Dictionary<string, dynamic>> GetToday()
         {
 
