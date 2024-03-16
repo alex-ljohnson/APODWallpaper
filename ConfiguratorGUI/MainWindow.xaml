@@ -9,7 +9,7 @@
         mc:Ignorable="d"
         Title="APODWallpaper Configurator" 
         
-        Height="450" Width="800"
+        Height="450" Width="1000"
         Background="Transparent" WindowStyle="None" 
         AllowsTransparency="True"
         ResizeMode="CanResizeWithGrip"
@@ -175,31 +175,38 @@
         </Grid>
         <TabControl x:Name="CustomTabControl" Background="{DynamicResource Light}" Grid.ColumnSpan="5" Grid.Row="1" BorderBrush="{DynamicResource Light}">
             <TabItem x:Name="ImageTab" Header="Image manager">
-                <Grid>
+                <Grid ScrollViewer.CanContentScroll="True">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="1*" />
-                        <ColumnDefinition Width="30" />
+                        <!--<ColumnDefinition Width="30" />-->
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="1*" />
                         <RowDefinition Height="50" />
                     </Grid.RowDefinitions>
-                    <ListView ItemsSource="{Binding MyPictureData}" x:Name="wallpaperView">
-                        <ListView.ItemsPanel>
+                    <ListView ItemsSource="{Binding MyPictureData}" x:Name="wallpaperView" 
+                              SelectedItem="{Binding SelectedItem}" SelectionMode="Single"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <WrapPanel Orientation="Horizontal"/>
                             </ItemsPanelTemplate>
-                        </ListView.ItemsPanel>
+                        </ItemsControl.ItemsPanel>
                         <ListView.ItemTemplate>
                             <DataTemplate DataType="utils:PictureData">
                                 <Button Command="{Binding DataContext.SelectCommand, Source={x:Reference wallpaperView}}" 
                             CommandParameter="{Binding Source}">
                                     <!--<Button>-->
-                                    <StackPanel Width="200" Height="200" Margin="5">
+                                    <StackPanel Width="220" Height="240" Margin="5">
                                         <TextBlock Text="{Binding Path=Name}" FontWeight="Bold"/>
+                                        <TextBlock Text="{Binding Path=Date, StringFormat=D}"/> 
                                         <TextBlock Text="{Binding Path=Description}"/>
-                                        <Image Source="{Binding Path=Source}" Stretch="UniformToFill"/>
-
+                                        <Button Command="{Binding DataContext.DeleteCommand, Source={x:Reference wallpaperView}}" CommandParameter="{Binding Source}">Delete</Button>
+                                        <Image Stretch="UniformToFill">
+                                            <Image.Source>
+                                                <BitmapImage UriSource="{Binding Source}" CacheOption="OnLoad"/>
+                                            </Image.Source>
+                                        </Image>
                                     </StackPanel>
                                 </Button>
                             </DataTemplate>

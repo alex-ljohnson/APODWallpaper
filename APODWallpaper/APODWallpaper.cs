@@ -173,7 +173,7 @@ namespace APODWallpaper
                 {
                     await contentStream.CopyToAsync(writer);
                 }
-                downloadedInfo = new Dictionary<string, dynamic>() { ["Name"] = Info["explanation"], ["Description"] = Info["title"], ["Source"] = filename };
+                downloadedInfo = new Dictionary<string, dynamic>() { ["Name"] = Info["title"], ["Description"] = Info["explanation"], ["Source"] = filename, ["Date"] = DateOnly.FromDateTime(DateTime.Now) };
                 var infoJson = JsonConvert.SerializeObject(downloadedInfo, Formatting.Indented );
                 await File.WriteAllTextAsync(filename + ".json", infoJson);
             }

@@ -6,16 +6,51 @@ using System.Diagnostics;
 using System.Windows.Input;
 using System.Net.Http;
 using System.Windows;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace ConfiguratorGUI
 {
-    internal class ViewModel
+    internal class ViewModel : INotifyPropertyChanged
     {
         private static readonly string base_path = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!;
-
-        private static readonly HttpClient client = new();
+        //private static readonly HttpClient client = new();
         private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
         public ObservableCollection<PictureData> MyPictureData { get; set; } = [];
+
+        private PictureData selectedItem;
+        public PictureData SelectedItem
+        {
+            get { return selectedItem; }
+            set
+            {
+                if (selectedItem != value)
+                {
+                    selectedItem = value;
+                    OnPropertyChanged(nameof(SelectedItem));
+                }
+            }
+        }
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string? name = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
+
+#region Commands
+        private ICommand _deleteCommand;
+        public ICommand DeleteCommand
+        {
+            get
+            {
+                _deleteCommand ??= new RelayCommand<string>(DeleteOption, (s) => true);
+                return _deleteCommand;
+            }
+            set
+            {
+                _selectCommand = value;
+            }
+        }
 
         private ICommand _selectCommand;
         public ICommand SelectCommand
@@ -30,6 +65,7 @@ namespace ConfiguratorGUI
                 _selectCommand = value;
             }
         }
+
         private ICommand _checkNewCommand;
         public ICommand CheckNewCommand
         {
@@ -43,11 +79,19 @@ namespace ConfiguratorGUI
                 _checkNewCommand = value;
             }
         }
+        public void DeleteOption(string? source)
+        {
+            if (source == null) { return; }
+            MyPictureData.Remove(MyPictureData.First(x => x.Source == source));
+            File.Delete(source);
+            File.Delete(source + ".json");
+        }
         public void SelectOption(string? source)
         {
             if (source == null) { return; }
             APOD.UpdateBackground(source, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
         }
+#endregion
         public async void CheckNew(object? param)
         {
             if (await APOD.CheckNew())
