@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.ComponentModel;
 using System.Collections.ObjectModel;
+using Microsoft.Win32;
 
 namespace APODWallpaper.Utils
 {
@@ -18,8 +19,8 @@ namespace APODWallpaper.Utils
     public class Configuration : INotifyPropertyChanged
     {
 
-        public static readonly Configuration DefaultConfiguration = new(true) { BaseUrl = "https://api.nasa.gov/planetary/apod", UseHD = true, ExplainImage = false, DownloadInfo = false,  WallpaperStyle = (long)WallpaperStyleEnum.Fill };
-        
+        public static readonly Configuration DefaultConfiguration = new(true) { BaseUrl = "https://api.nasa.gov/planetary/apod", UseHD = true, RunStartup = true, ExplainImage = false, DownloadInfo = false,  WallpaperStyle = (long)WallpaperStyleEnum.Fill };
+
         private static readonly object padlock = new();
         private static Configuration? _instance = null;
         public static Configuration Config
@@ -43,6 +44,7 @@ namespace APODWallpaper.Utils
         // copy one of the properties below (change occurances of name and default value)
         // Add to default config
         public bool UseHD { get { return _configuration.GetValueOrDefault(nameof(UseHD), true); } set { _configuration[nameof(UseHD)] = value; AutoSave(); OnPropertyChanged(nameof(UseHD)); } }
+        public bool RunStartup { get { return _configuration.GetValueOrDefault(nameof(RunStartup), true); } set { _configuration[nameof(RunStartup)] = value; AutoSave(); OnPropertyChanged(nameof(RunStartup)); ChangeStartup(); } }
         public bool DownloadInfo { get { return _configuration.GetValueOrDefault(nameof(DownloadInfo), false); } set { _configuration[nameof(DownloadInfo)] = value; AutoSave(); OnPropertyChanged(nameof(DownloadInfo)); } }
         public bool ExplainImage { get { return _configuration.GetValueOrDefault(nameof(ExplainImage), false); } set { _configuration[nameof(ExplainImage)] = value; AutoSave(); OnPropertyChanged(nameof(ExplainImage)); } }
         public string BaseUrl { get { return _configuration.GetValueOrDefault(nameof(BaseUrl), "https://api.nasa.gov/planetary/apod/"); } set { _configuration[nameof(BaseUrl)] = value; AutoSave(); OnPropertyChanged(nameof(BaseUrl)); } }
@@ -81,6 +83,24 @@ namespace APODWallpaper.Utils
             }
         }
 
+        public void ChangeStartup()
+        {
+            string APOD = Path.Combine(base_path, "APODWallpaper.exe");
+            RegistryKey? key = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+            if (RunStartup)
+            {
+                key?.SetValue("APODWallpaper", APOD);
+            }
+            else
+            {
+                key?.DeleteValue("APODWallpaper");
+            }
+        }
+        public static bool CheckStartup()
+        {
+            var reg = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run");
+            return reg?.GetValue("APODWallpaper") != null;
+        }
         async private void AutoSave()
         {
             if (autoSave)

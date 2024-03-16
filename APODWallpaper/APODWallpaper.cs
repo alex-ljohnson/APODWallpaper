@@ -21,15 +21,13 @@ if (args.Length > 0)
         }
         if (arg == "check")
         {
-            var reg = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run");
-            if (reg == null) { return; }
-            var val = reg.GetValue("APODWallpaper");
-            if (val != null)
+            var val = Configuration.CheckStartup();
+            if (val)
             {
                 Console.WriteLine("Startup registry set");
                 Environment.Exit(0);
             }   
-             else
+            else
             {
                 Console.WriteLine("Startup not enabled");
             }
@@ -86,7 +84,7 @@ namespace APODWallpaper
         {
             Directory.CreateDirectory(Utilities.GetDataPath(""));
             client = new HttpClient();
-
+            Configuration.Config.ChangeStartup();
         }
 
         public async Task<Dictionary<string, dynamic>?> Update(bool force = false)

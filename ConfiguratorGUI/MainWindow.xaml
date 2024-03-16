@@ -260,6 +260,7 @@
                         </Grid.RowDefinitions>
                         <Label Content="   Image" FontWeight="Bold" FontSize="14" Height="30"/>
                         <StackPanel Grid.Row="1" Margin="10">
+                            <CheckBox x:Name="ChkStartup" Content="Update image on startup" IsChecked="{Binding RunStartup, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                             <CheckBox x:Name="ChkUseHD" Content="Download HD Images (when available)" IsChecked="{Binding Path=UseHD, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Desktop Fill type:  " VerticalAlignment="Center"/>

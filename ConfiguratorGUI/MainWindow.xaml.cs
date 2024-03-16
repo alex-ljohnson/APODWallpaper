@@ -113,7 +113,6 @@ namespace ConfiguratorGUI
         private async void BtnUpdate_Click(object sender, RoutedEventArgs e)
         {
             await Updater.CheckUpdate();
-            //MessageBox.Show("This function is not yet available", "Not implemented");
         }
 
         private void BtnResetDefault_Click(object sender, RoutedEventArgs e)

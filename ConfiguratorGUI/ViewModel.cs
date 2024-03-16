@@ -13,7 +13,6 @@ namespace ConfiguratorGUI
 {
     internal class ViewModel : INotifyPropertyChanged
     {
-        private static readonly string base_path = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!;
         //private static readonly HttpClient client = new();
         private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
         public ObservableCollection<PictureData> MyPictureData { get; set; } = [];
