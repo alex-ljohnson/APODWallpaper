@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 using APODWallpaper.Utils;
 
 bool force = false;
-const string verName = "2024.01.10.1";
+const string verName = "2024.03.16.1";
 if (args.Length > 0)
 {
     foreach (string i in args)
@@ -189,7 +189,7 @@ namespace APODWallpaper
             string date = Info["date"];
             try
             {
-                current_date = File.ReadAllText(Utilities.GetDataPath("current_date.cache"));
+                current_date = await File.ReadAllTextAsync(Utilities.GetDataPath("current_date.cache"));
             }
             catch (FileNotFoundException)
             {
