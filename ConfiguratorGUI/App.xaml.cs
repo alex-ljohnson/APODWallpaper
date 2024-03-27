@@ -1,4 +1,7 @@
-﻿using System.Windows;
+﻿using APODWallpaper.Utils;
+using System.Diagnostics;
+using System.IO;
+using System.Windows;
 
 namespace ConfiguratorGUI
 {
@@ -7,23 +10,28 @@ namespace ConfiguratorGUI
     /// </summary>
     public partial class App : Application
     {
-        //private List<string> Themes { get; set; } = new();
-
-        public const string AppVersion = "2024.03.16.1";
+        public const string AppVersion = "2024.03.27.1";
         protected override void OnStartup(StartupEventArgs e)
         {
-            // Theme detection
-            //string[] temp = Directory.GetFiles(Path.GetFullPath("Styles"), "*.xaml", SearchOption.TopDirectoryOnly);
-            //Themes = temp.Select(x => x[(x.LastIndexOf(@"\")+1)..]).ToList();
-            //string currentTheme = Themes.FirstOrDefault(x => x == Configuration.Config.ConfiguratorTheme, "Light.xaml");
-            //StreamReader streamReader = new StreamReader(@"Styles\" + currentTheme);
-            //ResourceDictionary dict = (ResourceDictionary)XamlReader.Load(streamReader.BaseStream);
-            //dict.Source = new Uri(@"\Styles\" + currentTheme);
-            //this.Resources.MergedDictionaries.Add(dict);
-            //foreach (ResourceDictionary r in Resources.MergedDictionaries)
-            //{
-            //    Trace.WriteLine(r.Source);
-            //}
+            List<string> themes = ["Light.xaml", "Dark.xaml"];
+            if (Directory.Exists("./Styles"))
+            {
+                foreach (var file in Directory.EnumerateFiles("./Styles"))
+                {
+                    Trace.WriteLine(file);
+                    if (file.EndsWith(".xaml") && File.Exists(file))
+                    {
+                        var name = file[(file.LastIndexOf('\\') + 1)..];
+                        Trace.WriteLine("Found theme: " + name);
+                        themes.Add(name);
+                    }
+                }
+                Configuration.Config.LoadThemes(themes);
+            }
+            else
+            {
+                Directory.CreateDirectory("./Styles");
+            }
             base.OnStartup(e);
         }
 

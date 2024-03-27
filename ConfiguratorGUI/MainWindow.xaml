@@ -32,6 +32,8 @@
     <Window.Resources>
         <local:EnumConverter x:Key="enumConverter"/>
         <local:InverseBoolConverter x:Key="inverseBoolConverter"/>
+        <local:PostfixConverter x:Key="postfixConverter"/>
+        <local:LongConverter x:Key="longConverter"/>
         <Storyboard x:Key="closeAnim" Completed="CloseStoryboard_Completed">
             <DoubleAnimation Storyboard.TargetName="grdMain" Storyboard.TargetProperty="Opacity"
                              From="1.0" To="0.0" Duration="0:0:0.4"/>
@@ -204,7 +206,7 @@
                                         <Button Command="{Binding DataContext.DeleteCommand, Source={x:Reference wallpaperView}}" CommandParameter="{Binding Source}">Delete</Button>
                                         <Image Stretch="UniformToFill">
                                             <Image.Source>
-                                                <BitmapImage UriSource="{Binding Source}" CacheOption="OnLoad"/>
+                                                <BitmapImage UriSource="{Binding Source}" CacheOption="OnLoad" DecodePixelWidth="{Binding DataContext.PreviewQuality, Source={x:Reference SettingsTab}}"/>
                                             </Image.Source>
                                         </Image>
                                     </StackPanel>
@@ -246,9 +248,14 @@
                         <StackPanel Grid.Row="1" Margin="10">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Configurator Theme: " VerticalAlignment="Center"/>
-                                <ComboBox x:Name="CmbConfiguratorTheme" Width="160" VerticalContentAlignment="Center" IsReadOnly="True" ItemsSource="{Binding AvailableThemes}" SelectedItem="{Binding ConfiguratorTheme, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                <ComboBox x:Name="CmbConfiguratorTheme" Width="160" VerticalContentAlignment="Center" IsReadOnly="True" ItemsSource="{Binding AvailableThemes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource postfixConverter}, ConverterParameter=.xaml}" SelectedItem="{Binding ConfiguratorTheme, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource postfixConverter}, ConverterParameter=.xaml}"/>
                                 <Button x:Name="BtnUpdateTheme" Margin="5 0" Content="Update..." Height="30" Width="70" Click="BtnUpdateTheme_Click"/>
                             </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Image preview quality (restart required): " VerticalAlignment="Center"/>
+                                <TextBox x:Name="TxtPreviewQuality" Text="{Binding PreviewQuality, Converter={StaticResource longConverter}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PreviewTextInput="TxtPreviewQuality_PreviewTextInput" DataObject.Pasting="TextBoxPasting" Width="160"/>
+                            </StackPanel>
+                            
                         </StackPanel>
                     </Grid>
                     <Border Grid.Column="1" Grid.Row="0" BorderThickness="10" CornerRadius="25" BorderBrush="{DynamicResource Light}"/>

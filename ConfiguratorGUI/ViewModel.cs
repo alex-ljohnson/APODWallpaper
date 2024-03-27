@@ -17,8 +17,8 @@ namespace ConfiguratorGUI
         private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
         public ObservableCollection<PictureData> MyPictureData { get; set; } = [];
 
-        private PictureData selectedItem;
-        public PictureData SelectedItem
+        private PictureData? selectedItem;
+        public PictureData? SelectedItem
         {
             get { return selectedItem; }
             set
@@ -37,7 +37,7 @@ namespace ConfiguratorGUI
         }
 
 #region Commands
-        private ICommand _deleteCommand;
+        private ICommand? _deleteCommand;
         public ICommand DeleteCommand
         {
             get
@@ -51,7 +51,7 @@ namespace ConfiguratorGUI
             }
         }
 
-        private ICommand _selectCommand;
+        private ICommand? _selectCommand;
         public ICommand SelectCommand
         {
             get
@@ -65,7 +65,7 @@ namespace ConfiguratorGUI
             }
         }
 
-        private ICommand _checkNewCommand;
+        private ICommand? _checkNewCommand;
         public ICommand CheckNewCommand
         {
             get
@@ -107,29 +107,40 @@ namespace ConfiguratorGUI
                 MessageBox.Show("No new image found.", "No new image");
             }
         }
-        public ViewModel() 
+        private async Task LoadItemAsync(string itemPath)
+        {
+            Trace.WriteLine(itemPath);
+            if (itemPath.EndsWith(".json"))
+            {
+                try
+                {
+                    var json = await File.ReadAllTextAsync(itemPath);
+                    var data = JsonConvert.DeserializeObject<PictureData>(json);
+                    if (data != null)
+                    {
+                        MyPictureData.Add(data);
+                    }
+                }
+                catch
+                {
+
+                }
+            }
+        }
+        public void LoadData()
         {
             var imagesPath = Utilities.GetDataPath("images");
             Directory.CreateDirectory(imagesPath);
             foreach (var item in Directory.EnumerateFiles(imagesPath))
             {
-                if (item.EndsWith(".json"))
-                {
-                    try
-                    {
-                        var json = File.ReadAllText(item);
-                        var data = JsonConvert.DeserializeObject<PictureData>(json);
-                        if (data != null)
-                        {
-                            MyPictureData.Add(data);
-                        }
-                    } catch
-                    {
-                    
-                    }
-                }
+                _ = LoadItemAsync(item);
             }
-            Debug.Write(MyPictureData);
+
+        }
+
+        public ViewModel() 
+        {
+            LoadData();
         }
     
     }

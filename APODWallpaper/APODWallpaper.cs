@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 using APODWallpaper.Utils;
 
 bool force = false;
-const string verName = "2024.03.16.1";
+const string verName = "2024.03.27.1";
 if (args.Length > 0)
 {
     foreach (string i in args)

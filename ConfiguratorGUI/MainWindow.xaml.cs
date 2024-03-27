@@ -1,15 +1,15 @@
 ﻿using System.IO;
 using Microsoft.Win32;
 using System.Windows;
-using System.Net.Http;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using System.Windows.Media.Imaging;
-using System.Diagnostics;
 using APODWallpaper.Utils;
 using MColor = System.Windows.Media.Color;
 using SPath = System.Windows.Shapes.Path;
+using System.Diagnostics;
+using System.Windows.Markup;
+using System.Text.RegularExpressions;
 namespace ConfiguratorGUI
 {
     /// <summary>
@@ -145,9 +145,51 @@ namespace ConfiguratorGUI
             APOD.UpdateBackground(APOD.Info["Source"], (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
         }
 
+        private void ResetTheme(object sender, RoutedEventArgs e)
+        {
+            Configuration.Config.ConfiguratorTheme = "Light.xaml";
+            MessageBox.Show("Error in loading custom theme, default theme applied", "Theme error", MessageBoxButton.OK, MessageBoxImage.Error);
+            BtnUpdateTheme_Click(sender, e);
+        }
         private void BtnUpdateTheme_Click(object sender, RoutedEventArgs e)
         {
-            Application.Current.Resources.MergedDictionaries[0].Source = new Uri("/Styles/"+CmbConfiguratorTheme.SelectedItem.ToString(), UriKind.Relative);
+            if (CmbConfiguratorTheme.SelectedItem == null) { return; }
+            if (!Configuration.DefaultThemes.Contains(Configuration.Config.ConfiguratorTheme)) {
+                // Not a default theme
+                if (!File.Exists($"./Styles/{Configuration.Config.ConfiguratorTheme}")) { 
+                    Trace.WriteLine("Theme doesn't exist");
+                    ResetTheme(sender, e);
+                    return;
+                }
+                using var stream = new FileStream($"./Styles/{Configuration.Config.ConfiguratorTheme}", FileMode.Open, FileAccess.Read);
+                using var reader = new StreamReader(stream, true);
+                string contents = reader.ReadToEnd().Trim().ReplaceLineEndings(" ");
+                RegexOptions options = RegexOptions.None;
+                Regex regex = new(@"[\s]{2,}", options);
+                contents = regex.Replace(contents, " ");
+                try
+                {
+                    if (!(
+                        contents.StartsWith("<ResourceDictionary xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\">")
+                        && contents.EndsWith("</ResourceDictionary>")
+                        ))
+                    {
+                        throw new XamlParseException("Xaml file is not a valid resource dictionary");
+                    }
+                } catch (XamlParseException)
+                {
+                    ResetTheme(sender, e);
+                    return;
+                }
+            }
+            try
+            {
+                Application.Current.Resources.MergedDictionaries[0].Source = new Uri($"./Styles/{Configuration.Config.ConfiguratorTheme}", UriKind.Relative);
+            } catch (IOException)
+            {
+                
+                Application.Current.Resources.MergedDictionaries[0].Source = new Uri(Path.GetFullPath($"./Styles/{Configuration.Config.ConfiguratorTheme}"), UriKind.Absolute);
+            }
         }
 
         private async void BtnCheckNew_Click(object sender, RoutedEventArgs e)
@@ -160,6 +202,32 @@ namespace ConfiguratorGUI
             } else
             {
                 MessageBox.Show("No new image found.", "No new image");
+            }
+        }
+        [GeneratedRegex("[^0-9]+")]
+        private static partial Regex NotIntegerRegex();
+        private void TxtPreviewQuality_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            e.Handled = NotIntegerValidation(e.Text);
+        }
+        private static bool NotIntegerValidation(string text)
+        {
+            Regex regex = NotIntegerRegex();
+            return regex.IsMatch(text);
+        }
+        private void TextBoxPasting(object sender, DataObjectPastingEventArgs e)
+        {
+            if (e.DataObject.GetDataPresent(typeof(String)))
+            {
+                String text = (String)e.DataObject.GetData(typeof(String));
+                if (NotIntegerValidation(text))
+                {
+                    e.CancelCommand();
+                }
+            }
+            else
+            {
+                e.CancelCommand();
             }
         }
     }

@@ -9,6 +9,7 @@
     <ApplicationIcon>Resources\Spanner.ico</ApplicationIcon>
     <StartupObject>ConfiguratorGUI.App</StartupObject>
     <ImplicitUsings>enable</ImplicitUsings>
+	<GenerateRuntimeConfigDevFile>true</GenerateRuntimeConfigDevFile>
   </PropertyGroup>
 	
 	<!--Assembly info variables-->
@@ -32,9 +33,6 @@
     <PropertyGroup Condition="'$(PublishProfile)' == 'FolderContained'">
 	    <DefineConstants>CONTAINED</DefineConstants>
     </PropertyGroup>
-  <ItemGroup>
-    <Content Include="Resources\Spanner.ico" />
-  </ItemGroup>
   <ItemGroup>
     <None Include="..\README.md">
       <Pack>True</Pack>
@@ -68,15 +66,18 @@
   <ItemGroup>
     <Resource Include="Resources\NotAvailable.png" />
     <Resource Include="Resources\Spanner.png" />
+	<Content Include="Resources\Spanner.ico" />
   </ItemGroup>
-
-  <ItemGroup>
+	<ItemGroup> 
     <Page Update="Styles\Dark.xaml">
       <Generator>MSBuild:Compile</Generator>
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Page>
     <Page Update="Styles\Light.xaml">
       <Generator>MSBuild:Compile</Generator>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Page>
+    <Page Update="Styles\Templates.xaml">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Page>
     <None Update="Styles\Templates.xaml">
