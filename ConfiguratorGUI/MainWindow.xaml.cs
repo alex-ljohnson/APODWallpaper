@@ -21,15 +21,18 @@ namespace ConfiguratorGUI
         private static readonly SPath PathMax = new() { Fill=new SolidColorBrush(MColor.FromRgb(70, 72, 89)), Data = new GeometryGroup() { Children = { new RectangleGeometry() { Rect = new Rect(0, 0, 8, 8) }, new RectangleGeometry() { Rect = new Rect(2, -2, 8, 8) } } }, Stroke = new SolidColorBrush(MColor.FromRgb(240, 240, 240)) };
 
         private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
+        private readonly ViewModel VM;
         private readonly StdOutRedirect redirect;
         public MainWindow()
         {
             InitializeComponent();
+
             #if DEPENDANT
             MessageBox.Show(Process.GetCurrentProcess().ProcessName);
             #endif  
             redirect = new StdOutRedirect(TxtOutput);
             Console.SetOut(redirect);
+            VM = (ViewModel)DataContext;
         }
 
 #region Window Control
@@ -48,10 +51,12 @@ namespace ConfiguratorGUI
                 e.Cancel = true;
             }
         }
-        private void window_Loaded(object sender, RoutedEventArgs e)
+        private async void window_Loaded(object sender, RoutedEventArgs e)
         {
-            BtnUpdateTheme_Click(sender, e);
+            Trace.WriteLine("\nWINDOW LOADED\n");
+            await VM.Initialise();
             _=Updater.CheckUpdate(true);
+            BtnUpdateTheme_Click(sender, e);
 
         }
 
@@ -151,33 +156,26 @@ namespace ConfiguratorGUI
             MessageBox.Show("Error in loading custom theme, default theme applied", "Theme error", MessageBoxButton.OK, MessageBoxImage.Error);
             BtnUpdateTheme_Click(sender, e);
         }
-        private void BtnUpdateTheme_Click(object sender, RoutedEventArgs e)
+        private async Task<bool> CheckThemeAsync()
+        {
+            using var stream = new FileStream($"./Styles/{Configuration.Config.ConfiguratorTheme}", FileMode.Open, FileAccess.Read);
+            using var reader = new StreamReader(stream, true);
+            string contents = await reader.ReadToEndAsync();
+            contents = contents.Trim().ReplaceLineEndings(" ");
+            Regex regex = new(@"[\s]{2,}", RegexOptions.None);
+            contents = regex.Replace(contents, " ");
+            return contents.StartsWith("<ResourceDictionary xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\">")
+            && contents.EndsWith("</ResourceDictionary>");
+        }
+        private async void BtnUpdateTheme_Click(object sender, RoutedEventArgs e)
         {
             if (CmbConfiguratorTheme.SelectedItem == null) { return; }
-            if (!Configuration.DefaultThemes.Contains(Configuration.Config.ConfiguratorTheme)) {
+            if (!Configuration.DefaultThemes.Contains(Configuration.Config.ConfiguratorTheme))
+            {
                 // Not a default theme
-                if (!File.Exists($"./Styles/{Configuration.Config.ConfiguratorTheme}")) { 
-                    Trace.WriteLine("Theme doesn't exist");
-                    ResetTheme(sender, e);
-                    return;
-                }
-                using var stream = new FileStream($"./Styles/{Configuration.Config.ConfiguratorTheme}", FileMode.Open, FileAccess.Read);
-                using var reader = new StreamReader(stream, true);
-                string contents = reader.ReadToEnd().Trim().ReplaceLineEndings(" ");
-                RegexOptions options = RegexOptions.None;
-                Regex regex = new(@"[\s]{2,}", options);
-                contents = regex.Replace(contents, " ");
-                try
+                if (!File.Exists($"./Styles/{Configuration.Config.ConfiguratorTheme}") || await CheckThemeAsync())
                 {
-                    if (!(
-                        contents.StartsWith("<ResourceDictionary xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\">")
-                        && contents.EndsWith("</ResourceDictionary>")
-                        ))
-                    {
-                        throw new XamlParseException("Xaml file is not a valid resource dictionary");
-                    }
-                } catch (XamlParseException)
-                {
+                    Trace.WriteLine("Invalid theme");
                     ResetTheme(sender, e);
                     return;
                 }
@@ -187,7 +185,6 @@ namespace ConfiguratorGUI
                 Application.Current.Resources.MergedDictionaries[0].Source = new Uri($"./Styles/{Configuration.Config.ConfiguratorTheme}", UriKind.Relative);
             } catch (IOException)
             {
-                
                 Application.Current.Resources.MergedDictionaries[0].Source = new Uri(Path.GetFullPath($"./Styles/{Configuration.Config.ConfiguratorTheme}"), UriKind.Absolute);
             }
         }
@@ -217,9 +214,9 @@ namespace ConfiguratorGUI
         }
         private void TextBoxPasting(object sender, DataObjectPastingEventArgs e)
         {
-            if (e.DataObject.GetDataPresent(typeof(String)))
+            if (e.DataObject.GetDataPresent(typeof(string)))
             {
-                String text = (String)e.DataObject.GetData(typeof(String));
+                string text = (string)e.DataObject.GetData(typeof(string));
                 if (NotIntegerValidation(text))
                 {
                     e.CancelCommand();

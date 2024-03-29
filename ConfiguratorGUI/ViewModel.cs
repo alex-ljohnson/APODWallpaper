@@ -4,7 +4,6 @@ using System.IO;
 using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Windows.Input;
-using System.Net.Http;
 using System.Windows;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -13,9 +12,13 @@ namespace ConfiguratorGUI
 {
     internal class ViewModel : INotifyPropertyChanged
     {
-        //private static readonly HttpClient client = new();
         private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
-        public ObservableCollection<PictureData> MyPictureData { get; set; } = [];
+        private ObservableCollection<PictureData> pictureData = [];
+        public ObservableCollection<PictureData> MyPictureData { get => pictureData; 
+            set {
+                pictureData = value;
+                OnPropertyChanged(nameof(MyPictureData));
+            } }
 
         private PictureData? selectedItem;
         public PictureData? SelectedItem
@@ -107,40 +110,48 @@ namespace ConfiguratorGUI
                 MessageBox.Show("No new image found.", "No new image");
             }
         }
+
         private async Task LoadItemAsync(string itemPath)
         {
-            Trace.WriteLine(itemPath);
-            if (itemPath.EndsWith(".json"))
+            if (!itemPath.EndsWith(".json")) return;
+            using StreamReader sr = new(itemPath);
+            Trace.WriteLine(itemPath + " before read");
+            var json = await sr.ReadToEndAsync();
+            Trace.WriteLine(itemPath + " is now done");
+            var data = JsonConvert.DeserializeObject<PictureData>(json);
+            if (data != null)
             {
-                try
-                {
-                    var json = await File.ReadAllTextAsync(itemPath);
-                    var data = JsonConvert.DeserializeObject<PictureData>(json);
-                    if (data != null)
-                    {
-                        MyPictureData.Add(data);
-                    }
-                }
-                catch
-                {
-
-                }
+                MyPictureData.Add(data);
             }
         }
-        public void LoadData()
+
+        public Task[] LoadData()
         {
             var imagesPath = Utilities.GetDataPath("images");
             Directory.CreateDirectory(imagesPath);
-            foreach (var item in Directory.EnumerateFiles(imagesPath))
-            {
-                _ = LoadItemAsync(item);
-            }
+            string[] files = Directory.EnumerateFiles(imagesPath).Where(x => x.EndsWith(".json")).ToArray();
+            var tasks = files.Select(LoadItemAsync).ToArray();
+            return tasks;
 
+        }
+
+        private async Task SortDataAsync(IEnumerable<Task> tasks)
+        {
+            Trace.WriteLine("Awaiting all items loaded");
+            await Task.WhenAll(tasks);
+            MyPictureData = new ObservableCollection<PictureData>(MyPictureData.OrderDescending());
+
+        }
+        public async Task Initialise()
+        {
+            var load = LoadData();
+            var sort = SortDataAsync(load);
+            await Task.WhenAny(load);
         }
 
         public ViewModel() 
         {
-            LoadData();
+                
         }
     
     }
