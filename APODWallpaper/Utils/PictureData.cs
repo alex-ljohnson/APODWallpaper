@@ -7,9 +7,18 @@ using System.Threading.Tasks;
 
 namespace APODWallpaper.Utils
 {
-    public class PictureData()
+    public class PictureData : IComparable<PictureData>
     {
-        public PictureData(Dictionary<string, dynamic> data) : this()
+        [JsonConstructor]
+        public PictureData(string name, string description, string source, DateOnly date) 
+        {
+            Name = name;
+            Description = description;
+            Source = source;
+            Date = date;
+        }
+
+        public PictureData(Dictionary<string, dynamic> data)
         {
             Name = data["Name"];
             Description = data["Description"];
@@ -34,6 +43,12 @@ namespace APODWallpaper.Utils
         public void SaveFile()
         {
            File.WriteAllText(Source+".json", JsonConvert.SerializeObject(this, Formatting.Indented));
+        }
+
+        public int CompareTo(PictureData? other)
+        {
+            if (other == null) return 1;
+            return Date.CompareTo(other.Date);
         }
     }
 }

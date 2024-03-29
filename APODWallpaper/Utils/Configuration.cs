@@ -37,7 +37,7 @@ namespace APODWallpaper.Utils
         // copy one of the properties below (change occurances of name and default value)
         // Add to default config
 
-        private readonly string ID;
+        private string ID { get; init; }
         public bool UseHD { get { return _configuration.GetValueOrDefault(nameof(UseHD), true); } set { _configuration[nameof(UseHD)] = value; AutoSave(); OnPropertyChanged(nameof(UseHD)); } }
         public bool RunStartup { get { return _configuration.GetValueOrDefault(nameof(RunStartup), true); } set { _configuration[nameof(RunStartup)] = value; AutoSave(); OnPropertyChanged(nameof(RunStartup)); ChangeStartup(); } }
         public bool DownloadInfo { get { return _configuration.GetValueOrDefault(nameof(DownloadInfo), false); } set { _configuration[nameof(DownloadInfo)] = value; AutoSave(); OnPropertyChanged(nameof(DownloadInfo)); } }
@@ -48,7 +48,7 @@ namespace APODWallpaper.Utils
         public long WallpaperStyle { get { return (long)_configuration.GetValueOrDefault(nameof(WallpaperStyle), WallpaperStyleEnum.Fill); } set { _configuration[nameof(WallpaperStyle)] = value; AutoSave(); OnPropertyChanged(nameof(WallpaperStyle)); } }
 
         public static readonly ReadOnlyCollection<string> DefaultThemes = new(["Light.xaml", "Dark.xaml"]);
-        private ObservableCollection<string> availableThemes;
+        private ObservableCollection<string> availableThemes = new(DefaultThemes);
         public ObservableCollection<string> AvailableThemes
         {
             get => availableThemes; set
@@ -67,7 +67,7 @@ namespace APODWallpaper.Utils
         }
 
         //public static readonly Configuration DefaultConfiguration = new("Default") { BaseUrl = "https://api.nasa.gov/planetary/apod", UseHD = true, RunStartup = true, ExplainImage = false, DownloadInfo = false,  WallpaperStyle = (long)WallpaperStyleEnum.Fill, ConfiguratorTheme = "Light.xaml" };
-        public static readonly Configuration DefaultConfiguration = new("Default") { _configuration = { ["BaseUrl"] = "https://api.nasa.gov/planetary/apod", ["UseHD"] = true, ["RunStartup"] = true, ["ExplainImage"] = false, ["DownloadInfo"] = false, ["WallpaperStyle"] = (long)WallpaperStyleEnum.Fill, ["ConfiguratorTheme"] = "Light.xaml", ["PreviewQuality"] = 100 } };
+        public static readonly Configuration DefaultConfiguration = new("Default", false, false) { BaseUrl = "https://api.nasa.gov/planetary/apod", UseHD = true, RunStartup = true, ExplainImage = false, DownloadInfo = false, WallpaperStyle = (long)WallpaperStyleEnum.Fill, ConfiguratorTheme = "Light.xaml", PreviewQuality = 100 };
         private static readonly object padlock = new();
         private static Configuration? _instance = null;
         public static Configuration Config
@@ -88,7 +88,6 @@ namespace APODWallpaper.Utils
             this.autoSave = autoSave;
             this.ID = ID;
             var configPath = Utilities.GetDataPath("config.json");
-            AvailableThemes = new ObservableCollection<string>(DefaultThemes);
             bool exists = File.Exists(configPath);
             if (!exists) { File.Create(configPath); }
             fileStream = new(configPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, true);
@@ -105,17 +104,9 @@ namespace APODWallpaper.Utils
                 _configuration = JsonConvert.DeserializeAnonymousType(jsonString, new Dictionary<string, dynamic>()) ?? [];
 
             }
-            else
-            {   
-
-                foreach (var i in GetType().GetProperties())
-                {
-                    _configuration[i.Name] = i.GetValue(this)!;
-                }
-                await writer.WriteAsync(JsonConvert.SerializeObject(_configuration, Formatting.Indented));
-            }
 
             isReady = true;
+            Trace.WriteLine($"-- ID: {ID} --");
             foreach (var (key, val) in _configuration)
             {
                 Trace.WriteLine($"{key} -> {val}");

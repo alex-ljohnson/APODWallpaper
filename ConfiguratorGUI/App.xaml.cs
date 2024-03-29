@@ -11,7 +11,8 @@ namespace ConfiguratorGUI
     public partial class App : Application
     {
         public const string AppVersion = "2024.03.27.1";
-        protected override void OnStartup(StartupEventArgs e)
+
+        private static void GetThemes()
         {
             List<string> themes = ["Light.xaml", "Dark.xaml"];
             if (Directory.Exists("./Styles"))
@@ -32,6 +33,12 @@ namespace ConfiguratorGUI
             {
                 Directory.CreateDirectory("./Styles");
             }
+
+        }
+        protected override void OnStartup(StartupEventArgs e)
+        {
+            GetThemes();
+            Trace.WriteLine("Themes loaded into config");
             base.OnStartup(e);
         }
 
