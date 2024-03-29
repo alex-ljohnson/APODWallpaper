@@ -35,7 +35,10 @@
 	    <DefineConstants>CONTAINED</DefineConstants>
     </PropertyGroup>
     <ItemGroup>
-      <None Remove="Resources\Splash.png" />
+      <None Remove="Resources\Splash.bmp" />
+    </ItemGroup>
+    <ItemGroup>
+      <SplashScreen Include="Resources\Splash.bmp" />
     </ItemGroup>
   <ItemGroup>
     <None Include="..\README.md">
@@ -69,9 +72,8 @@
 
   <ItemGroup>
     <Resource Include="Resources\NotAvailable.png" />
-    <SplashScreen Include="Resources\Splash.png" />
     <Resource Include="Resources\Spanner.png" />
-	<Content Include="Resources\Spanner.ico" />
+	<Resource Include="Resources\Spanner.ico" />
   </ItemGroup>
 	<ItemGroup> 
     <Page Update="Styles\Dark.xaml">

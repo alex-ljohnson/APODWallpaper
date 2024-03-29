@@ -13,7 +13,7 @@
         Background="Transparent" WindowStyle="None" 
         AllowsTransparency="True"
         ResizeMode="CanResizeWithGrip"
-        Icon="/Resources/Spanner.png" Closing="window_Closing" Loaded="window_Loaded">
+        Icon="Resources\Spanner.png" Closing="window_Closing" Loaded="window_Loaded">
     <Window.DataContext>
         <local:ViewModel/>
     </Window.DataContext>
