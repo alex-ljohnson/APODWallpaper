@@ -26,6 +26,7 @@ namespace APODWallpaper.Utils
 
         private readonly string base_path = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
         private readonly bool autoSave = false;
+        private readonly bool fileTied = true;
 
         private readonly FileStream fileStream;
         private readonly StreamWriter writer;
@@ -62,6 +63,7 @@ namespace APODWallpaper.Utils
         
         protected void OnPropertyChanged(string propertyName)
         {
+
             Trace.WriteLine($"Changing {propertyName}");
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
@@ -76,27 +78,33 @@ namespace APODWallpaper.Utils
             {
                 lock (padlock)
                 {
-                    _instance ??= new Configuration("Config");
+                    _instance ??= new Configuration("Config", true, true);
                     return _instance;
                 }
             }
         }
 
-        private Configuration(string ID = "None", bool autoSave = true, bool loadData = true)
+        private Configuration(string ID = "None", bool autoSave = true, bool file = true)
         {
             Trace.WriteLine("LOADING CONFIG...");
             this.autoSave = autoSave;
             this.ID = ID;
+            fileTied = file;
             var configPath = Utilities.GetDataPath("config.json");
             bool exists = File.Exists(configPath);
             if (!exists) { File.Create(configPath); }
             fileStream = new(configPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, true);
             writer = new(fileStream, Encoding.UTF8);
             reader = new(fileStream, Encoding.UTF8);
-            LoadDataAsync(loadData);
         }
 
-        private async void LoadDataAsync(bool fromFile = true)
+        public async Task Initialise()
+        {
+            Trace.WriteLine("Init " + ID);
+            await LoadDataAsync(fileTied);
+        }
+
+        private async Task LoadDataAsync(bool fromFile = true)
         {
             if (fromFile) 
             {
@@ -111,6 +119,7 @@ namespace APODWallpaper.Utils
             {
                 Trace.WriteLine($"{key} -> {val}");
             }
+            OnPropertyChanged("");
 
         }
 

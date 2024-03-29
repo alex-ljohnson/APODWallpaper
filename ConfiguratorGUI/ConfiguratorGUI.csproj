@@ -10,6 +10,7 @@
     <StartupObject>ConfiguratorGUI.App</StartupObject>
     <ImplicitUsings>enable</ImplicitUsings>
 	<GenerateRuntimeConfigDevFile>true</GenerateRuntimeConfigDevFile>
+	<Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 	
 	<!--Assembly info variables-->
