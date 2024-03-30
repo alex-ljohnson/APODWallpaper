@@ -1,16 +1,11 @@
 ﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace APODWallpaper.Utils
 {
     public class PictureData : IComparable<PictureData>
     {
         [JsonConstructor]
-        public PictureData(string name, string description, string source, DateOnly date) 
+        public PictureData(string name, string description, string source, DateOnly date)
         {
             Name = name;
             Description = description;
@@ -30,19 +25,24 @@ namespace APODWallpaper.Utils
         public string Source { get; set; }
 
         private DateOnly? date;
-        public DateOnly Date { get {
+        public DateOnly Date
+        {
+            get
+            {
                 if (date == null)
                 {
                     date = DateOnly.Parse(Path.GetFileNameWithoutExtension(Source));
                     SaveFile();
                 }
-                
+
                 return (DateOnly)date;
-            } set { date = value; } }
+            }
+            set { date = value; }
+        }
 
         public void SaveFile()
         {
-           File.WriteAllText(Source+".json", JsonConvert.SerializeObject(this, Formatting.Indented));
+            File.WriteAllText(Source + ".json", JsonConvert.SerializeObject(this, Formatting.Indented));
         }
 
         public int CompareTo(PictureData? other)

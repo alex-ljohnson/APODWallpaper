@@ -1,6 +1,5 @@
 ﻿using System.Globalization;
 using System.Windows.Data;
-using System.Collections.Generic;
 
 namespace ConfiguratorGUI
 {
@@ -12,7 +11,8 @@ namespace ConfiguratorGUI
             if (value is string val)
             {
                 return val + par;
-            } else if (value is ICollection<string> collection)
+            }
+            else if (value is ICollection<string> collection)
             {
                 return collection.Select(x => x + par);
             }
@@ -25,7 +25,8 @@ namespace ConfiguratorGUI
             if (value is string val)
             {
                 return val[..val.IndexOf(par)];
-            } else if (value is ICollection<string> collection)
+            }
+            else if (value is ICollection<string> collection)
             {
                 return collection.Select(x => x[..x.IndexOf(par)]);
             }

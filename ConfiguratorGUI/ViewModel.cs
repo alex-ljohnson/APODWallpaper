@@ -1,12 +1,12 @@
 ﻿using APODWallpaper.Utils;
-using System.Collections.ObjectModel;
-using System.IO;
 using Newtonsoft.Json;
-using System.Diagnostics;
-using System.Windows.Input;
-using System.Windows;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
 using System.Runtime.CompilerServices;
+using System.Windows;
+using System.Windows.Input;
 
 namespace ConfiguratorGUI
 {
@@ -14,11 +14,15 @@ namespace ConfiguratorGUI
     {
         private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
         private ObservableCollection<PictureData> pictureData = [];
-        public ObservableCollection<PictureData> MyPictureData { get => pictureData; 
-            set {
+        public ObservableCollection<PictureData> MyPictureData
+        {
+            get => pictureData;
+            set
+            {
                 pictureData = value;
                 OnPropertyChanged(nameof(MyPictureData));
-            } }
+            }
+        }
 
         private PictureData? selectedItem;
         public PictureData? SelectedItem
@@ -39,7 +43,7 @@ namespace ConfiguratorGUI
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
 
-#region Commands
+        #region Commands
         private ICommand? _deleteCommand;
         public ICommand DeleteCommand
         {
@@ -93,14 +97,14 @@ namespace ConfiguratorGUI
             if (source == null) { return; }
             APOD.UpdateBackground(source, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
         }
-#endregion
+        #endregion
         public async void CheckNew(object? param)
         {
             if (await APOD.CheckNew())
             {
                 MessageBox.Show("New image found.", "Downloading image");
                 var newData = await APOD.Update(true);
-                if (newData != null )
+                if (newData != null)
                 {
                     MyPictureData.Insert(0, new PictureData(newData));
                 }
@@ -149,10 +153,10 @@ namespace ConfiguratorGUI
             await Task.WhenAny(load);
         }
 
-        public ViewModel() 
+        public ViewModel()
         {
-                
+
         }
-    
+
     }
 }

@@ -11,14 +11,17 @@ namespace ConfiguratorGUI
     /// </summary>
     public partial class App : Application
     {
-        public const string AppVersion = "2024.03.27.1";
+        public const string AppVersion = "2024.03.29.1";
+
+        [GeneratedRegex(@"[\s]{2,}", RegexOptions.None)]
+        private static partial Regex WhitespaceRegex();
         private static async Task<bool> CheckThemeAsync()
         {
             using var stream = new FileStream($"./Styles/{Configuration.Config.ConfiguratorTheme}", FileMode.Open, FileAccess.Read);
             using var reader = new StreamReader(stream, true);
             string contents = await reader.ReadToEndAsync();
             contents = contents.Trim().ReplaceLineEndings(" ");
-            Regex regex = new(@"[\s]{2,}", RegexOptions.None);
+            Regex regex = WhitespaceRegex();
             contents = regex.Replace(contents, " ");
             return contents.StartsWith("<ResourceDictionary xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\">")
             && contents.EndsWith("</ResourceDictionary>");
@@ -87,7 +90,6 @@ namespace ConfiguratorGUI
             GetThemes();
             await SetTheme();
             Trace.WriteLine("Themes loaded into config");
-
         }
     }
 }

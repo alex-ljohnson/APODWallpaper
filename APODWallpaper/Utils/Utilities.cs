@@ -10,10 +10,13 @@
         {
             var appdata = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             string result;
-            if (string.IsNullOrWhiteSpace(path)) {
+            if (string.IsNullOrWhiteSpace(path))
+            {
                 result = Path.Combine(appdata, "APODWallpaper");
-            } else {
-                result =  Path.Combine(appdata, "APODWallpaper", path);
+            }
+            else
+            {
+                result = Path.Combine(appdata, "APODWallpaper", path);
             }
             return Path.GetFullPath(result);
         }

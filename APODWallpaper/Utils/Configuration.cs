@@ -1,9 +1,9 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Win32;
+using Newtonsoft.Json;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
-using System.ComponentModel;
-using System.Collections.ObjectModel;
-using Microsoft.Win32;
 using System.Text;
 
 namespace APODWallpaper.Utils
@@ -55,12 +55,12 @@ namespace APODWallpaper.Utils
             get => availableThemes; set
             {
                 availableThemes = value;
-                OnPropertyChanged(nameof(AvailableThemes)); 
+                OnPropertyChanged(nameof(AvailableThemes));
             }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
-        
+
         protected void OnPropertyChanged(string propertyName)
         {
 
@@ -106,7 +106,7 @@ namespace APODWallpaper.Utils
 
         private async Task LoadDataAsync(bool fromFile = true)
         {
-            if (fromFile) 
+            if (fromFile)
             {
                 string jsonString = await reader.ReadToEndAsync();
                 _configuration = JsonConvert.DeserializeAnonymousType(jsonString, new Dictionary<string, dynamic>()) ?? [];

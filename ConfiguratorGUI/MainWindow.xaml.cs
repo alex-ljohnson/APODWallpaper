@@ -1,15 +1,14 @@
-﻿using System.IO;
+﻿using APODWallpaper.Utils;
 using Microsoft.Win32;
+using System.Diagnostics;
+using System.IO;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using APODWallpaper.Utils;
 using MColor = System.Windows.Media.Color;
 using SPath = System.Windows.Shapes.Path;
-using System.Diagnostics;
-using System.Windows.Markup;
-using System.Text.RegularExpressions;
 namespace ConfiguratorGUI
 {
     /// <summary>
@@ -18,7 +17,7 @@ namespace ConfiguratorGUI
     public partial class MainWindow : Window
     {
         private static readonly SPath PathNotMax = new() { Data = new RectangleGeometry() { Rect = new Rect(0, 0, 8, 8) }, Stroke = new SolidColorBrush(MColor.FromRgb(240, 240, 240)) };
-        private static readonly SPath PathMax = new() { Fill=new SolidColorBrush(MColor.FromRgb(70, 72, 89)), Data = new GeometryGroup() { Children = { new RectangleGeometry() { Rect = new Rect(0, 0, 8, 8) }, new RectangleGeometry() { Rect = new Rect(2, -2, 8, 8) } } }, Stroke = new SolidColorBrush(MColor.FromRgb(240, 240, 240)) };
+        private static readonly SPath PathMax = new() { Fill = new SolidColorBrush(MColor.FromRgb(70, 72, 89)), Data = new GeometryGroup() { Children = { new RectangleGeometry() { Rect = new Rect(0, 0, 8, 8) }, new RectangleGeometry() { Rect = new Rect(2, -2, 8, 8) } } }, Stroke = new SolidColorBrush(MColor.FromRgb(240, 240, 240)) };
 
         private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
         private readonly ViewModel VM;
@@ -27,15 +26,15 @@ namespace ConfiguratorGUI
         {
             InitializeComponent();
 
-            #if DEPENDANT
+#if DEPENDANT
             MessageBox.Show(Process.GetCurrentProcess().ProcessName);
-            #endif  
+#endif
             redirect = new StdOutRedirect(TxtOutput);
             Console.SetOut(redirect);
             VM = (ViewModel)DataContext;
         }
 
-#region Window Control
+        #region Window Control
         private void BtnClose_Click(object sender, RoutedEventArgs e)
         {
             Close();
@@ -55,7 +54,7 @@ namespace ConfiguratorGUI
         {
             BtnUpdateTheme_Click(sender, e);
             await VM.Initialise();
-            _=Updater.CheckUpdate(true);
+            _ = Updater.CheckUpdate(true);
             Trace.WriteLine("\nWINDOW LOADED\n");
 
         }
@@ -77,7 +76,8 @@ namespace ConfiguratorGUI
             {
                 WindowState = WindowState.Normal;
                 BtnMaximise.Content = PathNotMax;
-            } else
+            }
+            else
             {
                 WindowState = WindowState.Maximized;
                 BtnMaximise.Content = PathMax;
@@ -91,13 +91,14 @@ namespace ConfiguratorGUI
                 if (e.ClickCount == 2)
                 {
                     BtnMaximise_Click(sender, e);
-                } else if (e.ClickCount == 1)
+                }
+                else if (e.ClickCount == 1)
                 {
                     DragMove();
                 }
             }
         }
-#endregion
+        #endregion
 
         async private void BtnForceRun_Click(object sender, RoutedEventArgs e)
         {

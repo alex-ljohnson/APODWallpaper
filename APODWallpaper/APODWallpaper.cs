@@ -1,7 +1,7 @@
-﻿using Newtonsoft.Json;
+﻿using APODWallpaper.Utils;
 using Microsoft.Win32;
+using Newtonsoft.Json;
 using System.Runtime.InteropServices;
-using APODWallpaper.Utils;
 
 bool force = false;
 const string verName = "2024.03.27.1";
@@ -26,7 +26,7 @@ if (args.Length > 0)
             {
                 Console.WriteLine("Startup registry set");
                 Environment.Exit(0);
-            }   
+            }
             else
             {
                 Console.WriteLine("Startup not enabled");
@@ -133,13 +133,14 @@ namespace APODWallpaper
                 url = value;
                 Console.WriteLine("HD");
             }
-            else { 
+            else
+            {
                 url = Info["url"];
             }
             if (Info["media_type"] != "image") { throw new Exception("APOD was not an image"); }
             Console.WriteLine("Getting image data");
 
-            DateTime startTime = DateTime.Now;  
+            DateTime startTime = DateTime.Now;
             client.DefaultRequestHeaders.Clear();
             string filename;
             Dictionary<string, dynamic> downloadedInfo;
@@ -172,7 +173,7 @@ namespace APODWallpaper
                     await contentStream.CopyToAsync(writer);
                 }
                 downloadedInfo = new Dictionary<string, dynamic>() { ["Name"] = Info["title"], ["Description"] = Info["explanation"], ["Source"] = filename, ["Date"] = DateOnly.FromDateTime(DateTime.Now) };
-                var infoJson = JsonConvert.SerializeObject(downloadedInfo, Formatting.Indented );
+                var infoJson = JsonConvert.SerializeObject(downloadedInfo, Formatting.Indented);
                 await File.WriteAllTextAsync(filename + ".json", infoJson);
             }
             Console.WriteLine($"Time Taken: {(DateTime.Now - startTime).TotalSeconds} seconds");
@@ -202,17 +203,20 @@ namespace APODWallpaper
             if (key == null)
             {
                 _ = MessageBoxW(hwnd, "The registry key couldn't be opened\nSkipping, background may not be changed", "Registry error", 0x00);
-            } else
+            }
+            else
             {
                 if (style == WallpaperStyleEnum.Centred)
                 {
                     key.SetValue(@"WallpaperStyle", 0.ToString());
                     key.SetValue(@"TileWallpaper", 0.ToString());
-                } else if (style == WallpaperStyleEnum.Tiled)
+                }
+                else if (style == WallpaperStyleEnum.Tiled)
                 {
                     key.SetValue(@"WallpaperStyle", 0.ToString());
                     key.SetValue(@"TileWallpaper", 1.ToString());
-                } else
+                }
+                else
                 {
                     key.SetValue(@"WallpaperStyle", ((int)style).ToString());
                     key.SetValue(@"TileWallpaper", 0.ToString());
