@@ -175,7 +175,7 @@
                 <Button x:Name="BtnClose" Content="X" Style="{DynamicResource BtnClose}" Width="40" Foreground="{DynamicResource Foreground}" IsCancel="True" Click="BtnClose_Click"/>
             </StackPanel>
         </Grid>
-        <TabControl x:Name="CustomTabControl" Background="{DynamicResource Light}" Grid.ColumnSpan="5" Grid.Row="1" BorderBrush="{DynamicResource Light}">
+        <TabControl x:Name="mainTabControl" Background="{DynamicResource Light}" Grid.ColumnSpan="5" Grid.Row="1" BorderBrush="{DynamicResource Light}">
             <TabItem x:Name="ImageTab" Header="Image manager">
                 <Grid ScrollViewer.CanContentScroll="True">
                     <Grid.ColumnDefinitions>
@@ -196,9 +196,13 @@
                         </ItemsControl.ItemsPanel>
                         <ListView.ItemTemplate>
                             <DataTemplate DataType="utils:PictureData">
-                                <Button Command="{Binding DataContext.SelectCommand, Source={x:Reference wallpaperView}}" 
-                            CommandParameter="{Binding Source}">
-                                    <!--<Button>-->
+                                <Button Command="{Binding DataContext.SelectCommand, Source={x:Reference wallpaperView}}" CommandParameter="{Binding Source}">
+                                    <Button.ContextMenu>
+                                        <ContextMenu x:Name="itemContext" StaysOpen="True">
+                                            <MenuItem Header="Save Image..." Command="{Binding DataContext.SaveImgCommand, Source={x:Reference wallpaperView}}" CommandParameter="{Binding Source={x:Reference wallpaperView}, Path=SelectedItem}"/>
+                                            <MenuItem Header="Read Description..." Command="{Binding DataContext.DescriptionCommand, Source={x:Reference wallpaperView}}" CommandParameter="{Binding Source={x:Reference wallpaperView}, Path=SelectedItem}"/>
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
                                     <StackPanel Width="220" Height="240" Margin="5">
                                         <TextBlock Text="{Binding Path=Name}" FontWeight="Bold"/>
                                         <TextBlock Text="{Binding Path=Date, StringFormat=D}"/> 
@@ -291,7 +295,6 @@
                                 <RowDefinition Height="*" MinHeight="32"/>
                                 <RowDefinition Height="*" MinHeight="32"/>
                             </Grid.RowDefinitions>
-                            <Button x:Name="BtnSaveImg" Content="Save Current Image" Grid.Row="0" Width="250" Height="32" Click="BtnSaveImg_Click"/>
                             <Button x:Name="BtnUpdate" Content="Check for update..." Grid.Row="1" Width="250" Height="32"  Click="BtnUpdate_Click"/>
                             <Button x:Name="BtnForceRun" Content="Force Run" Grid.Row="2" Width="250" Height="32" Click="BtnForceRun_Click"/>
                             <Button x:Name="BtnResetDefault" Content="Reset to Defaults" Grid.Row="3" Width="250" Height="32" Click="BtnResetDefault_Click"/>

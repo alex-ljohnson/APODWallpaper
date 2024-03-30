@@ -1,4 +1,5 @@
 ﻿using APODWallpaper.Utils;
+using Microsoft.Win32;
 using Newtonsoft.Json;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -85,6 +86,33 @@ namespace ConfiguratorGUI
                 _checkNewCommand = value;
             }
         }
+
+        private ICommand? _saveImgCommand;
+        public ICommand SaveImgCommand
+        {
+            get
+            {
+                _saveImgCommand ??= new RelayCommand<PictureData?>(SaveImage, (s)=> true);
+                return _saveImgCommand;
+            } set
+            {
+                _saveImgCommand = value;
+            }
+        }
+        private ICommand? _descriptionCommand;
+        public ICommand DescriptionCommand
+        {
+            get
+            {
+                _descriptionCommand ??= new RelayCommand<PictureData>(ReadDescription, (s) => true);
+                return _descriptionCommand;
+            }
+            set
+            {
+                _descriptionCommand = value;
+            }
+        }
+
         public void DeleteOption(string? source)
         {
             if (source == null) { return; }
@@ -97,7 +125,6 @@ namespace ConfiguratorGUI
             if (source == null) { return; }
             APOD.UpdateBackground(source, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
         }
-        #endregion
         public async void CheckNew(object? param)
         {
             if (await APOD.CheckNew())
@@ -114,6 +141,27 @@ namespace ConfiguratorGUI
                 MessageBox.Show("No new image found.", "No new image");
             }
         }
+        public void SaveImage(PictureData? param)
+        {
+            Trace.WriteLine("Saving image");
+            PictureData? item = param ?? SelectedItem;
+            if (item == null) { return; }
+            SaveFileDialog sf = new() { Title = "Save image as...", AddExtension = true, FileName = "Wallpaper.jpg", Filter = "JPEG Image (*.jpg)|*.jpg|Bitmap Image (*.bmp)|*.bmp|PNG Image (*.png)|*.png" };
+            bool? result = sf.ShowDialog();
+            if (result != null && (bool)result)
+            {
+                using FileStream fileStream = new(item.Source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite), outStream = (FileStream)sf.OpenFile();
+                fileStream.CopyTo(outStream);
+                MessageBox.Show($"Copied image to {outStream.Name}", "Wallpaper saved");
+            } 
+        }
+
+        public void ReadDescription(PictureData? param)
+        {
+            if (param == null) { return; }
+            MessageBox.Show(param?.Description, $"Description of {param?.Name}");
+        }
+        #endregion
 
         private async Task LoadItemAsync(string itemPath)
         {

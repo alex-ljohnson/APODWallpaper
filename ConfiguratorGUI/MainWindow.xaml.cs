@@ -108,14 +108,6 @@ namespace ConfiguratorGUI
             Console.WriteLine("\nProcess Finished!\n");
         }
 
-        private void BtnSaveImg_Click(object sender, RoutedEventArgs e)
-        {
-            SaveFileDialog sf = new() { Title = "Save image as...", AddExtension = true, FileName = "Wallpaper.jpg", Filter = "JPEG Image (*.jpg)|*.jpg|Bitmap Image (*.bmp)|*.bmp" };
-            sf.ShowDialog();
-            using FileStream fileStream = new(Utilities.last, FileMode.Open, FileAccess.Read, FileShare.ReadWrite), outStream = (FileStream)sf.OpenFile();
-            fileStream.CopyTo(outStream);
-        }
-
         private async void BtnUpdate_Click(object sender, RoutedEventArgs e)
         {
             await Updater.CheckUpdate();
