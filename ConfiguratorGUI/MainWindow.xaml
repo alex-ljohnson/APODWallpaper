@@ -13,6 +13,7 @@
         Background="Transparent" WindowStyle="None" 
         AllowsTransparency="True"
         ResizeMode="CanResizeWithGrip"
+        Cursor="{Binding WindowCursor}"
         Icon="Resources\Spanner.png" Closing="window_Closing" Loaded="window_Loaded">
     <Window.DataContext>
         <local:ViewModel/>
@@ -34,6 +35,7 @@
         <local:InverseBoolConverter x:Key="inverseBoolConverter"/>
         <local:PostfixConverter x:Key="postfixConverter"/>
         <local:LongConverter x:Key="longConverter"/>
+        <BooleanToVisibilityConverter x:Key="boolVisConverter"/>
         <Storyboard x:Key="closeAnim" Completed="CloseStoryboard_Completed">
             <DoubleAnimation Storyboard.TargetName="grdMain" Storyboard.TargetProperty="Opacity"
                              From="1.0" To="0.0" Duration="0:0:0.4"/>
@@ -81,6 +83,7 @@
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <!--<Setter Property="Cursor" Value="Hand"/>-->
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Button}">
@@ -180,7 +183,6 @@
                 <Grid ScrollViewer.CanContentScroll="True">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="1*" />
-                        <!--<ColumnDefinition Width="30" />-->
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="1*" />
@@ -196,7 +198,7 @@
                         </ItemsControl.ItemsPanel>
                         <ListView.ItemTemplate>
                             <DataTemplate DataType="utils:PictureData">
-                                <Button Command="{Binding DataContext.SelectCommand, Source={x:Reference wallpaperView}}" CommandParameter="{Binding Source}">
+                                <Button Cursor="Hand" Command="{Binding DataContext.SelectCommand, Source={x:Reference wallpaperView}}" CommandParameter="{Binding Source}">
                                     <Button.ContextMenu>
                                         <ContextMenu x:Name="itemContext" StaysOpen="True">
                                             <MenuItem Header="Save Image..." Command="{Binding DataContext.SaveImgCommand, Source={x:Reference wallpaperView}}" CommandParameter="{Binding Source={x:Reference wallpaperView}, Path=SelectedItem}"/>
@@ -221,7 +223,52 @@
                     <Button x:Name="BtnCheckNew" Content="Check for new image" Grid.Row="1" Width="250" Height="32" Command="{Binding CheckNewCommand}"/>
                 </Grid>
             </TabItem>
-            <TabItem x:Name="SettingsTab" Header="Settings" DataContext="{Binding Source={x:Static utils:Configuration.Config}}">
+            <TabItem x:Name="ExploreTab" Header="Explore">
+                <Grid ScrollViewer.CanContentScroll="True">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1*" />
+                        <ColumnDefinition Width="1*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="1*" />
+                        <RowDefinition Height="50" />
+                    </Grid.RowDefinitions>
+                        <ListView ItemsSource="{Binding ExploreData}" x:Name="exploreView" SelectionMode="Single"
+                            SelectedItem="{Binding ExploreSelected}"
+                            ScrollViewer.HorizontalScrollBarVisibility="Disabled" Grid.ColumnSpan="2">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>  
+                            <ListView.ItemTemplate>
+                                <DataTemplate DataType="utils:APODInfo">
+                                <Button Cursor="Hand">
+                                        <Button.ContextMenu>
+                                            <ContextMenu x:Name="itemContext" StaysOpen="True">
+                                                <MenuItem Header="Save Image..." Command="{Binding DataContext.DownloadCommand, Source={x:Reference exploreView}}" CommandParameter="{Binding Source={x:Reference exploreView}, Path=SelectedItem}"/>
+                                            </ContextMenu>
+                                        </Button.ContextMenu>
+                                        <StackPanel Width="220" Height="240" Margin="5">
+                                            <TextBlock Text="{Binding Path=Title}" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding Path=Date, StringFormat=D}"/>
+                                            <TextBlock Text="{Binding Path=Explanation}"/>
+                                            <Image Stretch="UniformToFill" Height="160">
+                                                <Image.Source>
+                                                    <BitmapImage UriSource="{Binding Url}" CacheOption="OnLoad" DecodePixelWidth="{Binding DataContext.PreviewQuality, Source={x:Reference SettingsTab}}"/>
+                                                </Image.Source>
+                                            </Image>
+                                        <!--<Button Height="30" Command="{Binding DataContext.DownloadCommand, Source={x:Reference exploreView}}" CommandParameter="{Binding Source={x:Reference exploreView}, Path=SelectedItem}">Download</Button>-->
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                        <Button x:Name="BtnLoadPrev" Content="Previous" Grid.Row="1" Width="250" Height="32" Command="{Binding PrevCommand}"/>
+                        <Button x:Name="BtnLoadNext" Content="Next" Grid.Row="1" Grid.Column="1" Width="250" Height="32" Command="{Binding NextCommand}"/>
+                    </Grid>
+                </TabItem>
+                <TabItem x:Name="SettingsTab" Header="Settings" DataContext="{Binding Source={x:Static utils:Configuration.Config}}">
                 <Grid Style="{DynamicResource Dark_light}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -259,7 +306,7 @@
                                 <TextBlock Text="Image preview quality (restart required): " VerticalAlignment="Center"/>
                                 <TextBox x:Name="TxtPreviewQuality" Text="{Binding PreviewQuality, Converter={StaticResource longConverter}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PreviewTextInput="TxtPreviewQuality_PreviewTextInput" DataObject.Pasting="TextBoxPasting" Width="160"/>
                             </StackPanel>
-                            
+
                         </StackPanel>
                     </Grid>
                     <Border Grid.Column="1" Grid.Row="0" BorderThickness="10" CornerRadius="25" BorderBrush="{DynamicResource Light}"/>
@@ -315,6 +362,7 @@
                     
                 </Grid>
             </TabItem>
+            
         </TabControl>
     </Grid>
 </Window>

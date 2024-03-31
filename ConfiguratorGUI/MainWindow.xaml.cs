@@ -104,7 +104,7 @@ namespace ConfiguratorGUI
         {
             TxtOutput.Clear();
             OutputTab.Focus();
-            await APOD.Update(true);
+            await APOD.UpdateAsync(true);
             Console.WriteLine("\nProcess Finished!\n");
         }
 
@@ -126,7 +126,7 @@ namespace ConfiguratorGUI
 
         private void BtnStyleChange_Click(object sender, RoutedEventArgs e)
         {
-            APOD.UpdateBackground(APOD.Info["Source"], (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
+            APOD.UpdateBackground(null, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
         }
 
         private async void BtnUpdateTheme_Click(object sender, RoutedEventArgs e)

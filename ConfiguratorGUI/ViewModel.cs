@@ -14,27 +14,64 @@ namespace ConfiguratorGUI
     internal class ViewModel : INotifyPropertyChanged
     {
         private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
+        
+        private DateOnly exploreEnd = DateOnly.FromDateTime(DateTime.Now).AddDays(-1);
+
+        private Cursor windowCursor = Cursors.Arrow;
+        public Cursor WindowCursor { get => windowCursor;
+            set
+            {
+                windowCursor = value;
+                OnPropertyChanged(nameof(WindowCursor));
+            }
+        }
+
         private ObservableCollection<PictureData> pictureData = [];
         public ObservableCollection<PictureData> MyPictureData
         {
             get => pictureData;
-            set
+            private set
             {
                 pictureData = value;
                 OnPropertyChanged(nameof(MyPictureData));
             }
         }
 
+        private ObservableCollection<APODInfo> exploreData = [];
+        public ObservableCollection<APODInfo> ExploreData
+        {
+            get => exploreData;
+            private set
+            {
+                exploreData = value;
+                OnPropertyChanged(nameof(ExploreData));
+            }
+        }
+
         private PictureData? selectedItem;
         public PictureData? SelectedItem
         {
-            get { return selectedItem; }
+            get => selectedItem;
             set
             {
                 if (selectedItem != value)
                 {
                     selectedItem = value;
                     OnPropertyChanged(nameof(SelectedItem));
+                }
+            }
+        }
+
+        private APODInfo? exploreSelected;
+        public APODInfo? ExploreSelected
+        {
+            get => exploreSelected;
+            set
+            {
+                if (exploreSelected != value)
+                {
+                    exploreSelected = value;
+                    OnPropertyChanged(nameof(ExploreSelected));
                 }
             }
         }
@@ -112,7 +149,86 @@ namespace ConfiguratorGUI
                 _descriptionCommand = value;
             }
         }
+        private ICommand? _downloadCommand;
+        public ICommand DownloadCommand
+        {
+            get
+            {
+                _downloadCommand ??= new RelayCommand<APODInfo>(SaveExplore, (s) => true);
+                return _downloadCommand;
+            } set
+            {
+                _downloadCommand = value;
+            }
+        }
+        private ICommand? _nextCommand;
+        public ICommand NextCommand
+        {
+            get
+            {
+                _nextCommand ??= new RelayCommand(ExploreNext, (s) => true);
+                return _nextCommand;
+            } set
+            {
+                _nextCommand = value;
+            }
+        }
+        private ICommand? _prevCommand;
+        public ICommand PrevCommand
+        {
+            get
+            {
+                _prevCommand ??= new RelayCommand(ExplorePrev, (s) => true);
+                return _prevCommand;
+            } set
+            {
+                _prevCommand = value;
+            }
+        }
 
+        private async void SaveExplore(APODInfo? data)
+        {
+            if (data == null) return;
+            if (MyPictureData.Any(x => x.Equals(data))) { MessageBox.Show("Image was previously saved!", "Already saved"); return; }
+            PictureData pictureData = new(data.Title, data.Explanation, data.Url.ToString(), data.Date);
+            var task = APOD.DownloadURLAsync(data.RealUri, data.Date);
+            ExploreData.Remove(data);
+            try
+            {
+                pictureData.Source = await task;
+            } catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            MyPictureData.Insert(0, pictureData);
+            _ = SortDataAsync();
+        }
+        private async Task LoadExplore()
+        {
+            ExploreData = new(await APOD.GetInfoAsync(exploreEnd, 10));
+        }
+        private async void ExploreNext()
+        {
+            Trace.WriteLine("Loading next...");
+            if (exploreEnd.AddDays(10) <= DateOnly.FromDateTime(DateTime.Now).AddDays(-1))
+            {
+                WindowCursor = Cursors.Wait;
+                exploreEnd = exploreEnd.AddDays(10);
+                await LoadExplore();
+                WindowCursor = Cursors.Arrow;
+            }
+        }
+        public async void ExplorePrev()
+        {
+            Trace.WriteLine("Loading prev...");
+            if (exploreEnd.AddDays(-10) >= DateOnly.ParseExact("1995-06-16", "yyyy-MM-dd"))
+            {
+                WindowCursor = Cursors.Wait;
+                exploreEnd = exploreEnd.AddDays(-10);
+                await LoadExplore();
+                WindowCursor = Cursors.Arrow;
+            }
+        }
         public void DeleteOption(string? source)
         {
             if (source == null) { return; }
@@ -127,13 +243,13 @@ namespace ConfiguratorGUI
         }
         public async void CheckNew(object? param)
         {
-            if (await APOD.CheckNew())
+            if (await APOD.CheckNewAsync())
             {
                 MessageBox.Show("New image found.", "Downloading image");
-                var newData = await APOD.Update(true);
+                var newData = await APOD.UpdateAsync(true);
                 if (newData != null)
                 {
-                    MyPictureData.Insert(0, new PictureData(newData));
+                    MyPictureData.Insert(0, newData);
                 }
             }
             else
@@ -187,15 +303,18 @@ namespace ConfiguratorGUI
 
         }
 
-        private async Task SortDataAsync(IEnumerable<Task> tasks)
+        private async Task SortDataAsync(IEnumerable<Task>? tasks = null)
         {
-            Trace.WriteLine("Awaiting all items loaded");
-            await Task.WhenAll(tasks);
+            if (tasks != null) { 
+                Trace.WriteLine("Awaiting all items loaded");
+                await Task.WhenAll(tasks);
+            }
             MyPictureData = new ObservableCollection<PictureData>(MyPictureData.OrderDescending());
 
         }
         public async Task Initialise()
         {
+            var explore = LoadExplore();
             var load = LoadData();
             var sort = SortDataAsync(load);
             await Task.WhenAny(load);

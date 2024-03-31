@@ -20,6 +20,16 @@ namespace APODWallpaper.Utils
             Source = data["Source"];
             Date = data.GetValueOrDefault("Date", DateOnly.Parse(Path.GetFileNameWithoutExtension(Source)));
         }
+
+        public PictureData(PictureData data) 
+        {
+            // Copy constructor
+            Name = data.Name;
+            Description = data.Description;
+            Source = data.Source;
+            Date = data.Date;
+        }
+
         public string Name { get; set; }
         public string Description { get; set; }
         public string Source { get; set; }
@@ -49,6 +59,17 @@ namespace APODWallpaper.Utils
         {
             if (other == null) return 1;
             return Date.CompareTo(other.Date);
+        }
+        
+        public bool Equals(PictureData? other)
+        {
+            if (other == null) return false;
+            return Date.Equals(other.Date);
+        }
+        public bool Equals(APODInfo? other)
+        {
+            if (other == null) return false;
+            return Date.Equals(other.Date);
         }
     }
 }
