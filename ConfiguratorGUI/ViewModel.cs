@@ -17,6 +17,8 @@ namespace ConfiguratorGUI
         
         private DateOnly exploreEnd = DateOnly.FromDateTime(DateTime.Now).AddDays(-1);
 
+        const int ExploreCount = 12;    
+
         private Cursor windowCursor = Cursors.Arrow;
         public Cursor WindowCursor { get => windowCursor;
             set
@@ -205,15 +207,15 @@ namespace ConfiguratorGUI
         }
         private async Task LoadExplore()
         {
-            ExploreData = new(await APOD.GetInfoAsync(exploreEnd, 10));
+            ExploreData = new(await APOD.GetInfoAsync(exploreEnd, ExploreCount));
         }
         private async void ExploreNext()
         {
             Trace.WriteLine("Loading next...");
-            if (exploreEnd.AddDays(10) <= DateOnly.FromDateTime(DateTime.Now).AddDays(-1))
+            if (exploreEnd.AddDays(ExploreCount) <= DateOnly.FromDateTime(DateTime.Now).AddDays(-1))
             {
                 WindowCursor = Cursors.Wait;
-                exploreEnd = exploreEnd.AddDays(10);
+                exploreEnd = exploreEnd.AddDays(ExploreCount);
                 await LoadExplore();
                 WindowCursor = Cursors.Arrow;
             }
@@ -221,10 +223,10 @@ namespace ConfiguratorGUI
         public async void ExplorePrev()
         {
             Trace.WriteLine("Loading prev...");
-            if (exploreEnd.AddDays(-10) >= DateOnly.ParseExact("1995-06-16", "yyyy-MM-dd"))
+            if (exploreEnd.AddDays(-ExploreCount) >= DateOnly.ParseExact("1995-06-16", "yyyy-MM-dd"))
             {
                 WindowCursor = Cursors.Wait;
-                exploreEnd = exploreEnd.AddDays(-10);
+                exploreEnd = exploreEnd.AddDays(-ExploreCount);
                 await LoadExplore();
                 WindowCursor = Cursors.Arrow;
             }

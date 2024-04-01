@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 bool force = false;
-const string verName = "2024.03.30.1";
+const string verName = "2024.04.01.1";
 if (args.Length > 0)
 {
     foreach (string i in args)
