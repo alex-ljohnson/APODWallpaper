@@ -28,10 +28,10 @@ namespace ConfiguratorGUI
         }
         public async Task SetTheme()
         {
+            // Not a default theme
             if (!Configuration.DefaultThemes.Contains(Configuration.Config.ConfiguratorTheme))
             {
-                // Not a default theme
-                if (!File.Exists($"./Styles/{Configuration.Config.ConfiguratorTheme}") || await CheckThemeAsync())
+                if (!(File.Exists($"./Styles/{Configuration.Config.ConfiguratorTheme}") && await CheckThemeAsync()))
                 {
                     Trace.WriteLine("Invalid theme");
                     await ResetTheme();
