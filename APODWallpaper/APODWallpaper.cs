@@ -151,7 +151,7 @@ namespace APODWallpaper
             return (await GetInfoAsync())[0];
         }
 
-        public async Task<string> DownloadURLAsync(Uri url, DateOnly? date = null)
+        protected async Task<string> DownloadURLAsync(Uri url, DateOnly? date = null)
         {
             string filename;
             client.DefaultRequestHeaders.Clear();
@@ -193,10 +193,9 @@ namespace APODWallpaper
             if (imageInfo.MediaType != "image") { throw new Exception("APOD was not an image"); }
             Console.WriteLine("Getting image data");
 
-            PictureData downloadedInfo;
             DateTime startTime = DateTime.Now;
-            var filename = await DownloadURLAsync(imageInfo.RealUri);
-            downloadedInfo = new PictureData(imageInfo.Title, imageInfo.Explanation, filename, DateOnly.FromDateTime(DateTime.Now));
+            var filename = await DownloadURLAsync(imageInfo.RealUri, imageInfo.Date);
+            PictureData downloadedInfo = new(imageInfo.Title, imageInfo.Explanation, filename, imageInfo.Date);
             var infoJson = JsonConvert.SerializeObject(downloadedInfo, Formatting.Indented);
             await File.WriteAllTextAsync(filename + ".json", infoJson);
             Console.WriteLine($"Time Taken: {(DateTime.Now - startTime).TotalSeconds} seconds");

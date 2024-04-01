@@ -190,17 +190,17 @@ namespace ConfiguratorGUI
         {
             if (data == null) return;
             if (MyPictureData.Any(x => x.Equals(data))) { MessageBox.Show("Image was previously saved!", "Already saved"); return; }
-            PictureData pictureData = new(data.Title, data.Explanation, data.Url.ToString(), data.Date);
-            var task = APOD.DownloadURLAsync(data.RealUri, data.Date);
+            PictureData pictureData;
+            var task = APOD.DownloadImageAsync(data);
             ExploreData.Remove(data);
             try
             {
-                pictureData.Source = await task;
+                pictureData = await task;
+                MyPictureData.Insert(0, pictureData);
             } catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
             }
-            MyPictureData.Insert(0, pictureData);
             _ = SortDataAsync();
         }
         private async Task LoadExplore()
