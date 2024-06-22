@@ -1,5 +1,5 @@
-﻿using System.Text;
-using System.IO;
+﻿using System.IO;
+using System.Text;
 using System.Windows.Controls;
 
 namespace ConfiguratorGUI
@@ -10,7 +10,7 @@ namespace ConfiguratorGUI
         {
             if (value != null)
             {
-                output.Text += value+"\n";
+                output.Text += value + "\n";
             }
         }
         public override void Write(string? value)

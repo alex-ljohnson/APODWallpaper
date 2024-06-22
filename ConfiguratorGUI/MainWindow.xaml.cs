@@ -1,13 +1,12 @@
-﻿using System.IO;
+﻿using APODWallpaper.Utils;
 using Microsoft.Win32;
+using System.Diagnostics;
+using System.IO;
+using System.Text.RegularExpressions;
 using System.Windows;
-using System.Net.Http;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using System.Windows.Media.Imaging;
-using System.Diagnostics;
-using APODWallpaper.Utils;
 using MColor = System.Windows.Media.Color;
 using SPath = System.Windows.Shapes.Path;
 namespace ConfiguratorGUI
@@ -18,21 +17,24 @@ namespace ConfiguratorGUI
     public partial class MainWindow : Window
     {
         private static readonly SPath PathNotMax = new() { Data = new RectangleGeometry() { Rect = new Rect(0, 0, 8, 8) }, Stroke = new SolidColorBrush(MColor.FromRgb(240, 240, 240)) };
-        private static readonly SPath PathMax = new() { Fill=new SolidColorBrush(MColor.FromRgb(70, 72, 89)), Data = new GeometryGroup() { Children = { new RectangleGeometry() { Rect = new Rect(0, 0, 8, 8) }, new RectangleGeometry() { Rect = new Rect(2, -2, 8, 8) } } }, Stroke = new SolidColorBrush(MColor.FromRgb(240, 240, 240)) };
+        private static readonly SPath PathMax = new() { Fill = new SolidColorBrush(MColor.FromRgb(70, 72, 89)), Data = new GeometryGroup() { Children = { new RectangleGeometry() { Rect = new Rect(0, 0, 8, 8) }, new RectangleGeometry() { Rect = new Rect(2, -2, 8, 8) } } }, Stroke = new SolidColorBrush(MColor.FromRgb(240, 240, 240)) };
 
         private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
+        private readonly ViewModel VM;
         private readonly StdOutRedirect redirect;
         public MainWindow()
         {
             InitializeComponent();
-            #if DEPENDANT
+
+#if DEPENDANT
             MessageBox.Show(Process.GetCurrentProcess().ProcessName);
-            #endif  
+#endif
             redirect = new StdOutRedirect(TxtOutput);
             Console.SetOut(redirect);
+            VM = (ViewModel)DataContext;
         }
 
-#region Window Control
+        #region Window Control
         private void BtnClose_Click(object sender, RoutedEventArgs e)
         {
             Close();
@@ -48,10 +50,12 @@ namespace ConfiguratorGUI
                 e.Cancel = true;
             }
         }
-        private void window_Loaded(object sender, RoutedEventArgs e)
+        private async void window_Loaded(object sender, RoutedEventArgs e)
         {
             BtnUpdateTheme_Click(sender, e);
-            _=Updater.CheckUpdate(true);
+            await VM.Initialise();
+            _ = Updater.CheckUpdate(true);
+            Trace.WriteLine("\nWINDOW LOADED\n");
 
         }
 
@@ -72,7 +76,8 @@ namespace ConfiguratorGUI
             {
                 WindowState = WindowState.Normal;
                 BtnMaximise.Content = PathNotMax;
-            } else
+            }
+            else
             {
                 WindowState = WindowState.Maximized;
                 BtnMaximise.Content = PathMax;
@@ -86,34 +91,26 @@ namespace ConfiguratorGUI
                 if (e.ClickCount == 2)
                 {
                     BtnMaximise_Click(sender, e);
-                } else if (e.ClickCount == 1)
+                }
+                else if (e.ClickCount == 1)
                 {
                     DragMove();
                 }
             }
         }
-#endregion
+        #endregion
 
         async private void BtnForceRun_Click(object sender, RoutedEventArgs e)
         {
             TxtOutput.Clear();
             OutputTab.Focus();
-            await APOD.Update(true);
+            await APOD.UpdateAsync(true);
             Console.WriteLine("\nProcess Finished!\n");
-        }
-
-        private void BtnSaveImg_Click(object sender, RoutedEventArgs e)
-        {
-            SaveFileDialog sf = new() { Title = "Save image as...", AddExtension = true, FileName = "Wallpaper.jpg", Filter = "JPEG Image (*.jpg)|*.jpg|Bitmap Image (*.bmp)|*.bmp" };
-            sf.ShowDialog();
-            using FileStream fileStream = new(Utilities.last, FileMode.Open, FileAccess.Read, FileShare.ReadWrite), outStream = (FileStream)sf.OpenFile();
-            fileStream.CopyTo(outStream);
         }
 
         private async void BtnUpdate_Click(object sender, RoutedEventArgs e)
         {
             await Updater.CheckUpdate();
-            //MessageBox.Show("This function is not yet available", "Not implemented");
         }
 
         private void BtnResetDefault_Click(object sender, RoutedEventArgs e)
@@ -121,21 +118,7 @@ namespace ConfiguratorGUI
             Configuration.Config.SetConfiguration(Configuration.DefaultConfiguration);
             BtnUpdateTheme_Click(sender, e);
         }
-        private void BtnSelectCurrent_Click(object sender, RoutedEventArgs e)
-        {
-            if (File.Exists(Utilities.current))
-            {
-                APOD.UpdateBackground(Utilities.current, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
-            }
-        }
 
-        private void BtnSelectLast_Click(object sender, RoutedEventArgs e)
-        {
-            if (File.Exists(Utilities.last))
-            {
-                APOD.UpdateBackground(Utilities.last, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
-            }
-        }
         private void BtnClearOut_Click(object sender, RoutedEventArgs e)
         {
             TxtOutput.Clear();
@@ -143,24 +126,41 @@ namespace ConfiguratorGUI
 
         private void BtnStyleChange_Click(object sender, RoutedEventArgs e)
         {
-            APOD.UpdateBackground(APOD.Info["Source"], (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
+            APOD.UpdateBackground(null, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
         }
 
-        private void BtnUpdateTheme_Click(object sender, RoutedEventArgs e)
+        private async void BtnUpdateTheme_Click(object sender, RoutedEventArgs e)
         {
-            Application.Current.Resources.MergedDictionaries[0].Source = new Uri("/Styles/"+CmbConfiguratorTheme.SelectedItem.ToString(), UriKind.Relative);
+            Trace.WriteLine(CmbConfiguratorTheme.SelectedItem);
+            Trace.WriteLine(Configuration.Config.ConfiguratorTheme);
+            if (CmbConfiguratorTheme.SelectedItem == null) { return; }
+            await ((App)Application.Current).SetTheme();
         }
 
-        private async void BtnCheckNew_Click(object sender, RoutedEventArgs e)
+        [GeneratedRegex("[^0-9]+")]
+        private static partial Regex NotIntegerRegex();
+        private void TxtPreviewQuality_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
-            if (await APOD.CheckNew())
+            e.Handled = NotIntegerValidation(e.Text);
+        }
+        private static bool NotIntegerValidation(string text)
+        {
+            Regex regex = NotIntegerRegex();
+            return regex.IsMatch(text);
+        }
+        private void TextBoxPasting(object sender, DataObjectPastingEventArgs e)
+        {
+            if (e.DataObject.GetDataPresent(typeof(string)))
             {
-                MessageBox.Show("New image found.", "Downloading image");
-                await APOD.Update(true);
-                
-            } else
+                string text = (string)e.DataObject.GetData(typeof(string));
+                if (NotIntegerValidation(text))
+                {
+                    e.CancelCommand();
+                }
+            }
+            else
             {
-                MessageBox.Show("No new image found.", "No new image");
+                e.CancelCommand();
             }
         }
     }

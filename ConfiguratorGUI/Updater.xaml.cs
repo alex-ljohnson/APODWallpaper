@@ -1,8 +1,8 @@
 ﻿using Newtonsoft.Json;
 using System.Diagnostics;
 using System.IO;
-using System.Net.Http.Headers;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Windows;
 
 namespace ConfiguratorGUI
@@ -21,7 +21,7 @@ Press the download button below to download and install it.";
         private static readonly HttpClient client = new();
         private Task? updateTask;
         public Updater(Dictionary<string, dynamic> updateData)
-        {  
+        {
             this.updateData = updateData;
             InitializeComponent();
             lblInfo.Text = $"A new version is available ({updateData.GetValueOrDefault("tag_name", "VERSION_NOT_FOUND")}).";
@@ -43,7 +43,8 @@ Press the download button below to download and install it.";
                 progressDownload.IsIndeterminate = false;
                 progressDownload.Value = 0;
                 lblInfo.Text = $"Download failed with reason:\n{updateTask.Exception?.Message}";
-            } else
+            }
+            else
             {
                 progressDownload.IsIndeterminate = false;
                 progressDownload.Value = 100;

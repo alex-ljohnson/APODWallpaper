@@ -1,6 +1,6 @@
-﻿using System.Globalization;
+﻿using APODWallpaper.Utils;
+using System.Globalization;
 using System.Windows.Data;
-using APODWallpaper.Utils;
 
 namespace ConfiguratorGUI
 {
