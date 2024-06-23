@@ -19,57 +19,237 @@
             <BeginStoryboard>
                 <Storyboard>
                     <DoubleAnimation Storyboard.TargetName="grdMain" Storyboard.TargetProperty="Opacity" 
-                                     From="0.0" To="1.0" Duration="0:0:0:0.3"/>
+                                         From="0.0" To="1.0" Duration="0:0:0:0.3"/>
                     <DoubleAnimation Storyboard.TargetName="window" Storyboard.TargetProperty="Height" 
-                                     From="400" To="500.0" Duration="0:0:0.35"/>
+                                         From="400" To="500.0" Duration="0:0:0.35"/>
                 </Storyboard>
             </BeginStoryboard>
         </EventTrigger>
     </Window.Triggers>-->
-    <!--<Window.Resources>
-        <local:EnumConverter x:Key="enumConverter"/>
-        <local:InverseBoolConverter x:Key="inverseBoolConverter"/>
-        <Storyboard x:Key="closeAnim" Completed="CloseStoryboard_Completed">
+    <!--<Window.Resources>-->
+        <!--<Storyboard x:Key="closeAnim" Completed="CloseStoryboard_Completed">
             <DoubleAnimation Storyboard.TargetName="grdMain" Storyboard.TargetProperty="Opacity"
-                         From="1.0" To="0.0" Duration="0:0:0.4"/>
+                             From="1.0" To="0.0" Duration="0:0:0.4"/>
             <DoubleAnimation Storyboard.TargetName="window" Storyboard.TargetProperty="Width" 
-                                     To="750" From="800.0" Duration="0:0:0.2"/>
-        </Storyboard>
+                                         To="750" From="800.0" Duration="0:0:0.2"/>
+        </Storyboard>-->
 
-        <ObjectDataProvider x:Key="StyleEnumSource" ObjectType="{x:Type sys:Enum}" MethodName="GetValues">
+        <!--<ObjectDataProvider x:Key="StyleEnumSource" ObjectType="{x:Type sys:Enum}" MethodName="GetValues">
             <ObjectDataProvider.MethodParameters>
                 <x:Type TypeName="utils:WallpaperStyleEnum"/>
             </ObjectDataProvider.MethodParameters>
         </ObjectDataProvider>
+        <Style x:Key="Dark_light" TargetType="Grid">
+            <Setter Property="Background" Value="{DynamicResource Light}"/>
+        </Style>
+        <Style TargetType="{x:Type ListView}">
+            <Setter Property="Background" Value="{DynamicResource Light}"/>
+        </Style>-->
+        <!-- Dark_mid--><!--
+        <Style TargetType="{x:Type StackPanel}">
+            <Setter Property="Background" Value="{DynamicResource Mid}"/>
+        </Style>
+        <Style TargetType="Label">
+            <Setter Property="Background" Value="{DynamicResource Dark}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Foreground}"/>
+        </Style>
+        <Style TargetType="{x:Type RadioButton}">
+            <Setter Property="Foreground" Value="{DynamicResource Foreground}"/>
+            <Setter Property="Background" Value="{DynamicResource Dark}"/>
+            <Setter Property="Template" Value="{DynamicResource RadioButtonTemplateCustom}"/>
+        </Style>
+        <Style TargetType="{x:Type TextBlock}">
+            <Setter Property="Foreground" Value="{DynamicResource Foreground}"/>
+        </Style>
+        <Style TargetType="{x:Type CheckBox}">
+            <Setter Property="Foreground" Value="{DynamicResource Foreground}"/>
+            <Setter Property="Background" Value="{DynamicResource Dark}"/>
+            <Setter Property="Margin" Value="5 3"/>
+            <Setter Property="Template" Value="{DynamicResource CheckBoxTemplateCustom}"/>
+        </Style>
+        <Style TargetType="{x:Type Button}">
+            <Setter Property="Foreground" Value="{DynamicResource Foreground}"/>
+            <Setter Property="Background" Value="{DynamicResource Dark}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            --><!--<Setter Property="Cursor" Value="Hand"/>--><!--
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Grid Margin="{TemplateBinding Margin}">
+                            <Rectangle x:Name="RctBtn" RadiusX="7" RadiusY="7" Fill="{TemplateBinding Background}"/>
+                            <ContentPresenter Content="{TemplateBinding Content}" 
+                                   HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="RctBtn" Property="Fill" Value="{DynamicResource MouseOver}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="{x:Type Button}" x:Key="BtnClose">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Grid>
+                            <Rectangle x:Name="rect" Fill="{DynamicResource Dark}" RadiusX="5" RadiusY="5" Margin="1 0"/>
+                            <ContentPresenter Content="{TemplateBinding Content}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            --><!-- Foreground="{TemplateBinding Foreground}"/> --><!--
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="rect" Property="Fill" Value="#CCFF0000"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="{x:Type TabItem}">
+            <Setter Property="Foreground" Value="{DynamicResource Foreground}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TabItem}">
+                        <Border>
+                            <Grid>
+                                <Grid>
+                                    <Border x:Name="border" 
+                                            CornerRadius="3,3,0,0"
+                                            Background="{DynamicResource Light}"/>
+                                </Grid>
+                                <ContentPresenter ContentSource="Header"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center" Width="auto" Margin="5 3"/>
+                            </Grid>
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource Selected}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource MouseOver}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>-->
     <Grid x:Name="grdMain">
+        <Grid.Resources>
+            <local:EnumConverter x:Key="enumConverter"/>
+            <local:PostfixConverter x:Key="postfixConverter"/>
+        </Grid.Resources>
         <Grid.RowDefinitions>
             <RowDefinition Height="30"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <TabView x:Name="CustomTabControl" Grid.ColumnSpan="5" Grid.Row="1">
+        <!--<Grid x:Name="TitleBar" MouseDown="TitleBar_MouseDown">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="auto"/>
+            </Grid.ColumnDefinitions>
+            <ToggleButton/>
+            <StackPanel Orientation="Horizontal" Background="{DynamicResource Dark}" Grid.Column="0">
+                <Image Source="{Binding Icon, ElementName=window}" Width="20" Height="20" Margin="5"/>
+                <TextBlock Text="{Binding Title, ElementName=window}"/>
+            </StackPanel>
+            <Rectangle Grid.Column="1" Fill="{DynamicResource Dark}"/>
+            <StackPanel Orientation="Horizontal" Background="{DynamicResource Dark}" Grid.Column="2">
+                <Button x:Name="BtnMinimise" Content="-"  Width="40" Click="BtnMinimise_Click"/>
+                <Button x:Name="BtnMaximise" Width="40" Click="BtnMaximise_Click">
+                    <Path Stroke="{DynamicResource Foreground}">
+                        <Path.Data>
+                            <RectangleGeometry Rect="0 0 8 8"/>
+                        </Path.Data>
+                    </Path>
+                </Button>
+                <Button x:Name="BtnClose" Content="X" Style="{DynamicResource BtnClose}" Width="40" Foreground="{DynamicResource Foreground}" IsCancel="True" Click="BtnClose_Click"/>
+            </StackPanel>
+        </Grid>-->
+        <TabView x:Name="mainTabControl"  Grid.ColumnSpan="5" Grid.Row="1">
             <TabViewItem x:Name="ImageTab" Header="Image manager">
-                <Grid>
+                <Grid ScrollViewer.VerticalScrollMode="Auto">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="1*" />
-                        <ColumnDefinition Width="30" />
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="1*" />
                         <RowDefinition Height="50" />
                     </Grid.RowDefinitions>
-                    <GridView ItemsSource="{x:Bind MyPictureData}" x:Name="wallpaperView" IsItemClickEnabled="True" ItemClick="wallpaperView_ItemClick">
+                    <GridView ItemsSource="{x:Bind VM.MyPictureData}" x:Name="wallpaperView" 
+                              SelectedItem="{x:Bind VM.SelectedItem}" SelectionMode="Single"
+                              ItemClick="Select"
+                              
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <GridView.ItemTemplate>
                             <DataTemplate x:DataType="utils:PictureData">
-                                <StackPanel Width="200" Height="200" Margin="5" AutomationProperties.Name="{x:Bind Name}">
-                                    <TextBlock Text="{x:Bind Name}" FontWeight="Bold"/>
-                                    <TextBlock Text="{x:Bind Description}"/>
-                                    <Image Source="{x:Bind Source}" Stretch="UniformToFill"/>
-                                </StackPanel
+                                    <StackPanel Width="220" Height="240" Margin="5">
+                                        <StackPanel.ContextFlyout>
+                                            <CommandBarFlyout x:Name="itemContext">
+                                                <AppBarButton Label="Save" Icon="Save" Click="SaveImage"/>
+                                                <AppBarButton Label="Description" Icon="Read" Click="Description"/>
+                                            </CommandBarFlyout>
+                                        </StackPanel.ContextFlyout>
+                                        <TextBlock Text="{Binding Path=Name}" FontWeight="Bold"/>
+                                        <TextBlock Text="{Binding Path=Date}"/>
+                                        <TextBlock Text="{Binding Path=Description}"/>
+                                        <Button Click="Delete" CommandParameter="{Binding Source}">Delete</Button>
+                                        <Image Stretch="UniformToFill">
+                                            <Image.Source>
+                                                <BitmapImage UriSource="{Binding Source}" CreateOptions="None" DecodePixelWidth="{x:Bind utils:Configuration.Config.PreviewQuality}"/>
+                                            </Image.Source>
+                                        </Image>
+                                    </StackPanel>
                             </DataTemplate>
                         </GridView.ItemTemplate>
                     </GridView>
                     <Button x:Name="BtnCheckNew" Content="Check for new image" Grid.Row="1" Width="250" Height="32" Click="CheckNew"/>
+                </Grid>
+            </TabViewItem>
+            <TabViewItem x:Name="ExploreTab" Header="Explore">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1*" />
+                        <ColumnDefinition Width="1*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="1*" />
+                        <RowDefinition Height="50" />
+                    </Grid.RowDefinitions>
+                    <GridView ItemsSource="{x:Bind VM.ExploreData}" ScrollViewer.VerticalScrollMode="Auto" x:Name="exploreView" SelectionMode="Single"
+                            SelectedItem="{x:Bind VM.ExploreSelected}"
+                            ScrollViewer.HorizontalScrollBarVisibility="Disabled" Grid.ColumnSpan="2">
+                        <GridView.ItemTemplate>
+                            <DataTemplate x:DataType="utils:APODInfo">
+                                    <StackPanel Width="220" Height="240" Margin="5">
+                                        <StackPanel.ContextFlyout>
+                                            <CommandBarFlyout x:Name="itemContext">
+                                                <AppBarButton Icon="Save" Label="Save" Click="DownloadExplore"/>
+                                            </CommandBarFlyout>
+                                        </StackPanel.ContextFlyout>
+                                        <TextBlock Text="{x:Bind Title}" FontWeight="Bold"/>
+                                        <TextBlock Text="{x:Bind Date}"/>
+                                        <TextBlock Text="{x:Bind Explanation}"/>
+                                        <Image Stretch="UniformToFill" Height="160">
+                                            <Image.Source>
+                                                <BitmapImage  UriSource="{Binding Url}" CreateOptions="None" DecodePixelWidth="{x:Bind utils:Configuration.Config.PreviewQuality}"/>
+                                            </Image.Source>
+                                        </Image>
+                                        <!--<Button Height="30" Command="{Binding DataContext.DownloadCommand, Source={x:Reference exploreView}}" CommandParameter="{Binding Source={x:Reference exploreView}, Path=SelectedItem}">Download</Button>-->
+                                    </StackPanel>
+                            </DataTemplate>
+                        </GridView.ItemTemplate>
+                    </GridView>
+                    <Button x:Name="BtnLoadPrev" Content="Previous" Grid.Row="1" Width="250" Height="32" Click="{x:Bind PreviousExplore}"/>
+                    <Button x:Name="BtnLoadNext" Content="Next" Grid.Row="1" Grid.Column="1" Width="250" Height="32" Click="{x:Bind NextExplore}"/>
                 </Grid>
             </TabViewItem>
             <TabViewItem x:Name="SettingsTab" Header="Settings" DataContext="{x:Bind utils:Configuration.Config}">
@@ -103,9 +283,14 @@
                         <StackPanel Grid.Row="1" Margin="10">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Configurator Theme: " VerticalAlignment="Center"/>
-                                <ComboBox x:Name="CmbConfiguratorTheme" Width="160" VerticalContentAlignment="Center" IsEditable="False" ItemsSource="{Binding AvailableThemes}" SelectedItem="{Binding ConfiguratorTheme, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                <ComboBox x:Name="CmbConfiguratorTheme" Width="160" VerticalContentAlignment="Center" IsEditable="False" ItemsSource="{Binding AvailableThemes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource postfixConverter}, ConverterParameter=.xaml}" SelectedItem="{Binding ConfiguratorTheme, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource postfixConverter}, ConverterParameter=.xaml}"/>
                                 <Button x:Name="BtnUpdateTheme" Margin="5 0" Content="Update..." Height="30" Width="70" Click="BtnUpdateTheme_Click"/>
                             </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Image preview quality (restart required): " VerticalAlignment="Center"/>
+                                <TextBox x:Name="TxtPreviewQuality" Text="{Binding PreviewQuality, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="160"/> <!--TextChanging="TxtPreviewQuality_TextChanging" Paste="TextBoxPasting"-->
+                            </StackPanel>
+
                         </StackPanel>
                     </Grid>
                     <Border Grid.Column="1" Grid.Row="0" BorderThickness="10" CornerRadius="25"/>
@@ -117,10 +302,11 @@
                         </Grid.RowDefinitions>
                         <TextBlock Text="   Image" FontWeight="Bold" FontSize="14" Height="30"/>
                         <StackPanel Grid.Row="1" Margin="10">
-                            <CheckBox x:Name="ChkUseHD" Content="Download HD Images (when available)" IsChecked="{Binding UseHD, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <CheckBox x:Name="ChkStartup" Content="Update image on startup" IsChecked="{Binding RunStartup, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <CheckBox x:Name="ChkUseHD" Content="Download HD Images (when available)" IsChecked="{Binding Path=UseHD, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Desktop Fill type:  " VerticalAlignment="Center"/>
-                                <ComboBox x:Name="CmbWallpaperStyle" Width="160" VerticalContentAlignment="Center" IsEditable="False" ItemsSource="" SelectedItem="{Binding WallpaperStyle, Mode=TwoWay, Converter={StaticResource enumConverter}, UpdateSourceTrigger=PropertyChanged}"/>
+                                <ComboBox x:Name="CmbWallpaperStyle" Width="160" VerticalContentAlignment="Center" IsEditable="False" ItemsSource="{x:Bind enums}" SelectedItem="{Binding WallpaperStyle, Mode=TwoWay, Converter={StaticResource enumConverter}, UpdateSourceTrigger=PropertyChanged}"/>
                                 <Button x:Name="BtnStyleChange" Content="Update Style" Margin="5 0" Height="30" Width="90" Click="BtnStyleChange_Click"/>
                             </StackPanel>
                         </StackPanel>
@@ -140,13 +326,12 @@
                                 <RowDefinition Height="*" MinHeight="32"/>
                                 <RowDefinition Height="*" MinHeight="32"/>
                             </Grid.RowDefinitions>
-                            <Button x:Name="BtnSaveImg" Content="Save Current Image" Grid.Row="0" Width="250" Height="32" Click="BtnSaveImg_Click"/>
                             <Button x:Name="BtnUpdate" Content="Check for update..." Grid.Row="1" Width="250" Height="32"  Click="BtnUpdate_Click"/>
                             <Button x:Name="BtnForceRun" Content="Force Run" Grid.Row="2" Width="250" Height="32" Click="BtnForceRun_Click"/>
                             <Button x:Name="BtnResetDefault" Content="Reset to Defaults" Grid.Row="3" Width="250" Height="32" Click="BtnResetDefault_Click"/>
                         </Grid>
                     </Grid>
-                    <Border Grid.Column="1" Grid.Row="1" BorderThickness="10" CornerRadius="25"/>
+                    <Border Grid.Column="1" Grid.Row="1" BorderThickness="10" CornerRadius="25" />
 
                 </Grid>
             </TabViewItem>
@@ -161,6 +346,7 @@
 
                 </Grid>
             </TabViewItem>
+
         </TabView>
     </Grid>
 </Window>

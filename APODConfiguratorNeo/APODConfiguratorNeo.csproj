@@ -10,10 +10,14 @@
     <RuntimeIdentifiers Condition="$([MSBuild]::GetTargetFrameworkVersion('$(TargetFramework)')) &lt; 8">win10-x86;win10-x64;win10-arm64</RuntimeIdentifiers>
     <PublishProfile>win-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
+	  <ImplicitUsings>enable</ImplicitUsings>
     <EnableMsixTooling>true</EnableMsixTooling>
 	  <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <None Remove="Resources\NotAvailable.png" />
+    <None Remove="Resources\Spanner.ico" />
+    <None Remove="Resources\Spanner.png" />
     <None Remove="Updater.xaml" />
   </ItemGroup>
 
@@ -44,7 +48,11 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\APODWallpaper\APODWallpaper.csproj" />
-    <ProjectReference Include="..\ConfiguratorShared\ConfiguratorShared.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Resources\NotAvailable.png" />
+    <Resource Include="Resources\Spanner.ico" />
+    <Resource Include="Resources\Spanner.png" />
   </ItemGroup>
   <ItemGroup>
     <Page Update="Updater.xaml">

@@ -1,7 +1,5 @@
 ﻿using APODWallpaper.Utils;
-using Microsoft.Win32;
 using System.Diagnostics;
-using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Input;

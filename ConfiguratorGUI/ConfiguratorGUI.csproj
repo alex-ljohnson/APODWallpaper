@@ -35,6 +35,12 @@
 	    <DefineConstants>CONTAINED</DefineConstants>
     </PropertyGroup>
     <ItemGroup>
+      <Compile Remove="bin\**" />
+      <EmbeddedResource Remove="bin\**" />
+      <None Remove="bin\**" />
+      <Page Remove="bin\**" />
+    </ItemGroup>
+    <ItemGroup>
       <None Remove="Resources\Splash.bmp" />
     </ItemGroup>
     <ItemGroup>

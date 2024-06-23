@@ -1,6 +1,5 @@
-﻿using System.Text;
-using System.IO;
-using System.Windows.Controls;
+﻿using Microsoft.UI.Xaml.Controls;
+using System.Text;
 
 namespace APODConfiguratorNeo
 {
@@ -10,7 +9,7 @@ namespace APODConfiguratorNeo
         {
             if (value != null)
             {
-                output.Text += value+"\n";
+                output.Text += value + "\n";
             }
         }
         public override void Write(string? value)

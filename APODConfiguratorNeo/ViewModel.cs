@@ -1,15 +1,12 @@
 ﻿using APODWallpaper.Utils;
-using Microsoft.Win32;
+using Microsoft.UI.Xaml.Controls;
 using Newtonsoft.Json;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.CompilerServices;
-using System.Windows;
-using System.Windows.Input;
 
-namespace ConfiguratorGUI
+namespace APODConfiguratorNeo
 {
     internal class ViewModel : INotifyPropertyChanged
     {
@@ -18,17 +15,6 @@ namespace ConfiguratorGUI
         private DateOnly exploreEnd = DateOnly.FromDateTime(DateTime.Now).AddDays(-1);
 
         const int ExploreCount = 12;
-
-        private Cursor windowCursor = Cursors.Arrow;
-        public Cursor WindowCursor
-        {
-            get => windowCursor;
-            set
-            {
-                windowCursor = value;
-                OnPropertyChanged(nameof(WindowCursor));
-            }
-        }
 
         private ObservableCollection<PictureData> pictureData = [];
         public ObservableCollection<PictureData> MyPictureData
@@ -85,119 +71,14 @@ namespace ConfiguratorGUI
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
 
-        #region Commands
-        private ICommand? _deleteCommand;
-        public ICommand DeleteCommand
-        {
-            get
-            {
-                _deleteCommand ??= new RelayCommand<string>(DeleteOption, (s) => true);
-                return _deleteCommand;
-            }
-            set
-            {
-                _selectCommand = value;
-            }
-        }
-
-        private ICommand? _selectCommand;
-        public ICommand SelectCommand
-        {
-            get
-            {
-                _selectCommand ??= new RelayCommand<string>(SelectOption, (s) => true);
-                return _selectCommand;
-            }
-            set
-            {
-                _selectCommand = value;
-            }
-        }
-
-        private ICommand? _checkNewCommand;
-        public ICommand CheckNewCommand
-        {
-            get
-            {
-                _checkNewCommand ??= new RelayCommand<object>(CheckNew, (s) => true);
-                return _checkNewCommand;
-            }
-            set
-            {
-                _checkNewCommand = value;
-            }
-        }
-
-        private ICommand? _saveImgCommand;
-        public ICommand SaveImgCommand
-        {
-            get
-            {
-                _saveImgCommand ??= new RelayCommand<PictureData?>(SaveImage, (s) => true);
-                return _saveImgCommand;
-            }
-            set
-            {
-                _saveImgCommand = value;
-            }
-        }
-        private ICommand? _descriptionCommand;
-        public ICommand DescriptionCommand
-        {
-            get
-            {
-                _descriptionCommand ??= new RelayCommand<PictureData>(ReadDescription, (s) => true);
-                return _descriptionCommand;
-            }
-            set
-            {
-                _descriptionCommand = value;
-            }
-        }
-        private ICommand? _downloadCommand;
-        public ICommand DownloadCommand
-        {
-            get
-            {
-                _downloadCommand ??= new RelayCommand<APODInfo>(SaveExplore, (s) => true);
-                return _downloadCommand;
-            }
-            set
-            {
-                _downloadCommand = value;
-            }
-        }
-        private ICommand? _nextCommand;
-        public ICommand NextCommand
-        {
-            get
-            {
-                _nextCommand ??= new RelayCommand(ExploreNext, (s) => true);
-                return _nextCommand;
-            }
-            set
-            {
-                _nextCommand = value;
-            }
-        }
-        private ICommand? _prevCommand;
-        public ICommand PrevCommand
-        {
-            get
-            {
-                _prevCommand ??= new RelayCommand(ExplorePrev, (s) => true);
-                return _prevCommand;
-            }
-            set
-            {
-                _prevCommand = value;
-            }
-        }
-
-        private async void SaveExplore(APODInfo? data)
+        public async void SaveExploreAsync(APODInfo? data)
         {
             if (data == null) return;
-            if (MyPictureData.Any(x => x.Equals(data))) { MessageBox.Show("Image was previously saved!", "Already saved"); return; }
+            if (MyPictureData.Any(x => x.Equals(data)))
+            {
+                await new ContentDialog() { Title = "Already saved", Content = "Image was previously saved!" }.ShowAsync();
+                return;
+            }
             PictureData pictureData;
             var task = APOD.DownloadImageAsync(data);
             ExploreData.Remove(data);
@@ -206,9 +87,8 @@ namespace ConfiguratorGUI
                 pictureData = await task;
                 MyPictureData.Insert(0, pictureData);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                MessageBox.Show(ex.Message);
             }
             _ = SortDataAsync();
         }
@@ -216,15 +96,13 @@ namespace ConfiguratorGUI
         {
             ExploreData = new(await APOD.GetInfoAsync(exploreEnd, ExploreCount));
         }
-        private async void ExploreNext()
+        public async void ExploreNext()
         {
             Trace.WriteLine("Loading next...");
             if (exploreEnd.AddDays(ExploreCount) <= DateOnly.FromDateTime(DateTime.Now).AddDays(-1))
             {
-                WindowCursor = Cursors.Wait;
                 exploreEnd = exploreEnd.AddDays(ExploreCount);
                 await LoadExplore();
-                WindowCursor = Cursors.Arrow;
             }
         }
         public async void ExplorePrev()
@@ -232,10 +110,8 @@ namespace ConfiguratorGUI
             Trace.WriteLine("Loading prev...");
             if (exploreEnd.AddDays(-ExploreCount) >= DateOnly.ParseExact("1995-06-16", "yyyy-MM-dd"))
             {
-                WindowCursor = Cursors.Wait;
                 exploreEnd = exploreEnd.AddDays(-ExploreCount);
                 await LoadExplore();
-                WindowCursor = Cursors.Arrow;
             }
         }
         public void DeleteOption(string? source)
@@ -250,11 +126,11 @@ namespace ConfiguratorGUI
             if (source == null) { return; }
             APOD.UpdateBackground(source, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
         }
-        public async void CheckNew(object? param)
+        public async void CheckNewAsync()
         {
             if (await APOD.CheckNewAsync())
             {
-                MessageBox.Show("New image found.", "Downloading image");
+                await new ContentDialog() { Title = "Downloading Image", Content = "New image found" }.ShowAsync();
                 var newData = await APOD.UpdateAsync(true);
                 if (newData != null)
                 {
@@ -263,30 +139,9 @@ namespace ConfiguratorGUI
             }
             else
             {
-                MessageBox.Show("No new image found.", "No new image");
+                await new ContentDialog() { Title = "Image up to date", Content = "No new image found" }.ShowAsync();
             }
         }
-        public void SaveImage(PictureData? param)
-        {
-            Trace.WriteLine("Saving image");
-            PictureData? item = param ?? SelectedItem;
-            if (item == null) { return; }
-            SaveFileDialog sf = new() { Title = "Save image as...", AddExtension = true, FileName = "Wallpaper.jpg", Filter = "JPEG Image (*.jpg)|*.jpg|Bitmap Image (*.bmp)|*.bmp|PNG Image (*.png)|*.png" };
-            bool? result = sf.ShowDialog();
-            if (result != null && (bool)result)
-            {
-                using FileStream fileStream = new(item.Source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite), outStream = (FileStream)sf.OpenFile();
-                fileStream.CopyTo(outStream);
-                MessageBox.Show($"Copied image to {outStream.Name}", "Wallpaper saved");
-            }
-        }
-
-        public void ReadDescription(PictureData? param)
-        {
-            if (param == null) { return; }
-            MessageBox.Show(param?.Description, $"Description of {param?.Name}");
-        }
-        #endregion
 
         private async Task LoadItemAsync(string itemPath)
         {
