@@ -5,7 +5,6 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:APODConfiguratorNeo"
     xmlns:utils="using:APODWallpaper.Utils"
-    xmlns:ui="using:CommunityToolkit.WinUI"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
@@ -14,6 +13,7 @@
     <Window.SystemBackdrop>
         <DesktopAcrylicBackdrop/>
     </Window.SystemBackdrop>
+    <!--#region old-->
     <!--<Window.Triggers>
         <EventTrigger RoutedEvent="Window.Loaded">
             <BeginStoryboard>
@@ -141,212 +141,14 @@
             </Setter>
         </Style>
     </Window.Resources>-->
-    <Grid x:Name="grdMain">
-        <Grid.Resources>
-            <local:EnumConverter x:Key="enumConverter"/>
-            <local:PostfixConverter x:Key="postfixConverter"/>
-        </Grid.Resources>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="30"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-        <!--<Grid x:Name="TitleBar" MouseDown="TitleBar_MouseDown">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="auto"/>
-            </Grid.ColumnDefinitions>
-            <ToggleButton/>
-            <StackPanel Orientation="Horizontal" Background="{DynamicResource Dark}" Grid.Column="0">
-                <Image Source="{Binding Icon, ElementName=window}" Width="20" Height="20" Margin="5"/>
-                <TextBlock Text="{Binding Title, ElementName=window}"/>
-            </StackPanel>
-            <Rectangle Grid.Column="1" Fill="{DynamicResource Dark}"/>
-            <StackPanel Orientation="Horizontal" Background="{DynamicResource Dark}" Grid.Column="2">
-                <Button x:Name="BtnMinimise" Content="-"  Width="40" Click="BtnMinimise_Click"/>
-                <Button x:Name="BtnMaximise" Width="40" Click="BtnMaximise_Click">
-                    <Path Stroke="{DynamicResource Foreground}">
-                        <Path.Data>
-                            <RectangleGeometry Rect="0 0 8 8"/>
-                        </Path.Data>
-                    </Path>
-                </Button>
-                <Button x:Name="BtnClose" Content="X" Style="{DynamicResource BtnClose}" Width="40" Foreground="{DynamicResource Foreground}" IsCancel="True" Click="BtnClose_Click"/>
-            </StackPanel>
-        </Grid>-->
-        <TabView x:Name="mainTabControl"  Grid.ColumnSpan="5" Grid.Row="1">
-            <TabViewItem x:Name="ImageTab" Header="Image manager">
-                <Grid ScrollViewer.VerticalScrollMode="Auto">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="1*" />
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="1*" />
-                        <RowDefinition Height="50" />
-                    </Grid.RowDefinitions>
-                    <GridView ItemsSource="{x:Bind VM.MyPictureData}" x:Name="wallpaperView" 
-                              SelectedItem="{x:Bind VM.SelectedItem}" SelectionMode="Single"
-                              ItemClick="Select"
-                              
-                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                        <GridView.ItemTemplate>
-                            <DataTemplate x:DataType="utils:PictureData">
-                                    <StackPanel Width="220" Height="240" Margin="5">
-                                        <StackPanel.ContextFlyout>
-                                            <CommandBarFlyout x:Name="itemContext">
-                                                <AppBarButton Label="Save" Icon="Save" Click="SaveImage"/>
-                                                <AppBarButton Label="Description" Icon="Read" Click="Description"/>
-                                            </CommandBarFlyout>
-                                        </StackPanel.ContextFlyout>
-                                        <TextBlock Text="{Binding Path=Name}" FontWeight="Bold"/>
-                                        <TextBlock Text="{Binding Path=Date}"/>
-                                        <TextBlock Text="{Binding Path=Description}"/>
-                                        <Button Click="Delete" CommandParameter="{Binding Source}">Delete</Button>
-                                        <Image Stretch="UniformToFill">
-                                            <Image.Source>
-                                                <BitmapImage UriSource="{Binding Source}" CreateOptions="None" DecodePixelWidth="{x:Bind utils:Configuration.Config.PreviewQuality}"/>
-                                            </Image.Source>
-                                        </Image>
-                                    </StackPanel>
-                            </DataTemplate>
-                        </GridView.ItemTemplate>
-                    </GridView>
-                    <Button x:Name="BtnCheckNew" Content="Check for new image" Grid.Row="1" Width="250" Height="32" Click="CheckNew"/>
-                </Grid>
-            </TabViewItem>
-            <TabViewItem x:Name="ExploreTab" Header="Explore">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="1*" />
-                        <ColumnDefinition Width="1*" />
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="1*" />
-                        <RowDefinition Height="50" />
-                    </Grid.RowDefinitions>
-                    <GridView ItemsSource="{x:Bind VM.ExploreData}" ScrollViewer.VerticalScrollMode="Auto" x:Name="exploreView" SelectionMode="Single"
-                            SelectedItem="{x:Bind VM.ExploreSelected}"
-                            ScrollViewer.HorizontalScrollBarVisibility="Disabled" Grid.ColumnSpan="2">
-                        <GridView.ItemTemplate>
-                            <DataTemplate x:DataType="utils:APODInfo">
-                                    <StackPanel Width="220" Height="240" Margin="5">
-                                        <StackPanel.ContextFlyout>
-                                            <CommandBarFlyout x:Name="itemContext">
-                                                <AppBarButton Icon="Save" Label="Save" Click="DownloadExplore"/>
-                                            </CommandBarFlyout>
-                                        </StackPanel.ContextFlyout>
-                                        <TextBlock Text="{x:Bind Title}" FontWeight="Bold"/>
-                                        <TextBlock Text="{x:Bind Date}"/>
-                                        <TextBlock Text="{x:Bind Explanation}"/>
-                                        <Image Stretch="UniformToFill" Height="160">
-                                            <Image.Source>
-                                                <BitmapImage  UriSource="{Binding Url}" CreateOptions="None" DecodePixelWidth="{x:Bind utils:Configuration.Config.PreviewQuality}"/>
-                                            </Image.Source>
-                                        </Image>
-                                        <!--<Button Height="30" Command="{Binding DataContext.DownloadCommand, Source={x:Reference exploreView}}" CommandParameter="{Binding Source={x:Reference exploreView}, Path=SelectedItem}">Download</Button>-->
-                                    </StackPanel>
-                            </DataTemplate>
-                        </GridView.ItemTemplate>
-                    </GridView>
-                    <Button x:Name="BtnLoadPrev" Content="Previous" Grid.Row="1" Width="250" Height="32" Click="{x:Bind PreviousExplore}"/>
-                    <Button x:Name="BtnLoadNext" Content="Next" Grid.Row="1" Grid.Column="1" Width="250" Height="32" Click="{x:Bind NextExplore}"/>
-                </Grid>
-            </TabViewItem>
-            <TabViewItem x:Name="SettingsTab" Header="Settings" DataContext="{x:Bind utils:Configuration.Config}">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <Grid Grid.Row="0" Grid.Column="0" Margin="10">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="30"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <TextBlock Text="   General" FontWeight="Bold" FontSize="14" Height="30"/>
-                        <StackPanel Margin="10" Grid.Row="1">
-                            <CheckBox x:Name="ChkExplainImage" Content="Show image explanation on update" IsChecked="{Binding ExplainImage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                        </StackPanel>
-                    </Grid>
-                    <Border Grid.Column="0" Grid.Row="0" BorderThickness="10" CornerRadius="25"/>
-
-                    <Grid Grid.Row="0" Grid.Column="1" Margin="10">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="30"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <TextBlock Text="   UI" FontWeight="Bold" FontSize="14" Height="30"/>
-                        <StackPanel Grid.Row="1" Margin="10">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Configurator Theme: " VerticalAlignment="Center"/>
-                                <ComboBox x:Name="CmbConfiguratorTheme" Width="160" VerticalContentAlignment="Center" IsEditable="False" ItemsSource="{Binding AvailableThemes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource postfixConverter}, ConverterParameter=.xaml}" SelectedItem="{Binding ConfiguratorTheme, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource postfixConverter}, ConverterParameter=.xaml}"/>
-                                <Button x:Name="BtnUpdateTheme" Margin="5 0" Content="Update..." Height="30" Width="70" Click="BtnUpdateTheme_Click"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Image preview quality (restart required): " VerticalAlignment="Center"/>
-                                <TextBox x:Name="TxtPreviewQuality" Text="{Binding PreviewQuality, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="160"/> <!--TextChanging="TxtPreviewQuality_TextChanging" Paste="TextBoxPasting"-->
-                            </StackPanel>
-
-                        </StackPanel>
-                    </Grid>
-                    <Border Grid.Column="1" Grid.Row="0" BorderThickness="10" CornerRadius="25"/>
-
-                    <Grid Grid.Row="1" Grid.Column="0" Margin="10">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="30"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <TextBlock Text="   Image" FontWeight="Bold" FontSize="14" Height="30"/>
-                        <StackPanel Grid.Row="1" Margin="10">
-                            <CheckBox x:Name="ChkStartup" Content="Update image on startup" IsChecked="{Binding RunStartup, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                            <CheckBox x:Name="ChkUseHD" Content="Download HD Images (when available)" IsChecked="{Binding Path=UseHD, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Desktop Fill type:  " VerticalAlignment="Center"/>
-                                <ComboBox x:Name="CmbWallpaperStyle" Width="160" VerticalContentAlignment="Center" IsEditable="False" ItemsSource="{x:Bind enums}" SelectedItem="{Binding WallpaperStyle, Mode=TwoWay, Converter={StaticResource enumConverter}, UpdateSourceTrigger=PropertyChanged}"/>
-                                <Button x:Name="BtnStyleChange" Content="Update Style" Margin="5 0" Height="30" Width="90" Click="BtnStyleChange_Click"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Grid>
-                    <Border Grid.Column="0" Grid.Row="1" BorderThickness="10" CornerRadius="25"/>
-
-                    <Grid Grid.Row="1" Grid.Column="2" Margin="10">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="30"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <TextBlock Text="   Tools" FontWeight="Bold" FontSize="14" Height="30"/>
-                        <Grid Margin="0 4" Grid.Row="1">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="*" MinHeight="32"/>
-                                <RowDefinition Height="*" MinHeight="32"/>
-                                <RowDefinition Height="*" MinHeight="32"/>
-                                <RowDefinition Height="*" MinHeight="32"/>
-                            </Grid.RowDefinitions>
-                            <Button x:Name="BtnUpdate" Content="Check for update..." Grid.Row="1" Width="250" Height="32"  Click="BtnUpdate_Click"/>
-                            <Button x:Name="BtnForceRun" Content="Force Run" Grid.Row="2" Width="250" Height="32" Click="BtnForceRun_Click"/>
-                            <Button x:Name="BtnResetDefault" Content="Reset to Defaults" Grid.Row="3" Width="250" Height="32" Click="BtnResetDefault_Click"/>
-                        </Grid>
-                    </Grid>
-                    <Border Grid.Column="1" Grid.Row="1" BorderThickness="10" CornerRadius="25" />
-
-                </Grid>
-            </TabViewItem>
-            <TabViewItem x:Name="OutputTab" Header="Output">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="35"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <Button x:Name="BtnClearOut" Content="Clear Output" Margin="5 3 0 0" Width="120" HorizontalAlignment="Left" Click="BtnClearOut_Click"/>
-                    <TextBox Grid.Row="1" x:Name="TxtOutput" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Margin="7"/>
-
-                </Grid>
-            </TabViewItem>
-
-        </TabView>
-    </Grid>
+    <!--#endregion-->
+    <NavigationView x:Name="mainTabControl"  Grid.ColumnSpan="5" Grid.Row="1">
+        <NavigationView.MenuItems>
+            <NavigationViewItem Icon="Pictures" Content="Image manager" Tag="Image"/>
+            <NavigationViewItem Icon="Globe" Content="Explore" Tag="Explore"/>
+            <NavigationViewItem Icon="Setting" Content="Settings" Tag="Settings"/>
+            <NavigationViewItem Icon="Document" Content="Output" Tag="Output"/>
+        </NavigationView.MenuItems>
+        <Frame x:Name="mainframe"/>
+    </NavigationView>
 </Window>

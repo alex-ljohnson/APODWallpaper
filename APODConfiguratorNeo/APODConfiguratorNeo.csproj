@@ -11,15 +11,9 @@
     <PublishProfile>win-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
 	  <ImplicitUsings>enable</ImplicitUsings>
-    <EnableMsixTooling>true</EnableMsixTooling>
 	  <Nullable>enable</Nullable>
+    <EnableMsixTooling>true</EnableMsixTooling>
   </PropertyGroup>
-  <ItemGroup>
-    <None Remove="Resources\NotAvailable.png" />
-    <None Remove="Resources\Spanner.ico" />
-    <None Remove="Resources\Spanner.png" />
-    <None Remove="Updater.xaml" />
-  </ItemGroup>
 
   <ItemGroup>
     <Content Include="Assets\SplashScreen.scale-200.png" />
@@ -32,7 +26,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommunityToolkit.WinUI" Version="7.1.2" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.756" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.5.240607001" />
     <Manifest Include="$(ApplicationManifest)" />
@@ -48,16 +41,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\APODWallpaper\APODWallpaper.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Resource Include="Resources\NotAvailable.png" />
-    <Resource Include="Resources\Spanner.ico" />
-    <Resource Include="Resources\Spanner.png" />
-  </ItemGroup>
-  <ItemGroup>
-    <Page Update="Updater.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
   </ItemGroup>
 
   <!--
