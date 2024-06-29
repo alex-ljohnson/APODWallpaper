@@ -192,7 +192,7 @@ namespace APODWallpaper
         {
             APODInfo imageInfo = information ?? TodayInfo;
             Console.WriteLine("HD");
-            if (imageInfo.MediaType != "image") { throw new Exception("APOD was not an image"); }
+            if (imageInfo.MediaType != "image") { throw new NotImageException("APOD was not an image"); }
             Console.WriteLine("Getting image data");
 
             DateTime startTime = DateTime.Now;

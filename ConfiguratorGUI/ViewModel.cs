@@ -199,7 +199,15 @@ namespace ConfiguratorGUI
             if (data == null) return;
             if (MyPictureData.Any(x => x.Equals(data))) { MessageBox.Show("Image was previously saved!", "Already saved"); return; }
             PictureData pictureData;
-            var task = APOD.DownloadImageAsync(data);
+            Task<PictureData>? task = default;
+            try { 
+            
+                task = APOD.DownloadImageAsync(data);
+            } catch (NotImageException ex)
+            {
+                MessageBox.Show(ex.Message, "APOD is not an image");
+                return;
+            }
             ExploreData.Remove(data);
             try
             {
@@ -255,7 +263,14 @@ namespace ConfiguratorGUI
             if (await APOD.CheckNewAsync())
             {
                 MessageBox.Show("New image found.", "Downloading image");
-                var newData = await APOD.UpdateAsync(true);
+                PictureData? newData = default;
+                try
+                {
+                    newData = await APOD.UpdateAsync(true);
+                } catch (NotImageException ex)
+                {
+                    MessageBox.Show(ex.Message, "APOD isn't an image");
+                }
                 if (newData != null)
                 {
                     MyPictureData.Insert(0, newData);

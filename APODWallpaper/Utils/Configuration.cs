@@ -149,7 +149,7 @@ namespace APODWallpaper.Utils
         public void ChangeStartup()
         {
             string APOD = Path.Combine(base_path, "APODWallpaper.exe");
-            RegistryKey? key = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+            RegistryKey? key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
             if (RunStartup)
             {
                 key?.SetValue("APODWallpaper", APOD);

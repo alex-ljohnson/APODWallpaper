@@ -102,7 +102,14 @@ namespace ConfiguratorGUI
         {
             TxtOutput.Clear();
             OutputTab.Focus();
-            await APOD.UpdateAsync(true);
+            try
+            {
+                await APOD.UpdateAsync(true);
+            } catch (NotImageException ex)
+            {
+                MessageBox.Show(ex.Message, "APOD isn't an image");
+                return;
+            }
             Console.WriteLine("\nProcess Finished!\n");
         }
 
