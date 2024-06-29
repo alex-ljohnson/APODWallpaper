@@ -304,7 +304,7 @@
                             </StackPanel>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Image preview quality (restart required): " VerticalAlignment="Center"/>
-                                <TextBox x:Name="TxtPreviewQuality" Text="{Binding PreviewQuality, Converter={StaticResource longConverter}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PreviewTextInput="TxtPreviewQuality_PreviewTextInput" DataObject.Pasting="TextBoxPasting" Width="160"/>
+                                <TextBox x:Name="TxtPreviewQuality" Text="{Binding PreviewQuality, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PreviewTextInput="TxtPreviewQuality_PreviewTextInput" DataObject.Pasting="TextBoxPasting" Width="160"/>
                             </StackPanel>
 
                         </StackPanel>

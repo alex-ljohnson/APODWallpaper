@@ -14,13 +14,15 @@ namespace ConfiguratorGUI
     internal class ViewModel : INotifyPropertyChanged
     {
         private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
-        
+
         private DateOnly exploreEnd = DateOnly.FromDateTime(DateTime.Now).AddDays(-1);
 
-        const int ExploreCount = 12;    
+        const int ExploreCount = 12;
 
         private Cursor windowCursor = Cursors.Arrow;
-        public Cursor WindowCursor { get => windowCursor;
+        public Cursor WindowCursor
+        {
+            get => windowCursor;
             set
             {
                 windowCursor = value;
@@ -131,9 +133,10 @@ namespace ConfiguratorGUI
         {
             get
             {
-                _saveImgCommand ??= new RelayCommand<PictureData?>(SaveImage, (s)=> true);
+                _saveImgCommand ??= new RelayCommand<PictureData?>(SaveImage, (s) => true);
                 return _saveImgCommand;
-            } set
+            }
+            set
             {
                 _saveImgCommand = value;
             }
@@ -158,7 +161,8 @@ namespace ConfiguratorGUI
             {
                 _downloadCommand ??= new RelayCommand<APODInfo>(SaveExplore, (s) => true);
                 return _downloadCommand;
-            } set
+            }
+            set
             {
                 _downloadCommand = value;
             }
@@ -170,7 +174,8 @@ namespace ConfiguratorGUI
             {
                 _nextCommand ??= new RelayCommand(ExploreNext, (s) => true);
                 return _nextCommand;
-            } set
+            }
+            set
             {
                 _nextCommand = value;
             }
@@ -182,7 +187,8 @@ namespace ConfiguratorGUI
             {
                 _prevCommand ??= new RelayCommand(ExplorePrev, (s) => true);
                 return _prevCommand;
-            } set
+            }
+            set
             {
                 _prevCommand = value;
             }
@@ -207,7 +213,8 @@ namespace ConfiguratorGUI
             {
                 pictureData = await task;
                 MyPictureData.Insert(0, pictureData);
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
             }
@@ -286,7 +293,7 @@ namespace ConfiguratorGUI
                 using FileStream fileStream = new(item.Source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite), outStream = (FileStream)sf.OpenFile();
                 fileStream.CopyTo(outStream);
                 MessageBox.Show($"Copied image to {outStream.Name}", "Wallpaper saved");
-            } 
+            }
         }
 
         public void ReadDescription(PictureData? param)
@@ -322,7 +329,8 @@ namespace ConfiguratorGUI
 
         private async Task SortDataAsync(IEnumerable<Task>? tasks = null)
         {
-            if (tasks != null) { 
+            if (tasks != null && tasks.Any())
+            {
                 Trace.WriteLine("Awaiting all items loaded");
                 await Task.WhenAll(tasks);
             }
@@ -334,7 +342,10 @@ namespace ConfiguratorGUI
             var explore = LoadExplore();
             var load = LoadData();
             var sort = SortDataAsync(load);
-            await Task.WhenAny(load);
+            if (load.Length > 0)
+            {
+                await Task.WhenAny(load);
+            }
         }
 
         public ViewModel()

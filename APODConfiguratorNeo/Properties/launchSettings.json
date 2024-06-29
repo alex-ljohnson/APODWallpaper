@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "APODConfiguratorNeo (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "APODConfiguratorNeo (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

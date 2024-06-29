@@ -21,7 +21,7 @@ namespace APODWallpaper.Utils
             Date = data.GetValueOrDefault("Date", DateOnly.Parse(Path.GetFileNameWithoutExtension(Source)));
         }
 
-        public PictureData(PictureData data) 
+        public PictureData(PictureData data)
         {
             // Copy constructor
             Name = data.Name;
@@ -60,7 +60,7 @@ namespace APODWallpaper.Utils
             if (other == null) return 1;
             return Date.CompareTo(other.Date);
         }
-        
+
         public bool Equals(PictureData? other)
         {
             if (other == null) return false;

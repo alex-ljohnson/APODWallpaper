@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="APODConfiguratorNeo.Pages.Explore"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:APODConfiguratorNeo.Pages"
+    xmlns:utils="using:APODWallpaper.Utils"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    NavigationCacheMode="Enabled"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1*" />
+            <ColumnDefinition Width="1*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="1*" />
+            <RowDefinition Height="50" />
+        </Grid.RowDefinitions>
+        <GridView ItemsSource="{x:Bind ExploreData}" ScrollViewer.VerticalScrollMode="Auto" x:Name="exploreView" SelectionMode="Single"
+            SelectedItem="{x:Bind ExploreSelected}"
+            ScrollViewer.HorizontalScrollBarVisibility="Disabled" Grid.ColumnSpan="2">
+            <GridView.ItemTemplate>
+                <DataTemplate x:DataType="utils:APODInfo">
+                    <StackPanel Width="220" Height="240" Margin="5">
+                        <StackPanel.ContextFlyout>
+                            <CommandBarFlyout x:Name="itemContext">
+                                <AppBarButton Icon="Save" Label="Save" />
+                            </CommandBarFlyout>
+                        </StackPanel.ContextFlyout>
+                        <TextBlock Text="{x:Bind Title}" FontWeight="Bold"/>
+                        <TextBlock Text="{x:Bind Date}"/>
+                        <TextBlock Text="{x:Bind Explanation}"/>
+                        <Image Stretch="UniformToFill" Height="160">
+                            <Image.Source>
+                                <BitmapImage  UriSource="{Binding Url}" CreateOptions="None" DecodePixelWidth="{x:Bind utils:Configuration.Config.PreviewQuality}"/>
+                            </Image.Source>
+                        </Image>
+                        <!--<Button Height="30" Command="{Binding DataContext.DownloadCommand, Source={x:Reference exploreView}}" CommandParameter="{Binding Source={x:Reference exploreView}, Path=SelectedItem}">Download</Button>-->
+                    </StackPanel>
+                </DataTemplate>
+            </GridView.ItemTemplate>
+        </GridView>
+        <Button x:Name="BtnLoadPrev" Content="Previous" Grid.Row="1" Width="250" Height="32" Click="{x:Bind ExplorePrev}"/>
+        <Button x:Name="BtnLoadNext" Content="Next" Grid.Row="1" Grid.Column="1" Width="250" Height="32" Click="{x:Bind ExploreNext}"/>
+    </Grid>
+</Page>

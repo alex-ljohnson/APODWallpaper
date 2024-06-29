@@ -99,7 +99,7 @@ namespace APODWallpaper
             {
                 var fileInfo = await DownloadTodayAsync();
                 UpdateBackground(fileInfo.Source, style: (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
-                if (Configuration.Config.ExplainImage) { _=MessageBoxW(hwnd, TodayInfo.Explanation, "Image Updated", 0x40 | 0x00); }
+                if (Configuration.Config.ExplainImage) { _ = MessageBoxW(hwnd, TodayInfo.Explanation, "Image Updated", 0x40 | 0x00); }
                 return fileInfo;
             }
             else
@@ -113,8 +113,9 @@ namespace APODWallpaper
         {
             if (end_date > DateOnly.FromDateTime(DateTime.Now).AddDays(-1)) throw new ArgumentException("end_date was in the future");
             string url = $"{Configuration.Config.BaseUrl}?";
-            if (end_date != null && count > 1) { 
-                url += $"start_date={end_date?.AddDays(-(count-1)).ToString("yyyy-MM-dd")}&end_date={end_date?.ToString("yyyy-MM-dd")}&"; 
+            if (end_date != null && count > 1)
+            {
+                url += $"start_date={end_date?.AddDays(-(count - 1)).ToString("yyyy-MM-dd")}&end_date={end_date?.ToString("yyyy-MM-dd")}&";
             }
             url += $"api_key={API_KEY}";
             APODInfo[] imageInfo;
@@ -131,12 +132,13 @@ namespace APODWallpaper
                 if (count > 1)
                 {
                     imageInfo = JsonConvert.DeserializeObject<APODInfo[]>(response)!;
-                } else
+                }
+                else
                 {
                     imageInfo = [JsonConvert.DeserializeObject<APODInfo>(response)!];
                 }
             }
-            catch (Exception ex)  when (ex is JsonException || ex is NotSupportedException || ex is HttpRequestException)
+            catch (Exception ex) when (ex is JsonException || ex is NotSupportedException || ex is HttpRequestException)
             {
                 _ = MessageBoxW(hwnd, "Please check your internet connection and try again", "Connection error", 0x10);
                 Console.WriteLine(ex.StackTrace);

@@ -1,0 +1,90 @@
+using APODWallpaper.Utils;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using System.Diagnostics;
+using System.Text.RegularExpressions;
+using Windows.Storage.Pickers;
+
+// To learn more about WinUI, the WinUI project structure,
+// and more about our project templates, see: http://aka.ms/winui-project-info.
+
+namespace APODConfiguratorNeo
+{
+    /// <summary>
+    /// An empty window that can be used on its own or navigated to within a Frame.
+    /// </summary>
+    public sealed partial class MainWindow : Window
+    {
+
+        private readonly ViewModel VM;
+        private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
+        public Frame MainFrame { get => mainframe; }
+        public MainWindow()
+        {
+            InitializeComponent();
+            VM = new ViewModel();
+        }
+
+        #region Window Control
+
+        private async void window_Loaded(object sender, RoutedEventArgs e)
+        {
+            await VM.Initialise();
+            _ = Updater.CheckUpdate(true);
+            Trace.WriteLine("\nWINDOW LOADED\n");
+
+        }
+
+        #endregion
+            
+        async private void BtnForceRun_Click(object sender, RoutedEventArgs e)
+        {
+            MainFrame.Navigate(typeof(Pages.Output), "");
+            await APOD.UpdateAsync(true);
+            Console.WriteLine("\nProcess Finished!\n");
+        }
+
+        private async void BtnUpdate_Click(object sender, RoutedEventArgs e)
+        {
+            await Updater.CheckUpdate();
+        }
+
+        private void BtnResetDefault_Click(object sender, RoutedEventArgs e)
+        {
+            Configuration.Config.SetConfiguration(Configuration.DefaultConfiguration);
+        }
+
+        private void BtnStyleChange_Click(object sender, RoutedEventArgs e)
+        {
+            APOD.UpdateBackground(null, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
+        }
+
+        [GeneratedRegex("[^0-9]+")]
+        private static partial Regex NotIntegerRegex();
+        //private void TxtPreviewQuality_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        //{
+        //    e.Handled = NotIntegerValidation(e.Text);
+        //}
+        private static bool NotIntegerValidation(string text)
+        {
+            Regex regex = NotIntegerRegex();
+            return regex.IsMatch(text);
+        }
+
+        //private void TextBoxPasting(object sender, DataObjectPastingEventArgs e)
+        //{
+        //    if (e.DataObject.GetDataPresent(typeof(string)))
+        //    {
+        //        string text = (string)e.DataObject.GetData(typeof(string));
+        //        if (NotIntegerValidation(text))
+        //        {
+        //            e.CancelCommand();
+        //        }
+        //    }
+        //    else
+        //    {
+        //        e.CancelCommand();
+        //    }
+        //}
+    }
+}

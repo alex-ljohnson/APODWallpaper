@@ -45,7 +45,7 @@ namespace APODWallpaper.Utils
         public bool ExplainImage { get { return _configuration.GetValueOrDefault(nameof(ExplainImage), false); } set { _configuration[nameof(ExplainImage)] = value; AutoSave(); OnPropertyChanged(nameof(ExplainImage)); } }
         public string BaseUrl { get { return _configuration.GetValueOrDefault(nameof(BaseUrl), "https://api.nasa.gov/planetary/apod"); } set { _configuration[nameof(BaseUrl)] = value; AutoSave(); OnPropertyChanged(nameof(BaseUrl)); } }
         public string ConfiguratorTheme { get { return _configuration.GetValueOrDefault(nameof(ConfiguratorTheme), "Light.xaml"); } set { _configuration[nameof(ConfiguratorTheme)] = value; AutoSave(); OnPropertyChanged(nameof(ConfiguratorTheme)); } }
-        public long PreviewQuality { get { return _configuration.GetValueOrDefault(nameof(PreviewQuality), 200); } set { _configuration[nameof(PreviewQuality)] = value; AutoSave(); OnPropertyChanged(nameof(PreviewQuality)); } }
+        public int PreviewQuality { get { return _configuration.GetValueOrDefault(nameof(PreviewQuality), 200); } set { _configuration[nameof(PreviewQuality)] = value; AutoSave(); OnPropertyChanged(nameof(PreviewQuality)); } }
         public long WallpaperStyle { get { return (long)_configuration.GetValueOrDefault(nameof(WallpaperStyle), WallpaperStyleEnum.Fill); } set { _configuration[nameof(WallpaperStyle)] = value; AutoSave(); OnPropertyChanged(nameof(WallpaperStyle)); } }
 
         public static readonly ReadOnlyCollection<string> DefaultThemes = new(["Light.xaml", "Dark.xaml"]);

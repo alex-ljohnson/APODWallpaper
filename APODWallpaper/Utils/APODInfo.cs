@@ -24,7 +24,9 @@ namespace APODWallpaper.Utils
         public string Title { get; set; } = title;
         public Uri Url { get; set; } = new(url, UriKind.Absolute);
 
-        public Uri RealUri { get
+        public Uri RealUri
+        {
+            get
             {
                 return Configuration.Config.UseHD && HDUrl != null ? HDUrl : Url;
             }
