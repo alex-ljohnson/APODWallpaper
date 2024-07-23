@@ -1,6 +1,6 @@
 ﻿using Microsoft.UI.Xaml.Data;
 
-namespace APODConfiguratorNeo
+namespace APODConfiguratorNeo.Converters
 {
     internal class PostfixConverter : IValueConverter
     {

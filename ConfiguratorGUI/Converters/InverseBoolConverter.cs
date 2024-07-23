@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
 using System.Windows.Data;
 
-namespace ConfiguratorGUI
+namespace ConfiguratorGUI.Converters
 {
     [ValueConversion(typeof(bool), typeof(bool))]
     public class InverseBoolConverter : IValueConverter

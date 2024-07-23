@@ -1,10 +1,12 @@
 ﻿using System.Globalization;
 using System.Windows.Data;
 
-namespace ConfiguratorGUI
+namespace ConfiguratorGUI.Converters
 {
+    [ValueConversion(typeof(string), typeof(string))]
     internal class PostfixConverter : IValueConverter
     {
+        
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (parameter is not string par) { return value; }

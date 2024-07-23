@@ -2,7 +2,7 @@
 using System.Globalization;
 using System.Windows.Data;
 
-namespace ConfiguratorGUI
+namespace ConfiguratorGUI.Converters
 {
     [ValueConversion(typeof(long), typeof(WallpaperStyleEnum))]
     internal class EnumConverter : IValueConverter

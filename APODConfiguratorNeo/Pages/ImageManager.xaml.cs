@@ -1,23 +1,13 @@
 using APODWallpaper.Utils;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
 using Windows.Storage.Pickers;
 
 // To learn more about WinUI, the WinUI project structure,
@@ -66,6 +56,8 @@ namespace APODConfiguratorNeo.Pages
         public ImageManager()
         {
             InitializeComponent();
+            imageGridView.ItemsSource = MyPictureData;
+
         }
 
         protected override async void OnNavigatedTo(NavigationEventArgs e)
@@ -77,7 +69,7 @@ namespace APODConfiguratorNeo.Pages
         async private void Description(object sender, RoutedEventArgs e)
         {
             var param = SelectedItem;
-            await new ContentDialog() { Content = param?.Description, Title = $"Description of {param?.Name}" }.ShowAsync();
+            await new ContentDialog() { Content = param?.Description, Title = $"Description of {param?.Name}", PrimaryButtonText="Close", XamlRoot=imageGridView.XamlRoot }.ShowAsync();
         }
 
         async private void SaveImage(object sender, RoutedEventArgs e)
@@ -95,7 +87,7 @@ namespace APODConfiguratorNeo.Pages
                 using Stream outStream = await result.OpenStreamForWriteAsync();
                 using FileStream fileStream = new(item.Source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 fileStream.CopyTo(outStream);
-                await new ContentDialog() { Title = "Wallpaper saved", Content = $"Copied image to {result.DisplayName}" }.ShowAsync();
+                await new ContentDialog() { Title = "Wallpaper saved", Content = $"Copied image to {result.DisplayName}", PrimaryButtonText="Ok", XamlRoot=imageGridView.XamlRoot }.ShowAsync();
             }
         }
 
@@ -113,11 +105,11 @@ namespace APODConfiguratorNeo.Pages
             if (source == null) { return; }
             APOD.UpdateBackground(source, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
         }
-        public async void CheckNewAsync()
+        public async Task CheckNewAsync()
         {
             if (await APOD.CheckNewAsync())
             {
-                await new ContentDialog() { Title = "Downloading Image", Content = "New image found" }.ShowAsync();
+                await new ContentDialog() { Title = "Downloading Image", Content = "New image found", PrimaryButtonText="Ok", XamlRoot=BtnCheckNew.XamlRoot }.ShowAsync();
                 var newData = await APOD.UpdateAsync(true);
                 if (newData != null)
                 {
@@ -126,7 +118,7 @@ namespace APODConfiguratorNeo.Pages
             }
             else
             {
-                await new ContentDialog() { Title = "Image up to date", Content = "No new image found" }.ShowAsync();
+                await new ContentDialog() { Title = "Image up to date", Content = "No new image found", PrimaryButtonText="Ok", XamlRoot=BtnCheckNew.XamlRoot }.ShowAsync();
             }
         }
 
@@ -138,7 +130,7 @@ namespace APODConfiguratorNeo.Pages
             var json = await sr.ReadToEndAsync();
             Trace.WriteLine(itemPath + " is now done");
             var data = JsonConvert.DeserializeObject<PictureData>(json);
-            if (data != null)
+            if (data != null && !MyPictureData.Contains(data))
             {
                 MyPictureData.Add(data);
             }
@@ -161,7 +153,7 @@ namespace APODConfiguratorNeo.Pages
                 Trace.WriteLine("Awaiting all items loaded");
                 await Task.WhenAll(tasks);
             }
-            MyPictureData = new ObservableCollection<PictureData>(MyPictureData.OrderDescending());
+            MyPictureData = new ObservableCollection<PictureData>(MyPictureData.OrderByDescending(x => x.Date));
 
         }
 
@@ -175,9 +167,10 @@ namespace APODConfiguratorNeo.Pages
             }
         }
 
-        private void BtnCheckNew_Click(object sender, RoutedEventArgs e)
+        private async void BtnCheckNew_Click(object sender, RoutedEventArgs e)
         {
-            CheckNewAsync();
+            await CheckNewAsync();
+
         }
     }
 }

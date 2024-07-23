@@ -2,6 +2,7 @@
 using Microsoft.Win32;
 using Newtonsoft.Json;
 using System.Diagnostics;
+using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 
 bool force = false;
@@ -196,6 +197,10 @@ namespace APODWallpaper
             Console.WriteLine("Getting image data");
 
             DateTime startTime = DateTime.Now;
+            if (File.Exists(Utilities.GetDataPath("images/" + information.Date.ToString("yyyy-MM-dd"))))
+            {
+                throw new Exception("File already exists");
+            }
             var filename = await DownloadURLAsync(imageInfo.RealUri, imageInfo.Date);
             PictureData downloadedInfo = new(imageInfo.Title, imageInfo.Explanation, filename, imageInfo.Date);
             var infoJson = JsonConvert.SerializeObject(downloadedInfo, Formatting.Indented);

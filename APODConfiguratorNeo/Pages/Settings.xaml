@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:main="using:APODConfiguratorNeo"
     xmlns:local="using:APODConfiguratorNeo.Pages"
+    xmlns:converters="using:APODConfiguratorNeo.Converters" 
     xmlns:utils="using:APODWallpaper.Utils"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -13,8 +14,8 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Page.Resources>
-        <main:EnumConverter x:Key="enumConverter"/>
-        <main:PostfixConverter x:Key="postfixConverter"/>
+        <converters:EnumConverter x:Key="enumConverter"/>
+        <converters:PostfixConverter x:Key="postfixConverter"/>
     </Page.Resources>
     <!--<Grid>
         <Grid.ColumnDefinitions>

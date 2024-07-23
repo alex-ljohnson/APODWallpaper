@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ConfiguratorGUI"
+        xmlns:converters="clr-namespace:ConfiguratorGUI.Converters"
         xmlns:utils="clr-namespace:APODWallpaper.Utils;assembly=APODWallpaper"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
@@ -31,10 +32,10 @@
         </EventTrigger>
     </Window.Triggers>
     <Window.Resources>
-        <local:EnumConverter x:Key="enumConverter"/>
-        <local:InverseBoolConverter x:Key="inverseBoolConverter"/>
-        <local:PostfixConverter x:Key="postfixConverter"/>
-        <local:LongConverter x:Key="longConverter"/>
+        <converters:EnumConverter x:Key="enumConverter"/>
+        <converters:InverseBoolConverter x:Key="inverseBoolConverter"/>
+        <converters:PostfixConverter x:Key="postfixConverter"/>
+        <converters:LongConverter x:Key="longConverter"/>
         <BooleanToVisibilityConverter x:Key="boolVisConverter"/>
         <Storyboard x:Key="closeAnim" Completed="CloseStoryboard_Completed">
             <DoubleAnimation Storyboard.TargetName="grdMain" Storyboard.TargetProperty="Opacity"
@@ -212,7 +213,7 @@
                                         <Button Command="{Binding DataContext.DeleteCommand, Source={x:Reference wallpaperView}}" CommandParameter="{Binding Source}">Delete</Button>
                                         <Image Stretch="UniformToFill">
                                             <Image.Source>
-                                                <BitmapImage UriSource="{Binding Source}" CacheOption="OnLoad" DecodePixelWidth="{Binding DataContext.PreviewQuality, Source={x:Reference SettingsTab}}"/>
+                                                <BitmapImage UriSource="{Binding Source}" CacheOption="OnLoad" DecodePixelWidth="{Binding DataContext.PreviewQuality, Source={x:Reference SettingsTab}, Converter={StaticResource longConverter}}"/>
                                             </Image.Source>
                                         </Image>
                                     </StackPanel>
@@ -255,7 +256,7 @@
                                             <TextBlock Text="{Binding Path=Explanation}"/>
                                             <Image Stretch="UniformToFill" Height="160">
                                                 <Image.Source>
-                                                    <BitmapImage UriSource="{Binding Url}" CacheOption="OnLoad" DecodePixelWidth="{Binding DataContext.PreviewQuality, Source={x:Reference SettingsTab}}"/>
+                                                    <BitmapImage UriSource="{Binding Url}" CacheOption="OnLoad" DecodePixelWidth="{Binding DataContext.PreviewQuality, Source={x:Reference SettingsTab}, Converter={StaticResource longConverter}}"/>
                                                 </Image.Source>
                                             </Image>
                                         <!--<Button Height="30" Command="{Binding DataContext.DownloadCommand, Source={x:Reference exploreView}}" CommandParameter="{Binding Source={x:Reference exploreView}, Path=SelectedItem}">Download</Button>-->

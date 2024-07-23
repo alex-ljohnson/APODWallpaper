@@ -5,12 +5,16 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:APODConfiguratorNeo.Pages"
     xmlns:utils="using:APODWallpaper.Utils"
+    xmlns:converters="using:APODConfiguratorNeo.Converters"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     NavigationCacheMode="Enabled"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
+    <Page.Resources>
+        <converters:LongConverter x:Key="LongConverter"/>
+    </Page.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="1*" />
@@ -25,10 +29,10 @@
             ScrollViewer.HorizontalScrollBarVisibility="Disabled" Grid.ColumnSpan="2">
             <GridView.ItemTemplate>
                 <DataTemplate x:DataType="utils:APODInfo">
-                    <StackPanel Width="220" Height="240" Margin="5">
+                    <StackPanel Width="220" Height="250" Margin="5">
                         <StackPanel.ContextFlyout>
                             <CommandBarFlyout x:Name="itemContext">
-                                <AppBarButton Icon="Save" Label="Save" />
+                                <AppBarButton Icon="Save" Label="Save" Click="SaveBarButton" CommandParameter="{x:Bind Date}"/>
                             </CommandBarFlyout>
                         </StackPanel.ContextFlyout>
                         <TextBlock Text="{x:Bind Title}" FontWeight="Bold"/>
@@ -36,10 +40,10 @@
                         <TextBlock Text="{x:Bind Explanation}"/>
                         <Image Stretch="UniformToFill" Height="160">
                             <Image.Source>
-                                <BitmapImage  UriSource="{Binding Url}" CreateOptions="None" DecodePixelWidth="{x:Bind utils:Configuration.Config.PreviewQuality}"/>
+                                <BitmapImage UriSource="{x:Bind RealUri}" DecodePixelWidth="{x:Bind utils:Configuration.Config.PreviewQuality, Converter={StaticResource LongConverter}}"/>
                             </Image.Source>
                         </Image>
-                        <!--<Button Height="30" Command="{Binding DataContext.DownloadCommand, Source={x:Reference exploreView}}" CommandParameter="{Binding Source={x:Reference exploreView}, Path=SelectedItem}">Download</Button>-->
+                        <!--<Button Height="30" Command="{Binding DataContext.SaveExploreAsync}">Download</Button>-->
                     </StackPanel>
                 </DataTemplate>
             </GridView.ItemTemplate>

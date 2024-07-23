@@ -3,7 +3,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
-using Windows.Storage.Pickers;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -25,7 +24,6 @@ namespace APODConfiguratorNeo
             VM = new ViewModel();
         }
 
-        #region Window Control
 
         private async void window_Loaded(object sender, RoutedEventArgs e)
         {
@@ -34,8 +32,6 @@ namespace APODConfiguratorNeo
             Trace.WriteLine("\nWINDOW LOADED\n");
 
         }
-
-        #endregion
             
         async private void BtnForceRun_Click(object sender, RoutedEventArgs e)
         {
@@ -61,14 +57,22 @@ namespace APODConfiguratorNeo
 
         [GeneratedRegex("[^0-9]+")]
         private static partial Regex NotIntegerRegex();
-        //private void TxtPreviewQuality_PreviewTextInput(object sender, TextCompositionEventArgs e)
-        //{
-        //    e.Handled = NotIntegerValidation(e.Text);
-        //}
         private static bool NotIntegerValidation(string text)
         {
             Regex regex = NotIntegerRegex();
             return regex.IsMatch(text);
+        }
+
+        private void mainTabControl_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+        {
+            if (args.IsSettingsSelected) {
+                MainFrame.Navigate(typeof(Pages.Settings));
+            } else
+            {
+                var selectedItem = (NavigationViewItem)args.SelectedItem;
+                var tag = selectedItem.Tag.ToString();
+                MainFrame.Navigate(Type.GetType($"APODConfiguratorNeo.Pages.{tag}"));
+            }
         }
 
         //private void TextBoxPasting(object sender, DataObjectPastingEventArgs e)
