@@ -15,7 +15,7 @@ namespace ConfiguratorGUI
     {
         private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
 
-        private DateOnly exploreEnd = DateOnly.FromDateTime(DateTime.Now).AddDays(-1);
+        private DateOnly exploreEnd = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1);
 
         const int ExploreCount = 12;
 
@@ -40,6 +40,13 @@ namespace ConfiguratorGUI
                 OnPropertyChanged(nameof(MyPictureData));
             }
         }
+
+        public string ItemQuantity { get {
+                var (x, y) = GetImagesSize();
+                return $"Items: {x} + (meta); Storage space: {y / 1048576} MiB";
+            }
+        }
+
 
         private ObservableCollection<APODInfo> exploreData = [];
         public ObservableCollection<APODInfo> ExploreData
@@ -194,6 +201,19 @@ namespace ConfiguratorGUI
             }
         }
 
+        private ICommand? _randCommand;
+        public ICommand RandCommand
+        {
+            get
+            {
+                _randCommand ??= new RelayCommand(ExploreRandom, (s) => true);
+                return _randCommand;
+            }
+            set
+            {
+                _randCommand = value;
+            }
+        }
         private async void SaveExplore(APODInfo? data)
         {
             if (data == null) return;
@@ -222,12 +242,13 @@ namespace ConfiguratorGUI
         }
         private async Task LoadExplore()
         {
-            ExploreData = new(await APOD.GetInfoAsync(exploreEnd, ExploreCount));
+            var exploreStart = exploreEnd.AddDays(-ExploreCount + 1);
+            ExploreData = new(await APODCache.Instance.GetInfoRangeAsync(exploreStart, exploreEnd));
         }
         private async void ExploreNext()
         {
             Trace.WriteLine("Loading next...");
-            if (exploreEnd.AddDays(ExploreCount) <= DateOnly.FromDateTime(DateTime.Now).AddDays(-1))
+            if (exploreEnd.AddDays(ExploreCount) <= DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1))
             {
                 WindowCursor = Cursors.Wait;
                 exploreEnd = exploreEnd.AddDays(ExploreCount);
@@ -246,6 +267,14 @@ namespace ConfiguratorGUI
                 WindowCursor = Cursors.Arrow;
             }
         }
+        public async void ExploreRandom()
+        {
+            Trace.WriteLine("Loading random...");
+            WindowCursor = Cursors.Wait;
+            ExploreData = new(await APODCache.Instance.FetchRandAsync(ExploreCount));
+            WindowCursor = Cursors.Arrow;
+        }
+
         public void DeleteOption(string? source)
         {
             if (source == null) { return; }
@@ -321,10 +350,28 @@ namespace ConfiguratorGUI
         {
             var imagesPath = Utilities.GetDataPath("images");
             Directory.CreateDirectory(imagesPath);
-            string[] files = Directory.EnumerateFiles(imagesPath).Where(x => x.EndsWith(".json")).ToArray();
+            string[] files = [.. Directory.EnumerateFiles(imagesPath).Where(x => x.EndsWith(".json"))];
             var tasks = files.Select(LoadItemAsync).ToArray();
             return tasks;
 
+        }
+
+        private static (int, long) GetImagesSize()
+        {
+            var imagesPath = Utilities.GetDataPath("images");
+            var files = Directory.GetFiles(imagesPath);
+            int c = 0;
+            long size = 0;
+            foreach (var file in files)
+            {
+                var fileInfo = new FileInfo(file);
+                if (fileInfo.Exists)
+                {
+                    size += fileInfo.Length;
+                    c++;
+                }
+            }
+            return (c/2, size);
         }
 
         private async Task SortDataAsync(IEnumerable<Task>? tasks = null)
@@ -346,6 +393,7 @@ namespace ConfiguratorGUI
             {
                 await Task.WhenAny(load);
             }
+            await Task.WhenAll(explore, sort);
         }
 
         public ViewModel()

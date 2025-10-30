@@ -186,12 +186,14 @@
                         <ColumnDefinition Width="1*" />
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="30" />
                         <RowDefinition Height="1*" />
                         <RowDefinition Height="50" />
                     </Grid.RowDefinitions>
+                    <TextBlock Text="{Binding ItemQuantity}" FontWeight="Bold" FontSize="16" Margin="5"/>
                     <ListView ItemsSource="{Binding MyPictureData}" x:Name="wallpaperView" 
                               SelectedItem="{Binding SelectedItem}" SelectionMode="Single"
-                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled" Grid.Row="1">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <WrapPanel Orientation="Horizontal"/>
@@ -221,7 +223,7 @@
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
-                    <Button x:Name="BtnCheckNew" Content="Check for new image" Grid.Row="1" Width="250" Height="32" Command="{Binding CheckNewCommand}"/>
+                    <Button x:Name="BtnCheckNew" Content="Check for new image" Grid.Row="2" Width="250" Height="32" Command="{Binding CheckNewCommand}"/>
                 </Grid>
             </TabItem>
             <TabItem x:Name="ExploreTab" Header="Explore">
@@ -265,8 +267,11 @@
                                 </DataTemplate>
                             </ListView.ItemTemplate>
                         </ListView>
-                        <Button x:Name="BtnLoadPrev" Content="Previous" Grid.Row="1" Width="250" Height="32" Command="{Binding PrevCommand}"/>
-                        <Button x:Name="BtnLoadNext" Content="Next" Grid.Row="1" Grid.Column="1" Width="250" Height="32" Command="{Binding NextCommand}"/>
+                    <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Center" Margin="0 5">
+                        <Button x:Name="BtnLoadPrev" Content="Previous" Width="250" Height="32" Command="{Binding PrevCommand}"/>
+                            <Button x:Name="BtnLoadNext" Content="Next" Width="250" Height="32" Command="{Binding NextCommand}"/>
+                            <Button x:Name="BtnLoadRandom" Content="Random" Width="250" Height="32" Command="{Binding RandomCommand}"/>
+                        </StackPanel>
                     </Grid>
                 </TabItem>
                 <TabItem x:Name="SettingsTab" Header="Settings" DataContext="{Binding Source={x:Static utils:Configuration.Config}}">
@@ -286,7 +291,13 @@
                         </Grid.RowDefinitions>
                         <Label Content="   General" FontWeight="Bold" FontSize="14" Height="30"/>
                         <StackPanel Margin="10" Grid.Row="1">
-                            <CheckBox x:Name="ChkExplainImage" Content="Show image explanation on update" IsChecked="{Binding ExplainImage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox x:Name="ChkExplainImage" Content="Show image explanation on update" IsChecked="{Binding ExplainImage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="API Key: " VerticalAlignment="Center"/>
+                                <TextBox x:Name="TxtApiKey" Text="{Binding API_KEY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="350"/>
+                            </StackPanel>
                         </StackPanel>
                     </Grid>
                     <Border Grid.Column="0" Grid.Row="0" BorderThickness="10" CornerRadius="25" BorderBrush="{DynamicResource Light}"/>
@@ -343,6 +354,7 @@
                                 <RowDefinition Height="*" MinHeight="32"/>
                                 <RowDefinition Height="*" MinHeight="32"/>
                             </Grid.RowDefinitions>
+                            <Button x:Name="BtnExploreFolder" Content="Explore images folder..." Grid.Row="0" Width="250" Height="32" Click="BtnExploreFolder_Click"/>
                             <Button x:Name="BtnUpdate" Content="Check for update..." Grid.Row="1" Width="250" Height="32"  Click="BtnUpdate_Click"/>
                             <Button x:Name="BtnForceRun" Content="Force Run" Grid.Row="2" Width="250" Height="32" Click="BtnForceRun_Click"/>
                             <Button x:Name="BtnResetDefault" Content="Reset to Defaults" Grid.Row="3" Width="250" Height="32" Click="BtnResetDefault_Click"/>

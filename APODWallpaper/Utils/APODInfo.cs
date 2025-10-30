@@ -32,6 +32,20 @@ namespace APODWallpaper.Utils
             }
         }
 
+        public string DateFormatted
+        {
+            get
+            {
+                return Date.ToString("yyyy-MM-dd");
+            }
+        }
+
+        public string Filename
+        { 
+            get {
+                return Date.ToString("D");
+            }
+}
         public bool Equals(APODInfo? other)
         {
             if (other == null) return false;

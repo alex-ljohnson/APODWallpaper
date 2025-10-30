@@ -16,7 +16,7 @@ namespace APODConfiguratorNeo.Pages
     public sealed partial class Explore : Page, INotifyPropertyChanged
     {
         private APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
-        private DateOnly exploreEnd = DateOnly.FromDateTime(DateTime.Now).AddDays(-1);
+        private DateOnly exploreEnd = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1);
 
         const int ExploreCount = 12;
 
@@ -86,7 +86,7 @@ namespace APODConfiguratorNeo.Pages
         public async void ExploreNext()
         {
             Trace.WriteLine("Loading next...");
-            if (exploreEnd.AddDays(ExploreCount) <= DateOnly.FromDateTime(DateTime.Now).AddDays(-1))
+            if (exploreEnd.AddDays(ExploreCount) <= DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1))
             {
                 exploreEnd = exploreEnd.AddDays(ExploreCount);
                 await LoadExplore();

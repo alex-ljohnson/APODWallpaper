@@ -168,5 +168,10 @@ namespace ConfiguratorGUI
                 e.CancelCommand();
             }
         }
+
+        private void BtnExploreFolder_Click(object sender, RoutedEventArgs e)
+        {
+            Process.Start("explorer.exe", Environment.ExpandEnvironmentVariables("%appdata%\\APODWallpaper\\images"));
+        }
     }
 }

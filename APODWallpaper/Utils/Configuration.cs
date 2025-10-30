@@ -44,7 +44,8 @@ namespace APODWallpaper.Utils
         public string ConfiguratorTheme { get { return _configuration.GetValueOrDefault(nameof(ConfiguratorTheme), "Light.xaml"); } set { _configuration[nameof(ConfiguratorTheme)] = value; AutoSave(); OnPropertyChanged(nameof(ConfiguratorTheme)); } }
         public long PreviewQuality { get { return _configuration.GetValueOrDefault(nameof(PreviewQuality), 200); } set { 
                 _configuration[nameof(PreviewQuality)] = value; AutoSave(); OnPropertyChanged(nameof(PreviewQuality)); } }
-        public int WallpaperStyle { get { return (int)_configuration.GetValueOrDefault(nameof(WallpaperStyle), WallpaperStyleEnum.Fill); } set { _configuration[nameof(WallpaperStyle)] = value; AutoSave(); OnPropertyChanged(nameof(WallpaperStyle)); } }
+        public long WallpaperStyle { get { return (long)_configuration.GetValueOrDefault(nameof(WallpaperStyle), WallpaperStyleEnum.Fill); } set { _configuration[nameof(WallpaperStyle)] = value; AutoSave(); OnPropertyChanged(nameof(WallpaperStyle)); } }
+        public string API_KEY { get { return _configuration.GetValueOrDefault(nameof(API_KEY), "5zgCnpExBIpD6hZvruRRJS48WfKYBe0PlVVaO5NZ"); } set { _configuration[nameof(API_KEY)] = value; AutoSave(); OnPropertyChanged(nameof(API_KEY)); } }
 
         public static readonly ReadOnlyCollection<string> DefaultThemes = new(["Light.xaml", "Dark.xaml"]);
         private ObservableCollection<string> availableThemes = new(DefaultThemes);
@@ -61,13 +62,11 @@ namespace APODWallpaper.Utils
 
         protected void OnPropertyChanged(string propertyName)
         {
-
             Trace.WriteLine($"Changing {propertyName}");
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        //public static readonly Configuration DefaultConfiguration = new("Default") { BaseUrl = "https://api.nasa.gov/planetary/apod", UseHD = true, RunStartup = true, ExplainImage = false, DownloadInfo = false,  WallpaperStyle = (int)WallpaperStyleEnum.Fill, ConfiguratorTheme = "Light.xaml" };
-        public static readonly Configuration DefaultConfiguration = new("Default", false, false) { BaseUrl = "https://api.nasa.gov/planetary/apod", UseHD = true, RunStartup = true, ExplainImage = false, DownloadInfo = false, WallpaperStyle = (int)WallpaperStyleEnum.Fill, ConfiguratorTheme = "Light.xaml", PreviewQuality = 100 };
+        public static readonly Configuration DefaultConfiguration = new("Default", false, false) { BaseUrl = "https://api.nasa.gov/planetary/apod", UseHD = true, RunStartup = true, ExplainImage = false, DownloadInfo = false, WallpaperStyle = (int)WallpaperStyleEnum.Fill, ConfiguratorTheme = "Light.xaml", PreviewQuality = 100, API_KEY= "5zgCnpExBIpD6hZvruRRJS48WfKYBe0PlVVaO5NZ" };
         private static readonly object padlock = new();
         private static Configuration? _instance = null;
         public static Configuration Config
