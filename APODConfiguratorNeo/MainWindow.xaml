@@ -13,7 +13,7 @@
     <Window.SystemBackdrop>
         <DesktopAcrylicBackdrop/>
     </Window.SystemBackdrop>
-    <NavigationView x:Name="mainTabControl" Grid.ColumnSpan="5" Grid.Row="1" SelectionChanged="mainTabControl_SelectionChanged">
+    <NavigationView x:Name="MainTabControl" Grid.ColumnSpan="5" Grid.Row="1" SelectionChanged="MainTabControl_SelectionChanged">
         <NavigationView.MenuItems>
             <NavigationViewItem Icon="Pictures" Content="Image manager" Tag="ImageManager"/>
             <NavigationViewItem Icon="Globe" Content="Explore" Tag="Explore"/>

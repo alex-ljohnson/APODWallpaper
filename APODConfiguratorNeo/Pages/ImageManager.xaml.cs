@@ -18,9 +18,10 @@ namespace APODConfiguratorNeo.Pages
     /// <summary>
     /// An empty page that can be used on its own or navigated to within a Frame.
     /// </summary>
-    public sealed partial class ImageManager : Page, INotifyPropertyChanged
+    
+    public class ImageManagerViewModel : INotifyPropertyChanged
     {
-        private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
+        public ImageManagerViewModel() { }
 
         private ObservableCollection<PictureData> pictureData = [];
         public ObservableCollection<PictureData> MyPictureData
@@ -52,6 +53,14 @@ namespace APODConfiguratorNeo.Pages
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
+
+
+    }
+
+    public sealed partial class ImageManager : Page
+    {
+        private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
+
 
         public ImageManager()
         {
