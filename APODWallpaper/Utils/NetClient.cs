@@ -31,9 +31,11 @@
                     AllowAutoRedirect = true,
                     MaxAutomaticRedirections = 2
                 }
-            );
+            )
+            { Timeout=TimeSpan.FromSeconds(5)};
             Console.WriteLine(client.DefaultRequestHeaders);
         }
+
 
     }
 }

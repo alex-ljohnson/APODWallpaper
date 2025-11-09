@@ -173,5 +173,11 @@ namespace ConfiguratorGUI
         {
             Process.Start("explorer.exe", Environment.ExpandEnvironmentVariables("%appdata%\\APODWallpaper\\images"));
         }
+
+        private void BtnOpenHelp_Click(object sender, RoutedEventArgs e)
+        {
+
+            Process.Start(new ProcessStartInfo("Resources\\help.html") { UseShellExecute=true});
+        }
     }
 }

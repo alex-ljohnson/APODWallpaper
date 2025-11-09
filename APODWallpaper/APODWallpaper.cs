@@ -4,7 +4,7 @@ using Newtonsoft.Json;
 using System.Runtime.InteropServices;
 
 bool force = false;
-const string verName = "2025.10.30.1";
+const string verName = "2025.11.9.1";
 if (args.Length > 0)
 {
     foreach (string i in args)
@@ -69,8 +69,13 @@ namespace APODWallpaper
             if (force || CheckNewAsync())
             {
                 var fileInfo = await DownloadTodayAsync();
+                if (fileInfo == null) {
+                    Utilities.ShowMessageBox("Could not download image.", "Download error", Utilities.MessageBoxType.Error | Utilities.MessageBoxType.OK);
+                    return null;
+                }
                 UpdateBackground(fileInfo.Source, style: (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
-                if (Configuration.Config.ExplainImage) { Utilities.ShowMessageBox((await APODCache.Instance.GetToday()).Explanation, "Image Updated", Utilities.MessageBoxType.Information | Utilities.MessageBoxType.OK); }
+                string? todayExp = (await APODCache.Instance.GetToday())?.Explanation;
+                if (Configuration.Config.ExplainImage && todayExp != null) { Utilities.ShowMessageBox(todayExp, "Image Updated", Utilities.MessageBoxType.Information | Utilities.MessageBoxType.OK); }
                 return fileInfo;
             }
             else
@@ -84,8 +89,9 @@ namespace APODWallpaper
         protected async Task<string> DownloadURLAsync(Uri url, DateOnly? date = null)
         {
             string filename;
-            using (HttpResponseMessage response = await NetClient.InstanceClient.GetAsync(url))
+            try
             {
+                using HttpResponseMessage response = await NetClient.InstanceClient.GetAsync(url);
                 Console.WriteLine(response.Content.Headers.ToString());
                 response.EnsureSuccessStatusCode();
                 var contentLength = response.Content.Headers.ContentLength;
@@ -112,12 +118,18 @@ namespace APODWallpaper
                 {
                     await contentStream.CopyToAsync(writer);
                 }
+            } catch (Exception ex) when (ex is HttpRequestException || ex is TimeoutException)
+            {
+                Utilities.ShowMessageBox("Please check your internet connection and try again", "Connection error", Utilities.MessageBoxType.Error);
+                Console.WriteLine(ex.StackTrace);
+                throw;
             }
             return filename;
         }
-        public async Task<PictureData> DownloadImageAsync(APODInfo? information = null)
+        public async Task<PictureData?> DownloadImageAsync(APODInfo? information = null)
         {
-            APODInfo imageInfo = information ?? await APODCache.Instance.GetToday();
+            APODInfo? imageInfo = information ?? await APODCache.Instance.GetToday();
+            if (imageInfo == null) return null;
             if (imageInfo.MediaType != "image") { Utilities.ShowMessageBox("APOD is not an image.", "Not an image"); Environment.Exit(1); }
             Console.WriteLine("Getting image data");
 
@@ -135,7 +147,7 @@ namespace APODWallpaper
             // Write date cache
             return downloadedInfo;
         }
-        public async Task<PictureData> DownloadTodayAsync(APODInfo? info = null)
+        public async Task<PictureData?> DownloadTodayAsync(APODInfo? info = null)
         {
             info ??= await APODCache.Instance.GetToday();
             return await DownloadImageAsync(info);

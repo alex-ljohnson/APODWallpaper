@@ -63,6 +63,16 @@ namespace ConfiguratorGUI.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
+        internal static byte[] help_html {
+            get {
+                object obj = ResourceManager.GetObject("help.html", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
         internal static byte[] NotAvailable {
             get {
                 object obj = ResourceManager.GetObject("NotAvailable", resourceCulture);

@@ -19,6 +19,9 @@ namespace ConfiguratorGUI
 
         const int ExploreCount = 12;
 
+        private static string _helpText = File.ReadAllText("Resources/help.html");
+        public static string HelpText { get => _helpText; }
+
         private Cursor windowCursor = Cursors.Arrow;
         public Cursor WindowCursor
         {
@@ -41,7 +44,7 @@ namespace ConfiguratorGUI
             }
         }
 
-        public string ItemQuantity { get {
+        public static string ItemQuantity { get {
                 var (x, y) = GetImagesSize();
                 return $"Items: {x} + (meta); Storage space: {y / 1048576} MiB";
             }
@@ -218,8 +221,8 @@ namespace ConfiguratorGUI
         {
             if (data == null) return;
             if (MyPictureData.Any(x => x.Equals(data))) { MessageBox.Show("Image was previously saved!", "Already saved"); return; }
-            PictureData pictureData;
-            Task<PictureData>? task = default;
+            PictureData? pictureData;
+            Task<PictureData?>? task = default;
             try { 
             
                 task = APOD.DownloadImageAsync(data);
@@ -232,6 +235,7 @@ namespace ConfiguratorGUI
             try
             {
                 pictureData = await task;
+                if (pictureData == null) return;
                 MyPictureData.Insert(0, pictureData);
             }
             catch (Exception ex)
@@ -243,7 +247,9 @@ namespace ConfiguratorGUI
         private async Task LoadExplore()
         {
             var exploreStart = exploreEnd.AddDays(-ExploreCount + 1);
-            ExploreData = new(await APODCache.Instance.GetInfoRangeAsync(exploreStart, exploreEnd));
+            var data = await APODCache.Instance.GetInfoRangeAsync(exploreStart, exploreEnd);
+            if (data != null)
+                ExploreData = new(data);
         }
         private async void ExploreNext()
         {
@@ -271,7 +277,9 @@ namespace ConfiguratorGUI
         {
             Trace.WriteLine("Loading random...");
             WindowCursor = Cursors.Wait;
-            ExploreData = new(await APODCache.Instance.FetchRandAsync(ExploreCount));
+            var data = await APODCache.Instance.FetchRandAsync(ExploreCount);
+            if (data != null) ExploreData = new(data);
+            
             WindowCursor = Cursors.Arrow;
         }
 
@@ -289,7 +297,7 @@ namespace ConfiguratorGUI
         }
         public async void CheckNew(object? param)
         {
-            if (await APOD.CheckNewAsync())
+            if (APOD.CheckNewAsync())
             {
                 MessageBox.Show("New image found.", "Downloading image");
                 PictureData? newData = default;
@@ -393,7 +401,7 @@ namespace ConfiguratorGUI
             {
                 await Task.WhenAny(load);
             }
-            await Task.WhenAll(explore, sort);
+            await sort;
         }
 
         public ViewModel()
