@@ -41,17 +41,17 @@
       <Page Remove="bin\**" />
     </ItemGroup>
     <ItemGroup>
-      <None Remove="help.html" />
       <None Remove="Resources\Splash.bmp" />
     </ItemGroup>
     <ItemGroup>
       <SplashScreen Include="Resources\Splash.bmp" />
     </ItemGroup>
   <ItemGroup>
-    <None Include="..\README.md">
+    <Content Include="..\README.md">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
-    </None>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
@@ -78,9 +78,6 @@
   </ItemGroup>
 
   <ItemGroup>
-	<Content Include="Resources\help.html">
-	  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	</Content>
     <Resource Include="Resources\NotAvailable.png" />
     <Resource Include="Resources\Spanner.png" />
 	<Resource Include="Resources\Spanner.ico" />

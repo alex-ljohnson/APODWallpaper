@@ -45,8 +45,8 @@ namespace ConfiguratorGUI
         }
 
         public static string ItemQuantity { get {
-                var (x, y) = GetImagesSize();
-                return $"Items: {x} + (meta); Storage space: {y / 1048576} MiB";
+                var (items, size, cacheSize) = GetImagesSize();
+                return $"Items: {items}; Storage space: {size / 1048576} MiB; Cache size: {cacheSize / 1024} KiB";
             }
         }
 
@@ -177,6 +177,26 @@ namespace ConfiguratorGUI
                 _downloadCommand = value;
             }
         }
+
+        private ICommand? _viewContentCommand;
+        public ICommand ViewContentCommand
+        {
+            get
+            {
+                _viewContentCommand ??= new RelayCommand<APODInfo>(async (data) =>
+                {
+                    if (data == null) return;
+                    MessageBox.Show($"{data.Explanation}\n\nCopyright: {data.Copyright}\n\nPress OK to open content in browser...", $"{data.Title} - {data.DateFormatted}");
+                    if (data.RealUri == null) return;
+                    Process.Start(new ProcessStartInfo { FileName = data.RealUri.AbsoluteUri, UseShellExecute = true });
+                }, (s) => true);
+                return _viewContentCommand;
+            }
+            set
+            {
+                _viewContentCommand = value;
+            }
+        }
         private ICommand? _nextCommand;
         public ICommand NextCommand
         {
@@ -226,9 +246,8 @@ namespace ConfiguratorGUI
             try { 
             
                 task = APOD.DownloadImageAsync(data);
-            } catch (NotImageException ex)
+            } catch (NotImageException)
             {
-                MessageBox.Show(ex.Message, "APOD is not an image");
                 return;
             }
             ExploreData.Remove(data);
@@ -248,8 +267,9 @@ namespace ConfiguratorGUI
         {
             var exploreStart = exploreEnd.AddDays(-ExploreCount + 1);
             var data = await APODCache.Instance.GetInfoRangeAsync(exploreStart, exploreEnd);
-            if (data != null)
-                ExploreData = new(data);
+            var filteredData = data?.Where(x => x.RealUri != null);
+            if (filteredData != null)
+                ExploreData = new(filteredData);
         }
         private async void ExploreNext()
         {
@@ -364,7 +384,7 @@ namespace ConfiguratorGUI
 
         }
 
-        private static (int, long) GetImagesSize()
+        private static (int, long, long) GetImagesSize()
         {
             var imagesPath = Utilities.GetDataPath("images");
             var files = Directory.GetFiles(imagesPath);
@@ -379,7 +399,10 @@ namespace ConfiguratorGUI
                     c++;
                 }
             }
-            return (c/2, size);
+            var cachePath = Utilities.GetDataPath("cache/metadata.cache");
+            var cacheInfo = new FileInfo(cachePath);
+            
+            return (c/2, size, cacheInfo.Length);
         }
 
         private async Task SortDataAsync(IEnumerable<Task>? tasks = null)
@@ -388,7 +411,7 @@ namespace ConfiguratorGUI
             {
                 Trace.WriteLine("Awaiting all items loaded");
                 await Task.WhenAll(tasks);
-            }
+            }   
             MyPictureData = new ObservableCollection<PictureData>(MyPictureData.OrderDescending());
 
         }

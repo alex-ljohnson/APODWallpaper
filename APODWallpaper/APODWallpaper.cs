@@ -86,7 +86,7 @@ namespace APODWallpaper
         }
         
 
-        protected async Task<string> DownloadURLAsync(Uri url, DateOnly? date = null)
+        protected static async Task<string> DownloadURLAsync(Uri url, DateOnly? date = null)
         {
             string filename;
             try
@@ -130,7 +130,8 @@ namespace APODWallpaper
         {
             APODInfo? imageInfo = information ?? await APODCache.Instance.GetToday();
             if (imageInfo == null) return null;
-            if (imageInfo.MediaType != "image") { Utilities.ShowMessageBox("APOD is not an image.", "Not an image"); Environment.Exit(1); }
+            if (imageInfo.RealUri == null) { Utilities.ShowMessageBox("No media URL is given.", "No URL available"); Environment.Exit(1); }
+            if (imageInfo.MediaType != "image") { Utilities.ShowMessageBox("APOD is not an image.", "Not an image"); throw new NotImageException("APOD is not an image"); }
             Console.WriteLine("Getting image data");
 
             DateTime startTime = DateTime.UtcNow;

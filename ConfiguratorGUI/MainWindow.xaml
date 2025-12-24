@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ConfiguratorGUI"
+        xmlns:templates="clr-namespace:ConfiguratorGUI.Templates"
         xmlns:converters="clr-namespace:ConfiguratorGUI.Converters"
         xmlns:utils="clr-namespace:APODWallpaper.Utils;assembly=APODWallpaper"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
@@ -49,6 +50,23 @@
                 <x:Type TypeName="utils:WallpaperStyleEnum"/>
             </ObjectDataProvider.MethodParameters>
         </ObjectDataProvider>
+
+
+        <DataTemplate x:Key="ImageTemplate">
+            <Image Stretch="UniformToFill" Height="160">
+                <Image.Source>
+                    <BitmapImage UriSource="{Binding RealUri}" CacheOption="OnLoad" DecodePixelWidth="{Binding DataContext.PreviewQuality, Source={x:Reference SettingsTab}, Converter={StaticResource longConverter}}"/>
+                </Image.Source>
+            </Image>
+        </DataTemplate>
+        <DataTemplate x:Key="VideoTemplate">
+            <MediaElement Source="{Binding RealUri}" LoadedBehavior="Play" Stretch="Uniform" Height="160"/>
+        </DataTemplate>
+
+        <templates:ImageVideoSelector x:Key="MediaTemplateSelector"
+            ImageTemplate="{StaticResource ImageTemplate}"
+            VideoTemplate="{StaticResource VideoTemplate}"/>
+
         <Style x:Key="Dark_light" TargetType="Grid">
             <Setter Property="Background" Value="{DynamicResource Light}"/>
         </Style>
@@ -250,17 +268,16 @@
                                         <Button.ContextMenu>
                                             <ContextMenu x:Name="itemContext" StaysOpen="True">
                                                 <MenuItem Header="Save Image..." Command="{Binding DataContext.DownloadCommand, Source={x:Reference exploreView}}" CommandParameter="{Binding Source={x:Reference exploreView}, Path=SelectedItem}"/>
+                                                <MenuItem Header="View Content..." Command="{Binding DataContext.ViewContentCommand, Source={x:Reference exploreView}}" CommandParameter="{Binding Source={x:Reference exploreView}, Path=SelectedItem}"/>
                                             </ContextMenu>
                                         </Button.ContextMenu>
                                         <StackPanel Width="220" Height="240" Margin="5">
                                             <TextBlock Text="{Binding Path=Title}" FontWeight="Bold"/>
                                             <TextBlock Text="{Binding Path=Date, StringFormat=D}"/>
                                             <TextBlock Text="{Binding Path=Explanation}"/>
-                                            <Image Stretch="UniformToFill" Height="160">
-                                                <Image.Source>
-                                                    <BitmapImage UriSource="{Binding Url}" CacheOption="OnLoad" DecodePixelWidth="{Binding DataContext.PreviewQuality, Source={x:Reference SettingsTab}, Converter={StaticResource longConverter}}"/>
-                                                </Image.Source>
-                                            </Image>
+
+                                        <ContentControl Content="{Binding}" ContentTemplateSelector="{StaticResource MediaTemplateSelector}" />
+                                        
                                         <!--<Button Height="30" Command="{Binding DataContext.DownloadCommand, Source={x:Reference exploreView}}" CommandParameter="{Binding Source={x:Reference exploreView}, Path=SelectedItem}">Download</Button>-->
                                         </StackPanel>
                                     </Button>

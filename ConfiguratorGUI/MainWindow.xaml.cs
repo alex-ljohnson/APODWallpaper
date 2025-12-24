@@ -176,7 +176,6 @@ namespace ConfiguratorGUI
 
         private void BtnOpenHelp_Click(object sender, RoutedEventArgs e)
         {
-
             Process.Start(new ProcessStartInfo("Resources\\help.html") { UseShellExecute=true});
         }
     }

@@ -9,12 +9,66 @@
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
+
+<!--Assembly info variables-->
+<PropertyGroup>
+	<AssemblyVersion>1.0.0.1</AssemblyVersion>
+	<AssemblyCopyright>Copyright © Alexander Johnson 2023</AssemblyCopyright>
+	<AssemblyCompany>TransparentBox Co.</AssemblyCompany>
+	<AssemblyDescription>Update wallpaper with NASA APOD</AssemblyDescription>
+	<AssemblyProduct>APOD Wallpaper</AssemblyProduct>
+	<Authors>Alexander Johnson</Authors>
+	<Product>$(AssemblyProduct)</Product>
+	<Company>$(AssemblyCompany)</Company>
+	<Copyright>$(AssemblyCopyright)</Copyright>
+	<PackageReadmeFile>README.md</PackageReadmeFile>
+	<Description>Configure APOD Options</Description>
+</PropertyGroup>
+
+
+  <ItemGroup>
+    <Content Include="Resources\help.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Properties\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\README.md" Link="README.md">
+        <PackagePath>\</PackagePath>
+        <Pack>True</Pack>
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\LICENSE" Link="LICENSE">
+		<PackagePath>\</PackagePath>
+		<Pack>True</Pack>
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Resources\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>
