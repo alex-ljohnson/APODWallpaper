@@ -308,12 +308,16 @@
                         </Grid.RowDefinitions>
                         <Label Content="   General" FontWeight="Bold" FontSize="14" Height="30"/>
                         <StackPanel Margin="10" Grid.Row="1">
-                            <StackPanel Orientation="Horizontal">
-                                <CheckBox x:Name="ChkExplainImage" Content="Show image explanation on update" IsChecked="{Binding ExplainImage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                            </StackPanel>
+                            <CheckBox x:Name="ChkExplainImage" Content="Show image explanation on update" IsChecked="{Binding ExplainImage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="API Key: " VerticalAlignment="Center"/>
                                 <TextBox x:Name="TxtApiKey" Text="{Binding API_KEY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="350"/>
+                            </StackPanel>
+                            <!--<TextBlock Text="Max stored images: " VerticalAlignment="Center"/>-->
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Network Timeout (s): " VerticalAlignment="Center"/>
+                                <TextBox x:Name="TxtNetworkTimeout" Text="{Binding NetworkTimeout, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PreviewTextInput="TxtNetworkTimeout_PreviewTextInput" DataObject.Pasting="TextBoxPasting" Width="160"/>
+                                
                             </StackPanel>
                         </StackPanel>
                     </Grid>

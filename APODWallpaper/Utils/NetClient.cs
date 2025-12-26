@@ -32,7 +32,7 @@
                     MaxAutomaticRedirections = 2
                 }
             )
-            { Timeout=TimeSpan.FromSeconds(5)};
+            { Timeout=TimeSpan.FromSeconds(Configuration.Config.NetworkTimeout)};
             Console.WriteLine(client.DefaultRequestHeaders);
         }
 

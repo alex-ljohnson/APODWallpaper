@@ -148,6 +148,12 @@ namespace ConfiguratorGUI
         {
             e.Handled = NotIntegerValidation(e.Text);
         }
+
+        private void TxtNetworkTimeout_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            e.Handled = NotIntegerValidation(e.Text);
+        }
+
         private static bool NotIntegerValidation(string text)
         {
             Regex regex = NotIntegerRegex();
@@ -178,5 +184,6 @@ namespace ConfiguratorGUI
         {
             Process.Start(new ProcessStartInfo("Resources\\help.html") { UseShellExecute=true});
         }
+
     }
 }
