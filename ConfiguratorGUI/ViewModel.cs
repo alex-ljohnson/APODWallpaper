@@ -46,10 +46,12 @@ namespace ConfiguratorGUI
             }
         }
 
-        public static string ItemQuantity { get {
+#pragma warning disable CA1822 // Mark members as static
+        public string ItemQuantity { get {
                 var (items, size, cacheSize) = GetImagesSize();
                 return $"Items: {items}; Storage space: {size / 1048576} MiB; Cache size: {cacheSize / 1024} KiB";
             }
+#pragma warning restore CA1822 // Mark members as static
         }
 
 

@@ -13,7 +13,7 @@
 <!--Assembly info variables-->
 <PropertyGroup>
 	<AssemblyVersion>1.0.0.1</AssemblyVersion>
-	<AssemblyCopyright>Copyright © Alexander Johnson 2023</AssemblyCopyright>
+	<AssemblyCopyright>Copyright © Alexander Johnson 2026</AssemblyCopyright>
 	<AssemblyCompany>TransparentBox Co.</AssemblyCompany>
 	<AssemblyDescription>Update wallpaper with NASA APOD</AssemblyDescription>
 	<AssemblyProduct>APOD Wallpaper</AssemblyProduct>
