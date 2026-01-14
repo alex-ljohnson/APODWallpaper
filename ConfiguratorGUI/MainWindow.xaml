@@ -397,8 +397,21 @@
                 </Grid>
             </TabItem>
             <TabItem x:Name="HelpTab" Header="Help" Width="60">
-                <!--<TextBox x:Name="TxtHelp" Text="{Binding HelpText, Mode=OneWay}" Foreground="{DynamicResource Foreground}" Background="{DynamicResource Dark}"/>-->
-                <Button x:Name="BtnOpenHelp" Content="Open Help Documentation" Width="200" Height="50" HorizontalAlignment="Center" VerticalAlignment="Center" Click="BtnOpenHelp_Click"/>
+                <Grid Style="{DynamicResource Dark_light}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="95"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0">
+                        <TextBlock Text="For help documentation, please click the button below:" FontWeight="Bold" FontSize="14" Margin="5" VerticalAlignment="Center"/>
+                        <TextBlock Text="APODWallpaper Version:"/>
+                        <TextBlock Text="{Binding APODAppVersion}"/>
+                        <TextBlock Text="Configurator Version:"/>
+                        <TextBlock Text="{Binding ConfiguratorAppVersion}"/>
+                    </StackPanel>
+                    <Button x:Name="BtnOpenHelp" Content="Open Help Documentation" Grid.Row="1" Width="200" Height="50" HorizontalAlignment="Center" VerticalAlignment="Center" Click="BtnOpenHelp_Click"/>
+                    <!--<TextBox x:Name="TxtHelp" Text="{Binding HelpText, Mode=OneWay}" Foreground="{DynamicResource Foreground}" Background="{DynamicResource Dark}"/>-->
+                </Grid>
             </TabItem>
         </TabControl>
     </Grid>

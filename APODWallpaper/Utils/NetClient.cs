@@ -1,6 +1,6 @@
 ﻿namespace APODWallpaper.Utils
 {
-    internal class NetClient
+    public class NetClient
     {
         public static HttpClient InstanceClient
         {
@@ -33,7 +33,6 @@
                 }
             )
             { Timeout=TimeSpan.FromSeconds(Configuration.Config.NetworkTimeout)};
-            Console.WriteLine(client.DefaultRequestHeaders);
         }
 
 

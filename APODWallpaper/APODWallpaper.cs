@@ -1,10 +1,12 @@
 ﻿using APODWallpaper.Utils;
+using APODWallpaper.Interfaces;
 using Microsoft.Win32;
 using Newtonsoft.Json;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.DependencyInjection;
 
 bool force = false;
-const string verName = "2025.11.9.1";
+string verName = APODWallpaper.APODWallpaper.Version;
 if (args.Length > 0)
 {
     foreach (string i in args)
@@ -46,7 +48,7 @@ namespace APODWallpaper
 
         private static readonly object padlock = new();
         private static APODWallpaper? _instance = null;
-
+        public static string Version => "2026.01.14.1";
         public static APODWallpaper Instance
         {
             get
@@ -85,38 +87,41 @@ namespace APODWallpaper
             }
         }
         
-
-        protected static async Task<string> DownloadURLAsync(Uri url, DateOnly? date = null)
+        // TODO: Refactor progress reporting and separate it from download logic
+        protected async Task<string> DownloadURLAsync(Uri url, string filepath, IProgress<(long, long?)>? progress = null)
         {
-            string filename;
+            //string filename;
             try
             {
-                using HttpResponseMessage response = await NetClient.InstanceClient.GetAsync(url);
+                using HttpResponseMessage response = await NetClient.InstanceClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
                 Console.WriteLine(response.Content.Headers.ToString());
                 response.EnsureSuccessStatusCode();
                 var contentLength = response.Content.Headers.ContentLength;
-                filename = Utilities.GetDataPath("images/") + (date?.ToString("D") ?? response.Content.Headers.ContentDisposition?.FileName ?? DateOnly.FromDateTime(DateTime.UtcNow).ToString("D"));
+                if (!contentLength.HasValue)
+                {
+                    Console.WriteLine("Content length not provided");
+                }
                 using Stream contentStream = await response.Content.ReadAsStreamAsync();
-                using FileStream writer = new(filename, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+                using FileStream fileStream = new(filepath, FileMode.Create, FileAccess.ReadWrite, FileShare.Write);
+                
                 if (Configuration.Config.DownloadInfo && contentLength.HasValue && false)
                 {
-                    var totalRead = 0L;
-                    var buffer = new byte[4096];
-                    while (totalRead < contentLength)
+                    long totalReadBytes = 0L;
+                    var buffer = new byte[81920];
+                    int readBytes;
+                    while ((readBytes = await contentStream.ReadAsync(buffer, 0, buffer.Length)) != 0)
                     {
-                        int read = await contentStream.ReadAsync(buffer);
-                        if (read != 0)
-                        {
-                            await writer.WriteAsync(buffer);
-                            totalRead += read;
-                            Console.Write($"{totalRead} / {contentLength} bytes written ({(totalRead * 100) / contentLength}% Complete)\r");
-                        }
+                        await fileStream.WriteAsync(buffer, 0, readBytes);
+                        totalReadBytes += readBytes;
+                        progress?.Report((totalReadBytes, contentLength));
                     }
-                    Console.WriteLine($"\nDownload Complete ({totalRead} bytes written)");
                 }
                 else
                 {
-                    await contentStream.CopyToAsync(writer);
+                    var copyTask = contentStream.CopyToAsync(fileStream);
+                    // Simple progress reporter for copy operation
+                    await copyTask;
+
                 }
             } catch (Exception ex) when (ex is HttpRequestException || ex is TimeoutException)
             {
@@ -124,7 +129,7 @@ namespace APODWallpaper
                 Console.WriteLine(ex.StackTrace);
                 throw;
             }
-            return filename;
+            return filepath;
         }
         public async Task<PictureData?> DownloadImageAsync(APODInfo? information = null)
         {
@@ -135,17 +140,17 @@ namespace APODWallpaper
             Console.WriteLine("Getting image data");
 
             DateTime startTime = DateTime.UtcNow;
-            if (File.Exists(Utilities.GetDataPath("images/" + imageInfo.Filename)))
+            string filepath = Utilities.GetDataPath("images/" + imageInfo.Filename);
+            if (File.Exists(filepath))
             {
                 Utilities.ShowMessageBox("Image already downloaded", "Already downloaded");
-                return new PictureData(imageInfo.Title, imageInfo.Explanation, Utilities.GetDataPath("images/" + imageInfo.Filename), imageInfo.Date);
+                return new PictureData(imageInfo.Title, imageInfo.Explanation, filepath, imageInfo.Date);
             }
-            var filename = await DownloadURLAsync(imageInfo.RealUri, imageInfo.Date);
+            var filename = await DownloadURLAsync(imageInfo.RealUri, filepath);
             PictureData downloadedInfo = new(imageInfo.Title, imageInfo.Explanation, filename, imageInfo.Date);
             var infoJson = JsonConvert.SerializeObject(downloadedInfo, Formatting.Indented);
             await File.WriteAllTextAsync(filename + ".json", infoJson);
             Console.WriteLine($"Time Taken: {(DateTime.UtcNow - startTime).TotalSeconds} seconds");
-            // Write date cache
             return downloadedInfo;
         }
         public async Task<PictureData?> DownloadTodayAsync(APODInfo? info = null)

@@ -68,7 +68,7 @@ namespace APODWallpaper.Utils
         }
 
         public static readonly Configuration DefaultConfiguration = new("Default", false, false) { BaseUrl = "https://api.nasa.gov/planetary/apod", UseHD = true, RunStartup = true, ExplainImage = false, DownloadInfo = false, WallpaperStyle = (int)WallpaperStyleEnum.Fill, ConfiguratorTheme = "Light.xaml", PreviewQuality = 100, API_KEY= "5zgCnpExBIpD6hZvruRRJS48WfKYBe0PlVVaO5NZ", NetworkTimeout= 10};
-        private static readonly object padlock = new();
+        private static readonly Lock padlock = new();
         private static Configuration? _instance = null;
         public static Configuration Config
         {

@@ -1,8 +1,15 @@
 ﻿using APODWallpaper.Utils;
+using APODWallpaper.Interfaces;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows;
+using APODWallpaper.Services;
+using ConfiguratorGUI.Services;
 
 namespace ConfiguratorGUI
 {
@@ -11,7 +18,7 @@ namespace ConfiguratorGUI
     /// </summary>
     public partial class App : Application
     {
-        public const string AppVersion = "2024.04.01.1";
+        public const string AppVersion = "2026.01.14.1";
 
         [GeneratedRegex(@"[\s]{2,}", RegexOptions.None)]
         private static partial Regex WhitespaceRegex();

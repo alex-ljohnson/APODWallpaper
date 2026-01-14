@@ -148,7 +148,6 @@
         </ControlTemplate.Triggers>
     </ControlTemplate>
     <!--#endregion-->
-    <!--#region ComboBox-->
     <Style x:Key="ComboBoxEditableTextBox" TargetType="{x:Type TextBox}">
         <Setter Property="OverridesDefaultStyle" Value="true"/>
         <Setter Property="AllowDrop" Value="true"/>
@@ -165,6 +164,7 @@
             </Setter.Value>
         </Setter>
     </Style>
+    <!--#region ComboBox-->
     <!--#region Combo Colours-->
     <SolidColorBrush x:Key="ComboBox.Static.Border" Color="#FFACACAC"/>
     <SolidColorBrush x:Key="ComboBox.Static.Glyph" Color="#FF606060"/>

@@ -1,4 +1,5 @@
 ﻿using APODWallpaper.Utils;
+using ConfiguratorGUI.Services;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -7,6 +8,9 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using MColor = System.Windows.Media.Color;
 using SPath = System.Windows.Shapes.Path;
+using Microsoft.Extensions.DependencyInjection;
+using APODWallpaper.Interfaces;
+using APODWallpaper;
 namespace ConfiguratorGUI
 {
     /// <summary>
@@ -23,10 +27,6 @@ namespace ConfiguratorGUI
         public MainWindow()
         {
             InitializeComponent();
-
-#if DEPENDANT
-            MessageBox.Show(Process.GetCurrentProcess().ProcessName);
-#endif
             redirect = new StdOutRedirect(TxtOutput);
             Console.SetOut(redirect);
             VM = (ViewModel)DataContext;

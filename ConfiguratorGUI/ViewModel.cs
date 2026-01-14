@@ -1,4 +1,6 @@
-﻿using APODWallpaper.Utils;
+﻿using APODWallpaper;
+using APODWallpaper.Interfaces;
+using APODWallpaper.Utils;
 using Microsoft.Win32;
 using Newtonsoft.Json;
 using System.Collections.ObjectModel;
@@ -11,16 +13,18 @@ using System.Windows.Input;
 
 namespace ConfiguratorGUI
 {
-    internal class ViewModel : INotifyPropertyChanged
+    public class ViewModel : INotifyPropertyChanged
     {
         private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
+
+        public static string APODAppVersion { get; } = App.AppVersion;
+        public static string ConfiguratorAppVersion { get; } = APODWallpaper.APODWallpaper.Version;
 
         private DateOnly exploreEnd = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1);
 
         const int ExploreCount = 12;
 
-        private static string _helpText = File.ReadAllText("Resources/help.html");
-        public static string HelpText { get => _helpText; }
+        public static string HelpText { get; } = File.ReadAllText("Resources/help.html");
 
         private Cursor windowCursor = Cursors.Arrow;
         public Cursor WindowCursor
@@ -242,10 +246,10 @@ namespace ConfiguratorGUI
             if (data == null) return;
             if (MyPictureData.Any(x => x.Equals(data))) { MessageBox.Show("Image was previously saved!", "Already saved"); return; }
             PictureData? pictureData;
-            Task<PictureData?>? task = default;
+            Task<PictureData?>? downloadTask = default;
             try { 
             
-                task = APOD.DownloadImageAsync(data);
+                downloadTask = APOD.DownloadImageAsync(data);
             } catch (NotImageException)
             {
                 return;
@@ -253,7 +257,7 @@ namespace ConfiguratorGUI
             ExploreData.Remove(data);
             try
             {
-                pictureData = await task;
+                pictureData = await downloadTask;
                 if (pictureData == null) return;
                 MyPictureData.Insert(0, pictureData);
             }
@@ -266,7 +270,7 @@ namespace ConfiguratorGUI
         private async Task LoadExplore()
         {
             var exploreStart = exploreEnd.AddDays(-ExploreCount + 1);
-            var data = await APODCache.Instance.GetInfoRangeAsync(exploreStart, exploreEnd);
+            var data = await APODCache.Instance.GetRangeAsync(exploreStart, exploreEnd);
             var filteredData = data?.Where(x => x.RealUri != null);
             if (filteredData != null)
                 ExploreData = new(filteredData);

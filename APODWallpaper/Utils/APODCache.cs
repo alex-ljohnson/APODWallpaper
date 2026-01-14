@@ -1,10 +1,11 @@
 ﻿using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Web;
+using APODWallpaper.Interfaces;
 
 namespace APODWallpaper.Utils
 {
-    public sealed class APODCache
+    public sealed class APODCache : IAPODCache
     {
         private static readonly string CacheFolder = Utilities.GetDataPath("cache/");
         private static readonly string MetadataCacheFile = Utilities.GetDataPath("cache/metadata.cache");
@@ -43,6 +44,12 @@ namespace APODWallpaper.Utils
             {
                 _metadataCache[info.Date] = info;
             });
+            if (_metadataCache == null)
+            {
+                _metadataCache = [];
+
+                Console.WriteLine("WARNING: Initialized new metadata cache");
+            }
         }
         public async Task SaveCacheAsync()
         {
@@ -88,7 +95,7 @@ namespace APODWallpaper.Utils
             }
         }
 
-        public async Task<APODInfo?> GetInfoAsync(DateOnly date)
+        public async Task<APODInfo?> GetAsync(DateOnly date)
         {
             if (_metadataCache.TryGetValue(date, out var info))
             {
@@ -109,7 +116,7 @@ namespace APODWallpaper.Utils
 
         }
 
-        public async Task<APODInfo[]?> GetInfoRangeAsync(DateOnly startDate, DateOnly endDate)
+        public async Task<APODInfo[]?> GetRangeAsync(DateOnly startDate, DateOnly endDate)
         {
             if (endDate > DateOnly.FromDateTime(DateTime.UtcNow)) throw new ArgumentException("end_date was in the future");
             List<APODInfo> infos = [];

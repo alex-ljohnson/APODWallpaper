@@ -1,7 +1,6 @@
-TODO:
+TODO list:
  - Add cache management options
  - Limit files kept to specified size
  - UPDATE README with new features
  - Update help.html with new features
  - Update version number in build scripts
- - Update splash screen image
