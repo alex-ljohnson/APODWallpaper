@@ -85,14 +85,7 @@ namespace APODWallpaper.Utils
         public async Task<APODInfo?> GetToday()
         {
             var info = await SendRequestAsync();
-            if (info != null && info.Length > 0)
-            {
-                return info[0];
-            }
-            else
-            {
-                return null;
-            }
+            return info != null && info.Length > 0 ? info[0] : null;
         }
 
         public async Task<APODInfo?> GetAsync(DateOnly date)
@@ -104,14 +97,7 @@ namespace APODWallpaper.Utils
             else
             {
                 var reqInfo = await SendRequestAsync(date: date);
-                if (reqInfo != null && reqInfo.Length > 0)
-                {
-                    return reqInfo[0];
-                }
-                else
-                {
-                    return null;
-                }
+                return reqInfo != null && reqInfo.Length > 0 ? reqInfo[0] : null;
             }
 
         }

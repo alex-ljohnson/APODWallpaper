@@ -1,6 +1,4 @@
-﻿using APODWallpaper;
-using APODWallpaper.Interfaces;
-using APODWallpaper.Utils;
+﻿using APODWallpaper.Utils;
 using Microsoft.Win32;
 using Newtonsoft.Json;
 using System.Collections.ObjectModel;
@@ -37,13 +35,13 @@ namespace ConfiguratorGUI
             }
         }
 
-        private ObservableCollection<PictureData> pictureData = [];
+        private ObservableCollection<PictureData> myPictureData = [];
         public ObservableCollection<PictureData> MyPictureData
         {
-            get => pictureData;
+            get => myPictureData;
             private set
             {
-                pictureData = value;
+                myPictureData = value;
                 OnPropertyChanged(nameof(MyPictureData));
             }
         }

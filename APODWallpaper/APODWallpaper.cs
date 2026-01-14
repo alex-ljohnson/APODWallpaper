@@ -1,9 +1,7 @@
 ﻿using APODWallpaper.Utils;
-using APODWallpaper.Interfaces;
 using Microsoft.Win32;
 using Newtonsoft.Json;
 using System.Runtime.InteropServices;
-using Microsoft.Extensions.DependencyInjection;
 
 bool force = false;
 string verName = APODWallpaper.APODWallpaper.Version;
@@ -103,8 +101,8 @@ namespace APODWallpaper
                 }
                 using Stream contentStream = await response.Content.ReadAsStreamAsync();
                 using FileStream fileStream = new(filepath, FileMode.Create, FileAccess.ReadWrite, FileShare.Write);
-                
-                if (Configuration.Config.DownloadInfo && contentLength.HasValue && false)
+                // TODO: remove hardcoded 'false' when progress reporting is implemented
+                if (Configuration.Config.DownloadInfo && contentLength.HasValue)
                 {
                     long totalReadBytes = 0L;
                     var buffer = new byte[81920];
