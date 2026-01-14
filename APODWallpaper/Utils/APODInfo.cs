@@ -22,16 +22,18 @@ namespace APODWallpaper.Utils
         public string MediaType { get; set; } = media_type;
         public string ServiceVersion { get; set; } = service_version;
         public string Title { get; set; } = title;
-        public Uri Url { get; set; } = new(url, UriKind.Absolute);
+        public Uri? Url { get; set; } = (url != null) ? new(url, UriKind.Absolute) : null;
 
-        public Uri RealUri
+        [JsonIgnore]
+        public Uri? RealUri
         {
             get
             {
-                return Configuration.Config.UseHD && HDUrl != null ? HDUrl : Url;
+                return (Configuration.Config.UseHD && HDUrl != null) ? HDUrl : Url;
             }
         }
 
+        [JsonIgnore]
         public string DateFormatted
         {
             get
@@ -40,6 +42,7 @@ namespace APODWallpaper.Utils
             }
         }
 
+        [JsonIgnore]
         public string Filename
         { 
             get {

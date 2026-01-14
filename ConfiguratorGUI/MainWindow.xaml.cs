@@ -23,10 +23,6 @@ namespace ConfiguratorGUI
         public MainWindow()
         {
             InitializeComponent();
-
-#if DEPENDANT
-            MessageBox.Show(Process.GetCurrentProcess().ProcessName);
-#endif
             redirect = new StdOutRedirect(TxtOutput);
             Console.SetOut(redirect);
             VM = (ViewModel)DataContext;
@@ -148,6 +144,12 @@ namespace ConfiguratorGUI
         {
             e.Handled = NotIntegerValidation(e.Text);
         }
+
+        private void TxtNetworkTimeout_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            e.Handled = NotIntegerValidation(e.Text);
+        }
+
         private static bool NotIntegerValidation(string text)
         {
             Regex regex = NotIntegerRegex();
@@ -173,5 +175,11 @@ namespace ConfiguratorGUI
         {
             Process.Start("explorer.exe", Environment.ExpandEnvironmentVariables("%appdata%\\APODWallpaper\\images"));
         }
+
+        private void BtnOpenHelp_Click(object sender, RoutedEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo("Resources\\help.html") { UseShellExecute=true});
+        }
+
     }
 }

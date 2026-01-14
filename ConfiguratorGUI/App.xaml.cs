@@ -11,7 +11,7 @@ namespace ConfiguratorGUI
     /// </summary>
     public partial class App : Application
     {
-        public const string AppVersion = "2024.04.01.1";
+        public const string AppVersion = "2026.01.14.1";
 
         [GeneratedRegex(@"[\s]{2,}", RegexOptions.None)]
         private static partial Regex WhitespaceRegex();

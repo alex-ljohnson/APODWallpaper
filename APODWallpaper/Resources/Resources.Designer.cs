@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace ConfiguratorGUI.Properties {
+namespace APODWallpaper.Resources {
     using System;
     
     
@@ -39,7 +39,7 @@ namespace ConfiguratorGUI.Properties {
         internal static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
-                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("ConfiguratorGUI.Properties.Resources", typeof(Resources).Assembly);
+                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("APODWallpaper.Resources.Resources", typeof(Resources).Assembly);
                     resourceMan = temp;
                 }
                 return resourceMan;
@@ -63,19 +63,9 @@ namespace ConfiguratorGUI.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
-        internal static byte[] NotAvailable {
+        internal static byte[] help {
             get {
-                object obj = ResourceManager.GetObject("NotAvailable", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] Spanner {
-            get {
-                object obj = ResourceManager.GetObject("Spanner", resourceCulture);
+                object obj = ResourceManager.GetObject("help", resourceCulture);
                 return ((byte[])(obj));
             }
         }

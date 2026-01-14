@@ -101,7 +101,7 @@ Press the download button below to download and install it.";
             string contents = await response.Content.ReadAsStringAsync();
             Dictionary<string, dynamic> content = JsonConvert.DeserializeObject<Dictionary<string, dynamic>>(contents)!;
             string tag = ((string)content["tag_name"])[1..];
-            Trace.WriteLine(tag);
+            Trace.WriteLine("Last release tag: " + tag);
             Version tagVersion = new(tag);
             Version version = new(App.AppVersion);
             if (tagVersion == version)

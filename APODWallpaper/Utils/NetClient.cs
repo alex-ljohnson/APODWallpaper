@@ -1,6 +1,6 @@
 ﻿namespace APODWallpaper.Utils
 {
-    internal class NetClient
+    public class NetClient
     {
         public static HttpClient InstanceClient
         {
@@ -31,9 +31,10 @@
                     AllowAutoRedirect = true,
                     MaxAutomaticRedirections = 2
                 }
-            );
-            Console.WriteLine(client.DefaultRequestHeaders);
+            )
+            { Timeout=TimeSpan.FromSeconds(Configuration.Config.NetworkTimeout)};
         }
+
 
     }
 }

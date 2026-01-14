@@ -1,10 +1,11 @@
 ﻿using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Web;
+using APODWallpaper.Interfaces;
 
 namespace APODWallpaper.Utils
 {
-    public sealed class APODCache
+    public sealed class APODCache : IAPODCache
     {
         private static readonly string CacheFolder = Utilities.GetDataPath("cache/");
         private static readonly string MetadataCacheFile = Utilities.GetDataPath("cache/metadata.cache");
@@ -43,6 +44,12 @@ namespace APODWallpaper.Utils
             {
                 _metadataCache[info.Date] = info;
             });
+            if (_metadataCache == null)
+            {
+                _metadataCache = [];
+
+                Console.WriteLine("WARNING: Initialized new metadata cache");
+            }
         }
         public async Task SaveCacheAsync()
         {
@@ -75,12 +82,13 @@ namespace APODWallpaper.Utils
             return _metadataCache.Values.FirstOrDefault();
         }
 
-        public async Task<APODInfo> GetToday()
+        public async Task<APODInfo?> GetToday()
         {
-            return (await SendRequestAsync())[0];
+            var info = await SendRequestAsync();
+            return info != null && info.Length > 0 ? info[0] : null;
         }
 
-        public async Task<APODInfo> GetInfoAsync(DateOnly date)
+        public async Task<APODInfo?> GetAsync(DateOnly date)
         {
             if (_metadataCache.TryGetValue(date, out var info))
             {
@@ -88,12 +96,13 @@ namespace APODWallpaper.Utils
             }
             else
             {
-                return (await SendRequestAsync(date: date))[0];
+                var reqInfo = await SendRequestAsync(date: date);
+                return reqInfo != null && reqInfo.Length > 0 ? reqInfo[0] : null;
             }
 
         }
 
-        public async Task<APODInfo[]> GetInfoRangeAsync(DateOnly startDate, DateOnly endDate)
+        public async Task<APODInfo[]?> GetRangeAsync(DateOnly startDate, DateOnly endDate)
         {
             if (endDate > DateOnly.FromDateTime(DateTime.UtcNow)) throw new ArgumentException("end_date was in the future");
             List<APODInfo> infos = [];
@@ -121,7 +130,7 @@ namespace APODWallpaper.Utils
         /// Fetches info for random APOD images. Randomisation occurs on the server side, so this method does not check the cache, but does cache results.
         /// </summary>
         /// <param name="count">Number of random images to fetch</param>
-        public async Task<APODInfo[]> FetchRandAsync(int count)
+        public async Task<APODInfo[]?> FetchRandAsync(int count)
         {
             return await SendRequestAsync(count: count);
         }
@@ -136,7 +145,7 @@ namespace APODWallpaper.Utils
         /// <param name="count"></param>
         /// <returns></returns>
         /// <exception cref="ArgumentException"></exception>
-        private async Task<APODInfo[]> SendRequestAsync(DateOnly? date = null, DateOnly? startDate = null, DateOnly? endDate = null, int? count = null)
+        private async Task<APODInfo[]?> SendRequestAsync(DateOnly? date = null, DateOnly? startDate = null, DateOnly? endDate = null, int? count = null)
         {
             if (endDate != null && endDate > DateOnly.FromDateTime(DateTime.UtcNow)) throw new ArgumentException("end_date was in the future");
             var urlParams = HttpUtility.ParseQueryString("");
@@ -158,7 +167,7 @@ namespace APODWallpaper.Utils
             APODInfo[] imageInfo;
             try
             {
-                string responseContent = await NetClient.InstanceClient.GetStringAsync(uri).ConfigureAwait(false);
+                string responseContent = await NetClient.InstanceClient.GetStringAsync(uri);
                 
                 if (endDate != null || count != null)
                 {
@@ -170,12 +179,11 @@ namespace APODWallpaper.Utils
                 }
                 await AddToCacheAsync(imageInfo);
             }
-            catch (Exception ex) when (ex is JsonException || ex is NotSupportedException || ex is HttpRequestException)
+            catch (Exception ex) when (ex is JsonException || ex is NotSupportedException || ex is HttpRequestException || ex is TaskCanceledException)
             {
-                Utilities.ShowMessageBox("Please check your internet connection and try again", "Connection error", Utilities.MessageBoxType.Error);
+                Utilities.ShowMessageBox("Please check your internet connection and try again.\nThis also occurs when the NASA API is down.", "Connection error", Utilities.MessageBoxType.Error);
                 Console.WriteLine(ex.StackTrace);
                 Console.WriteLine(ex.Message);
-                Environment.Exit(1);
                 return null;
             } 
             return imageInfo;

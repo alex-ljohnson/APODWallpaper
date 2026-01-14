@@ -4,7 +4,7 @@ using Newtonsoft.Json;
 using System.Runtime.InteropServices;
 
 bool force = false;
-const string verName = "2025.10.30.1";
+string verName = APODWallpaper.APODWallpaper.Version;
 if (args.Length > 0)
 {
     foreach (string i in args)
@@ -46,7 +46,7 @@ namespace APODWallpaper
 
         private static readonly object padlock = new();
         private static APODWallpaper? _instance = null;
-
+        public static string Version => "2026.01.14.1";
         public static APODWallpaper Instance
         {
             get
@@ -69,8 +69,13 @@ namespace APODWallpaper
             if (force || CheckNewAsync())
             {
                 var fileInfo = await DownloadTodayAsync();
+                if (fileInfo == null) {
+                    Utilities.ShowMessageBox("Could not download image.", "Download error", Utilities.MessageBoxType.Error | Utilities.MessageBoxType.OK);
+                    return null;
+                }
                 UpdateBackground(fileInfo.Source, style: (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
-                if (Configuration.Config.ExplainImage) { Utilities.ShowMessageBox((await APODCache.Instance.GetToday()).Explanation, "Image Updated", Utilities.MessageBoxType.Information | Utilities.MessageBoxType.OK); }
+                string? todayExp = (await APODCache.Instance.GetToday())?.Explanation;
+                if (Configuration.Config.ExplainImage && todayExp != null) { Utilities.ShowMessageBox(todayExp, "Image Updated", Utilities.MessageBoxType.Information | Utilities.MessageBoxType.OK); }
                 return fileInfo;
             }
             else
@@ -80,62 +85,73 @@ namespace APODWallpaper
             }
         }
         
-
-        protected async Task<string> DownloadURLAsync(Uri url, DateOnly? date = null)
+        // TODO: Refactor progress reporting and separate it from download logic
+        protected async Task<string> DownloadURLAsync(Uri url, string filepath, IProgress<(long, long?)>? progress = null)
         {
-            string filename;
-            using (HttpResponseMessage response = await NetClient.InstanceClient.GetAsync(url))
+            //string filename;
+            try
             {
+                using HttpResponseMessage response = await NetClient.InstanceClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
                 Console.WriteLine(response.Content.Headers.ToString());
                 response.EnsureSuccessStatusCode();
                 var contentLength = response.Content.Headers.ContentLength;
-                filename = Utilities.GetDataPath("images/") + (date?.ToString("D") ?? response.Content.Headers.ContentDisposition?.FileName ?? DateOnly.FromDateTime(DateTime.UtcNow).ToString("D"));
-                using Stream contentStream = await response.Content.ReadAsStreamAsync();
-                using FileStream writer = new(filename, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
-                if (Configuration.Config.DownloadInfo && contentLength.HasValue && false)
+                if (!contentLength.HasValue)
                 {
-                    var totalRead = 0L;
-                    var buffer = new byte[4096];
-                    while (totalRead < contentLength)
+                    Console.WriteLine("Content length not provided");
+                }
+                using Stream contentStream = await response.Content.ReadAsStreamAsync();
+                using FileStream fileStream = new(filepath, FileMode.Create, FileAccess.ReadWrite, FileShare.Write);
+                // TODO: remove hardcoded 'false' when progress reporting is implemented
+                if (Configuration.Config.DownloadInfo && contentLength.HasValue)
+                {
+                    long totalReadBytes = 0L;
+                    var buffer = new byte[81920];
+                    int readBytes;
+                    while ((readBytes = await contentStream.ReadAsync(buffer, 0, buffer.Length)) != 0)
                     {
-                        int read = await contentStream.ReadAsync(buffer);
-                        if (read != 0)
-                        {
-                            await writer.WriteAsync(buffer);
-                            totalRead += read;
-                            Console.Write($"{totalRead} / {contentLength} bytes written ({(totalRead * 100) / contentLength}% Complete)\r");
-                        }
+                        await fileStream.WriteAsync(buffer, 0, readBytes);
+                        totalReadBytes += readBytes;
+                        progress?.Report((totalReadBytes, contentLength));
                     }
-                    Console.WriteLine($"\nDownload Complete ({totalRead} bytes written)");
                 }
                 else
                 {
-                    await contentStream.CopyToAsync(writer);
+                    var copyTask = contentStream.CopyToAsync(fileStream);
+                    // Simple progress reporter for copy operation
+                    await copyTask;
+
                 }
+            } catch (Exception ex) when (ex is HttpRequestException || ex is TimeoutException)
+            {
+                Utilities.ShowMessageBox("Please check your internet connection and try again", "Connection error", Utilities.MessageBoxType.Error);
+                Console.WriteLine(ex.StackTrace);
+                throw;
             }
-            return filename;
+            return filepath;
         }
-        public async Task<PictureData> DownloadImageAsync(APODInfo? information = null)
+        public async Task<PictureData?> DownloadImageAsync(APODInfo? information = null)
         {
-            APODInfo imageInfo = information ?? await APODCache.Instance.GetToday();
-            if (imageInfo.MediaType != "image") { Utilities.ShowMessageBox("APOD is not an image.", "Not an image"); Environment.Exit(1); }
+            APODInfo? imageInfo = information ?? await APODCache.Instance.GetToday();
+            if (imageInfo == null) return null;
+            if (imageInfo.RealUri == null) { Utilities.ShowMessageBox("No media URL is given.", "No URL available"); Environment.Exit(1); }
+            if (imageInfo.MediaType != "image") { Utilities.ShowMessageBox("APOD is not an image.", "Not an image"); throw new NotImageException("APOD is not an image"); }
             Console.WriteLine("Getting image data");
 
             DateTime startTime = DateTime.UtcNow;
-            if (File.Exists(Utilities.GetDataPath("images/" + imageInfo.Filename)))
+            string filepath = Utilities.GetDataPath("images/" + imageInfo.Filename);
+            if (File.Exists(filepath))
             {
                 Utilities.ShowMessageBox("Image already downloaded", "Already downloaded");
-                return new PictureData(imageInfo.Title, imageInfo.Explanation, Utilities.GetDataPath("images/" + imageInfo.Filename), imageInfo.Date);
+                return new PictureData(imageInfo.Title, imageInfo.Explanation, filepath, imageInfo.Date);
             }
-            var filename = await DownloadURLAsync(imageInfo.RealUri, imageInfo.Date);
+            var filename = await DownloadURLAsync(imageInfo.RealUri, filepath);
             PictureData downloadedInfo = new(imageInfo.Title, imageInfo.Explanation, filename, imageInfo.Date);
             var infoJson = JsonConvert.SerializeObject(downloadedInfo, Formatting.Indented);
             await File.WriteAllTextAsync(filename + ".json", infoJson);
             Console.WriteLine($"Time Taken: {(DateTime.UtcNow - startTime).TotalSeconds} seconds");
-            // Write date cache
             return downloadedInfo;
         }
-        public async Task<PictureData> DownloadTodayAsync(APODInfo? info = null)
+        public async Task<PictureData?> DownloadTodayAsync(APODInfo? info = null)
         {
             info ??= await APODCache.Instance.GetToday();
             return await DownloadImageAsync(info);

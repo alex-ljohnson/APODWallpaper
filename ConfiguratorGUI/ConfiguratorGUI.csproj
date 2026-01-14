@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <BaseOutputPath>..\..\build</BaseOutputPath>
@@ -16,7 +16,7 @@
 	<!--Assembly info variables-->
 	<PropertyGroup>
 		<AssemblyVersion>1.0.0.1</AssemblyVersion>
-		<AssemblyCopyright>Copyright © Alexander Johnson 2023</AssemblyCopyright>
+		<AssemblyCopyright>Copyright © Alexander Johnson 2026</AssemblyCopyright>
 		<AssemblyCompany>TransparentBox Co.</AssemblyCompany>
 		<AssemblyDescription>Configure APOD Options</AssemblyDescription>
 		<AssemblyProduct>APOD Configurator GUI</AssemblyProduct>
@@ -47,10 +47,11 @@
       <SplashScreen Include="Resources\Splash.bmp" />
     </ItemGroup>
   <ItemGroup>
-    <None Include="..\README.md">
+    <Content Include="..\README.md">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
-    </None>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
@@ -69,7 +70,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
 
   <ItemGroup>
@@ -91,11 +96,12 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Page>
     <Page Update="Styles\Templates.xaml">
+      <Generator>MSBuild:Compile</Generator>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Page>
-    <None Update="Styles\Templates.xaml">
-      <Generator>MSBuild:Compile</Generator>
-    </None>
+    <!--<None Update="help.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>-->
   </ItemGroup>
 	<Target Name="TestMsg" AfterTargets="Build">
 		<Message Text="pp: $(PublishProfile)" Importance="high" />

@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ConfiguratorGUI"
+        xmlns:templates="clr-namespace:ConfiguratorGUI.Templates"
         xmlns:converters="clr-namespace:ConfiguratorGUI.Converters"
         xmlns:utils="clr-namespace:APODWallpaper.Utils;assembly=APODWallpaper"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
@@ -49,6 +50,23 @@
                 <x:Type TypeName="utils:WallpaperStyleEnum"/>
             </ObjectDataProvider.MethodParameters>
         </ObjectDataProvider>
+
+
+        <DataTemplate x:Key="ImageTemplate">
+            <Image Stretch="UniformToFill" Height="160">
+                <Image.Source>
+                    <BitmapImage UriSource="{Binding RealUri}" CacheOption="OnLoad" DecodePixelWidth="{Binding DataContext.PreviewQuality, Source={x:Reference SettingsTab}, Converter={StaticResource longConverter}}"/>
+                </Image.Source>
+            </Image>
+        </DataTemplate>
+        <DataTemplate x:Key="VideoTemplate">
+            <MediaElement Source="{Binding RealUri}" LoadedBehavior="Play" Stretch="Uniform" Height="160"/>
+        </DataTemplate>
+
+        <templates:ImageVideoSelector x:Key="MediaTemplateSelector"
+            ImageTemplate="{StaticResource ImageTemplate}"
+            VideoTemplate="{StaticResource VideoTemplate}"/>
+
         <Style x:Key="Dark_light" TargetType="Grid">
             <Setter Property="Background" Value="{DynamicResource Light}"/>
         </Style>
@@ -180,7 +198,7 @@
             </StackPanel>
         </Grid>
         <TabControl x:Name="mainTabControl" Background="{DynamicResource Light}" Grid.ColumnSpan="5" Grid.Row="1" BorderBrush="{DynamicResource Light}">
-            <TabItem x:Name="ImageTab" Header="Image manager">
+            <TabItem x:Name="ImageTab" Header="Image manager" Width="120">
                 <Grid ScrollViewer.CanContentScroll="True">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="1*" />
@@ -226,7 +244,7 @@
                     <Button x:Name="BtnCheckNew" Content="Check for new image" Grid.Row="2" Width="250" Height="32" Command="{Binding CheckNewCommand}"/>
                 </Grid>
             </TabItem>
-            <TabItem x:Name="ExploreTab" Header="Explore">
+            <TabItem x:Name="ExploreTab" Header="Explore" Width="80">
                 <Grid ScrollViewer.CanContentScroll="True">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="1*" />
@@ -250,17 +268,16 @@
                                         <Button.ContextMenu>
                                             <ContextMenu x:Name="itemContext" StaysOpen="True">
                                                 <MenuItem Header="Save Image..." Command="{Binding DataContext.DownloadCommand, Source={x:Reference exploreView}}" CommandParameter="{Binding Source={x:Reference exploreView}, Path=SelectedItem}"/>
+                                                <MenuItem Header="View Content..." Command="{Binding DataContext.ViewContentCommand, Source={x:Reference exploreView}}" CommandParameter="{Binding Source={x:Reference exploreView}, Path=SelectedItem}"/>
                                             </ContextMenu>
                                         </Button.ContextMenu>
                                         <StackPanel Width="220" Height="240" Margin="5">
                                             <TextBlock Text="{Binding Path=Title}" FontWeight="Bold"/>
                                             <TextBlock Text="{Binding Path=Date, StringFormat=D}"/>
                                             <TextBlock Text="{Binding Path=Explanation}"/>
-                                            <Image Stretch="UniformToFill" Height="160">
-                                                <Image.Source>
-                                                    <BitmapImage UriSource="{Binding Url}" CacheOption="OnLoad" DecodePixelWidth="{Binding DataContext.PreviewQuality, Source={x:Reference SettingsTab}, Converter={StaticResource longConverter}}"/>
-                                                </Image.Source>
-                                            </Image>
+
+                                        <ContentControl Content="{Binding}" ContentTemplateSelector="{StaticResource MediaTemplateSelector}" />
+                                        
                                         <!--<Button Height="30" Command="{Binding DataContext.DownloadCommand, Source={x:Reference exploreView}}" CommandParameter="{Binding Source={x:Reference exploreView}, Path=SelectedItem}">Download</Button>-->
                                         </StackPanel>
                                     </Button>
@@ -270,11 +287,11 @@
                     <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Center" Margin="0 5">
                         <Button x:Name="BtnLoadPrev" Content="Previous" Width="250" Height="32" Command="{Binding PrevCommand}"/>
                             <Button x:Name="BtnLoadNext" Content="Next" Width="250" Height="32" Command="{Binding NextCommand}"/>
-                            <Button x:Name="BtnLoadRandom" Content="Random" Width="250" Height="32" Command="{Binding RandomCommand}"/>
+                            <Button x:Name="BtnLoadRandom" Content="Random" Width="250" Height="32" Command="{Binding RandCommand}"/>
                         </StackPanel>
                     </Grid>
                 </TabItem>
-                <TabItem x:Name="SettingsTab" Header="Settings" DataContext="{Binding Source={x:Static utils:Configuration.Config}}">
+                <TabItem x:Name="SettingsTab" Header="Settings" DataContext="{Binding Source={x:Static utils:Configuration.Config}}" Width="80">
                 <Grid Style="{DynamicResource Dark_light}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -291,12 +308,16 @@
                         </Grid.RowDefinitions>
                         <Label Content="   General" FontWeight="Bold" FontSize="14" Height="30"/>
                         <StackPanel Margin="10" Grid.Row="1">
-                            <StackPanel Orientation="Horizontal">
-                                <CheckBox x:Name="ChkExplainImage" Content="Show image explanation on update" IsChecked="{Binding ExplainImage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                            </StackPanel>
+                            <CheckBox x:Name="ChkExplainImage" Content="Show image explanation on update" IsChecked="{Binding ExplainImage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="API Key: " VerticalAlignment="Center"/>
                                 <TextBox x:Name="TxtApiKey" Text="{Binding API_KEY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="350"/>
+                            </StackPanel>
+                            <!--<TextBlock Text="Max stored images: " VerticalAlignment="Center"/>-->
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Network Timeout (s): " VerticalAlignment="Center"/>
+                                <TextBox x:Name="TxtNetworkTimeout" Text="{Binding NetworkTimeout, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PreviewTextInput="TxtNetworkTimeout_PreviewTextInput" DataObject.Pasting="TextBoxPasting" Width="160"/>
+                                
                             </StackPanel>
                         </StackPanel>
                     </Grid>
@@ -364,7 +385,7 @@
 
                 </Grid>
             </TabItem>
-            <TabItem x:Name="OutputTab" Header="Output">
+            <TabItem x:Name="OutputTab" Header="Output" Width="60">
                 <Grid Style="{DynamicResource Dark_light}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="35"/>
@@ -375,7 +396,23 @@
                     
                 </Grid>
             </TabItem>
-            
+            <TabItem x:Name="HelpTab" Header="Help" Width="60">
+                <Grid Style="{DynamicResource Dark_light}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="95"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0">
+                        <TextBlock Text="For help documentation, please click the button below:" FontWeight="Bold" FontSize="14" Margin="5" VerticalAlignment="Center"/>
+                        <TextBlock Text="APODWallpaper Version:"/>
+                        <TextBlock Text="{Binding APODAppVersion}"/>
+                        <TextBlock Text="Configurator Version:"/>
+                        <TextBlock Text="{Binding ConfiguratorAppVersion}"/>
+                    </StackPanel>
+                    <Button x:Name="BtnOpenHelp" Content="Open Help Documentation" Grid.Row="1" Width="200" Height="50" HorizontalAlignment="Center" VerticalAlignment="Center" Click="BtnOpenHelp_Click"/>
+                    <!--<TextBox x:Name="TxtHelp" Text="{Binding HelpText, Mode=OneWay}" Foreground="{DynamicResource Foreground}" Background="{DynamicResource Dark}"/>-->
+                </Grid>
+            </TabItem>
         </TabControl>
     </Grid>
 </Window>

@@ -11,13 +11,18 @@ using System.Windows.Input;
 
 namespace ConfiguratorGUI
 {
-    internal class ViewModel : INotifyPropertyChanged
+    public class ViewModel : INotifyPropertyChanged
     {
         private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
+
+        public static string APODAppVersion { get; } = App.AppVersion;
+        public static string ConfiguratorAppVersion { get; } = APODWallpaper.APODWallpaper.Version;
 
         private DateOnly exploreEnd = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1);
 
         const int ExploreCount = 12;
+
+        public static string HelpText { get; } = File.ReadAllText("Resources/help.html");
 
         private Cursor windowCursor = Cursors.Arrow;
         public Cursor WindowCursor
@@ -30,21 +35,23 @@ namespace ConfiguratorGUI
             }
         }
 
-        private ObservableCollection<PictureData> pictureData = [];
+        private ObservableCollection<PictureData> myPictureData = [];
         public ObservableCollection<PictureData> MyPictureData
         {
-            get => pictureData;
+            get => myPictureData;
             private set
             {
-                pictureData = value;
+                myPictureData = value;
                 OnPropertyChanged(nameof(MyPictureData));
             }
         }
 
+#pragma warning disable CA1822 // Mark members as static
         public string ItemQuantity { get {
-                var (x, y) = GetImagesSize();
-                return $"Items: {x} + (meta); Storage space: {y / 1048576} MiB";
+                var (items, size, cacheSize) = GetImagesSize();
+                return $"Items: {items}; Storage space: {size / 1048576} MiB; Cache size: {cacheSize / 1024} KiB";
             }
+#pragma warning restore CA1822 // Mark members as static
         }
 
 
@@ -174,6 +181,26 @@ namespace ConfiguratorGUI
                 _downloadCommand = value;
             }
         }
+
+        private ICommand? _viewContentCommand;
+        public ICommand ViewContentCommand
+        {
+            get
+            {
+                _viewContentCommand ??= new RelayCommand<APODInfo>(async (data) =>
+                {
+                    if (data == null) return;
+                    MessageBox.Show($"{data.Explanation}\n\nCopyright: {data.Copyright}\n\nPress OK to open content in browser...", $"{data.Title} - {data.DateFormatted}");
+                    if (data.RealUri == null) return;
+                    Process.Start(new ProcessStartInfo { FileName = data.RealUri.AbsoluteUri, UseShellExecute = true });
+                }, (s) => true);
+                return _viewContentCommand;
+            }
+            set
+            {
+                _viewContentCommand = value;
+            }
+        }
         private ICommand? _nextCommand;
         public ICommand NextCommand
         {
@@ -218,20 +245,20 @@ namespace ConfiguratorGUI
         {
             if (data == null) return;
             if (MyPictureData.Any(x => x.Equals(data))) { MessageBox.Show("Image was previously saved!", "Already saved"); return; }
-            PictureData pictureData;
-            Task<PictureData>? task = default;
+            PictureData? pictureData;
+            Task<PictureData?>? downloadTask = default;
             try { 
             
-                task = APOD.DownloadImageAsync(data);
-            } catch (NotImageException ex)
+                downloadTask = APOD.DownloadImageAsync(data);
+            } catch (NotImageException)
             {
-                MessageBox.Show(ex.Message, "APOD is not an image");
                 return;
             }
             ExploreData.Remove(data);
             try
             {
-                pictureData = await task;
+                pictureData = await downloadTask;
+                if (pictureData == null) return;
                 MyPictureData.Insert(0, pictureData);
             }
             catch (Exception ex)
@@ -243,7 +270,10 @@ namespace ConfiguratorGUI
         private async Task LoadExplore()
         {
             var exploreStart = exploreEnd.AddDays(-ExploreCount + 1);
-            ExploreData = new(await APODCache.Instance.GetInfoRangeAsync(exploreStart, exploreEnd));
+            var data = await APODCache.Instance.GetRangeAsync(exploreStart, exploreEnd);
+            var filteredData = data?.Where(x => x.RealUri != null);
+            if (filteredData != null)
+                ExploreData = new(filteredData);
         }
         private async void ExploreNext()
         {
@@ -271,7 +301,9 @@ namespace ConfiguratorGUI
         {
             Trace.WriteLine("Loading random...");
             WindowCursor = Cursors.Wait;
-            ExploreData = new(await APODCache.Instance.FetchRandAsync(ExploreCount));
+            var data = await APODCache.Instance.FetchRandAsync(ExploreCount);
+            if (data != null) ExploreData = new(data);
+            
             WindowCursor = Cursors.Arrow;
         }
 
@@ -289,7 +321,7 @@ namespace ConfiguratorGUI
         }
         public async void CheckNew(object? param)
         {
-            if (await APOD.CheckNewAsync())
+            if (APOD.CheckNewAsync())
             {
                 MessageBox.Show("New image found.", "Downloading image");
                 PictureData? newData = default;
@@ -356,7 +388,7 @@ namespace ConfiguratorGUI
 
         }
 
-        private static (int, long) GetImagesSize()
+        private static (int, long, long) GetImagesSize()
         {
             var imagesPath = Utilities.GetDataPath("images");
             var files = Directory.GetFiles(imagesPath);
@@ -371,7 +403,10 @@ namespace ConfiguratorGUI
                     c++;
                 }
             }
-            return (c/2, size);
+            var cachePath = Utilities.GetDataPath("cache/metadata.cache");
+            var cacheInfo = new FileInfo(cachePath);
+            
+            return (c/2, size, cacheInfo.Length);
         }
 
         private async Task SortDataAsync(IEnumerable<Task>? tasks = null)
@@ -380,7 +415,7 @@ namespace ConfiguratorGUI
             {
                 Trace.WriteLine("Awaiting all items loaded");
                 await Task.WhenAll(tasks);
-            }
+            }   
             MyPictureData = new ObservableCollection<PictureData>(MyPictureData.OrderDescending());
 
         }
@@ -393,7 +428,7 @@ namespace ConfiguratorGUI
             {
                 await Task.WhenAny(load);
             }
-            await Task.WhenAll(explore, sort);
+            await sort;
         }
 
         public ViewModel()

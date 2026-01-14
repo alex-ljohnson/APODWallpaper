@@ -15,7 +15,7 @@ namespace APODConfiguratorNeo
     public sealed partial class MainWindow : Window
     {
 
-        private readonly ViewModel VM;
+        internal ViewModel VM {get;set;}
         private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
         public Frame MainFrame { get => mainframe; }
         public MainWindow()
@@ -32,27 +32,10 @@ namespace APODConfiguratorNeo
             Trace.WriteLine("\nWINDOW LOADED\n");
 
         }
-            
-        async private void BtnForceRun_Click(object sender, RoutedEventArgs e)
-        {
-            MainFrame.Navigate(typeof(Pages.Output), "");
-            await APOD.UpdateAsync(true);
-            Console.WriteLine("\nProcess Finished!\n");
-        }
 
         private async void BtnUpdate_Click(object sender, RoutedEventArgs e)
         {
             await Updater.CheckUpdate();
-        }
-
-        private void BtnResetDefault_Click(object sender, RoutedEventArgs e)
-        {
-            Configuration.Config.SetConfiguration(Configuration.DefaultConfiguration);
-        }
-
-        private void BtnStyleChange_Click(object sender, RoutedEventArgs e)
-        {
-            APOD.UpdateBackground(null, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
         }
 
         [GeneratedRegex("[^0-9]+")]
@@ -63,7 +46,7 @@ namespace APODConfiguratorNeo
             return regex.IsMatch(text);
         }
 
-        private void mainTabControl_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+        private void MainTabControl_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
         {
             if (args.IsSettingsSelected) {
                 MainFrame.Navigate(typeof(Pages.Settings));

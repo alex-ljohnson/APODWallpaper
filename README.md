@@ -4,14 +4,14 @@ This is a program to download the "Astronomy Picture Of the Day" (APOD) from the
 
 ## Installation
 ### Dependecies
-- [Dotnet 8 desktop runtime](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-8.0.0-windows-x64-installer)
+- [Dotnet 10 desktop runtime](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-10.0.2-windows-x64-installer)
 ### Recommended
 > Download all dependencies listed above
 
 > Download an installer from the [releases page](https://github.com/MrTransparentBox/APODWallpaper/releases).
 
 ### From Source
-> Can be compiled from source using [dotnet 8.0 sdk](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-8.0.100-windows-x64-installer).
+> Can be compiled from source using [dotnet 10 sdk](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-10.0.102-windows-x64-installer).
 
 ## Usage
 ### First Run
