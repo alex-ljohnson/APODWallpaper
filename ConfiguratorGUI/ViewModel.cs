@@ -9,15 +9,16 @@ using System.Runtime.CompilerServices;
 using System.Windows;
 using Microsoft.Extensions.Logging;
 using System.Windows.Input;
+using APODWallpaper;
+using APODWallpaper.Interfaces;
 
 namespace ConfiguratorGUI
 {
-    public class ViewModel : INotifyPropertyChanged
+    public class ViewModel(IAPODWallpaper apod, IAPODCache cache, Configuration config) : INotifyPropertyChanged
     {
-        private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
 
-        public static string APODAppVersion { get; } = App.AppVersion;
-        public static string ConfiguratorAppVersion { get; } = APODWallpaper.APODWallpaper.Version;
+        public static string APODAppVersion { get; } = APODWallpaper.APODWallpaper.Version;
+        public static string ConfiguratorAppVersion { get; } = App.AppVersion;
 
         private DateOnly exploreEnd = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1);
 
@@ -191,9 +192,10 @@ namespace ConfiguratorGUI
                 _viewContentCommand ??= new RelayCommand<APODInfo>(async (data) =>
                 {
                     if (data == null) return;
+                    var uri = data.GetPreferredUri(config.UseHD);
                     MessageBox.Show($"{data.Explanation}\n\nCopyright: {data.Copyright}\n\nPress OK to open content in browser...", $"{data.Title} - {data.DateFormatted}");
-                    if (data.RealUri == null) return;
-                    Process.Start(new ProcessStartInfo { FileName = data.RealUri.AbsoluteUri, UseShellExecute = true });
+                    if (uri == null) return;
+                    Process.Start(new ProcessStartInfo { FileName = uri.AbsoluteUri, UseShellExecute = true });
                 }, (s) => true);
                 return _viewContentCommand;
             }
@@ -250,7 +252,7 @@ namespace ConfiguratorGUI
             Task<PictureData?>? downloadTask = default;
             try { 
             
-                downloadTask = APOD.DownloadImageAsync(data);
+                downloadTask = apod.DownloadImageAsync(data);
             } catch (NotImageException)
             {
                 return;
@@ -271,8 +273,8 @@ namespace ConfiguratorGUI
         private async Task LoadExplore()
         {
             var exploreStart = exploreEnd.AddDays(-ExploreCount + 1);
-            var data = await APODCache.Instance.GetRangeAsync(exploreStart, exploreEnd);
-            var filteredData = data?.Where(x => x.RealUri != null);
+            var data = await cache.GetRangeAsync(exploreStart, exploreEnd);
+            var filteredData = data?.Where(x => x.GetPreferredUri(config.UseHD) != null);
             if (filteredData != null)
                 ExploreData = new(filteredData);
         }
@@ -302,7 +304,7 @@ namespace ConfiguratorGUI
         {
             Trace.WriteLine("Loading random...");
             WindowCursor = Cursors.Wait;
-            var data = await APODCache.Instance.FetchRandAsync(ExploreCount);
+            var data = await cache.FetchRandAsync(ExploreCount);
             if (data != null) ExploreData = new(data);
             
             WindowCursor = Cursors.Arrow;
@@ -318,17 +320,17 @@ namespace ConfiguratorGUI
         public void SelectOption(string? source)
         {
             if (source == null) { return; }
-            APOD.UpdateBackground(source, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
+            apod.UpdateBackground(source, (WallpaperStyleEnum)config.WallpaperStyle);
         }
         public async void CheckNew(object? param)
         {
-            if (APOD.CheckNewAsync())
+            if (apod.CheckNewAsync())
             {
                 MessageBox.Show("New image found.", "Downloading image");
                 PictureData? newData = default;
                 try
                 {
-                    newData = await APOD.UpdateAsync(true);
+                    newData = await apod.UpdateAsync(true);
                 } catch (NotImageException ex)
                 {
                     MessageBox.Show(ex.Message, "APOD isn't an image");
@@ -399,7 +401,7 @@ namespace ConfiguratorGUI
             var tasks = files.Select(LoadItemAsync);
             var results = await Task.WhenAll(tasks).ConfigureAwait(false);
             
-            return results.Where(x => x != null).Select(x => x!).ToArray();
+            return [.. results.Where(x => x != null).Select(x => x!)];
         }
 
         private static (int, long, long) GetImagesSize()
@@ -445,10 +447,25 @@ namespace ConfiguratorGUI
             Trace.WriteLine($"Initialisation times: Total: {(endTime - startTime).TotalMilliseconds}ms; Task spinup: {(taskInitTime - startTime).TotalMilliseconds}ms");
         }
 
-        public ViewModel()
-        {
+        //public MainViewModel(IUpdateService updateSvc, IImageLoader imgLoader)
+        //{
+        //    _updateService = updateSvc;
+        //    _imageLoader = imgLoader;
 
-        }
+        //    // Start non-blocking initialization
+        //    _ = InitializeAsync();
+        //}
 
+        //private async Task InitializeAsync()
+        //{
+        //    // 1. Parallel start for speed
+        //    var updateTask = _updateService.CheckForUpdatesAsync();
+        //    var imagesTask = _imageLoader.LoadAllAsync();
+
+        //    await Task.WhenAll(updateTask, imagesTask);
+
+        //    // 2. Update UI properties safely via DataBinding
+        //}
     }
 }
+

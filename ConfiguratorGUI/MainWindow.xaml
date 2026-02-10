@@ -17,9 +17,9 @@
         ResizeMode="CanResizeWithGrip"
         Cursor="{Binding WindowCursor}"
         Icon="Resources\Spanner.png" Closing="window_Closing" Loaded="window_Loaded">
-    <Window.DataContext>
-        <local:ViewModel/>
-    </Window.DataContext>
+    <!--<Window.DataContext>-->
+        <!--<local:ViewModel/>
+    </Window.DataContext>-->
     <Window.Triggers>
         <EventTrigger RoutedEvent="Window.Loaded">
             <BeginStoryboard>
@@ -291,7 +291,8 @@
                         </StackPanel>
                     </Grid>
                 </TabItem>
-                <TabItem x:Name="SettingsTab" Header="Settings" DataContext="{Binding Source={x:Static utils:Configuration.Config}}" Width="80">
+            
+                <TabItem x:Name="SettingsTab" Header="Settings" Width="80">
                 <Grid Style="{DynamicResource Dark_light}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -311,7 +312,7 @@
                             <CheckBox x:Name="ChkExplainImage" Content="Show image explanation on update" IsChecked="{Binding ExplainImage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="API Key: " VerticalAlignment="Center"/>
-                                <TextBox x:Name="TxtApiKey" Text="{Binding API_KEY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="350"/>
+                                <TextBox x:Name="TxtApiKey" Text="{Binding .API_KEY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="350"/>
                             </StackPanel>
                             <!--<TextBlock Text="Max stored images: " VerticalAlignment="Center"/>-->
                             <StackPanel Orientation="Horizontal">

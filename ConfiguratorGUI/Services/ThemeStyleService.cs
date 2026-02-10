@@ -5,11 +5,11 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
-using APODWallpaper.Services;
+using APODWallpaper.Interfaces;
 
 namespace ConfiguratorGUI.Services
 {
-
+    // TODO: Separate theme handling from App.xaml.cs
     // Service interfaces for better testability and separation of concerns
     public interface IThemeService
     {
@@ -55,7 +55,7 @@ namespace ConfiguratorGUI.Services
 
         public async Task ApplyThemeAsync(ResourceDictionary resources)
         {
-            var themeName = configService.CurrentTheme;
+            var themeName = configService.ConfiguratorTheme;
 
             // Validate custom themes
             if (!DefaultThemes.Contains(themeName) && !await ValidateThemeAsync(themeName))
@@ -112,7 +112,7 @@ namespace ConfiguratorGUI.Services
 
         private async Task ResetThemeAsync(ResourceDictionary resources)
         {
-            configService.CurrentTheme = "Light.xaml";
+            configService.ConfiguratorTheme = "Light.xaml";
             MessageBox.Show(
                 "Error loading custom theme, default theme applied",
                 "Theme Error",

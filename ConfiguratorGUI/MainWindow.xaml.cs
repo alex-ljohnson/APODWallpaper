@@ -1,5 +1,7 @@
-﻿using APODWallpaper.Utils;
+﻿using APODWallpaper;
+using APODWallpaper.Utils;
 using System.Diagnostics;
+using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Input;
@@ -17,11 +19,12 @@ namespace ConfiguratorGUI
         private static readonly SPath PathNotMax = new() { Data = new RectangleGeometry() { Rect = new Rect(0, 0, 8, 8) }, Stroke = new SolidColorBrush(MColor.FromRgb(240, 240, 240)) };
         private static readonly SPath PathMax = new() { Fill = new SolidColorBrush(MColor.FromRgb(70, 72, 89)), Data = new GeometryGroup() { Children = { new RectangleGeometry() { Rect = new Rect(0, 0, 8, 8) }, new RectangleGeometry() { Rect = new Rect(2, -2, 8, 8) } } }, Stroke = new SolidColorBrush(MColor.FromRgb(240, 240, 240)) };
 
-        private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
         private readonly ViewModel VM;
         private readonly StdOutRedirect redirect;
-        public MainWindow()
+        private readonly IAPODWallpaper APOD;
+        public MainWindow(IAPODWallpaper apod)
         {
+            this.APOD = apod;
             InitializeComponent();
             redirect = new StdOutRedirect(TxtOutput);
             Console.SetOut(redirect);
@@ -116,22 +119,18 @@ namespace ConfiguratorGUI
         {
             await Updater.CheckUpdate();
         }
-
+        // TODO: Move methods to viewmodel
+        // TODO: Refactor XAML to stop changing the DataContext in sections
         private async void BtnResetDefault_Click(object sender, RoutedEventArgs e)
         {
-            if (!Configuration.DefaultConfiguration.isReady) await Configuration.DefaultConfiguration.Initialise();
-            Configuration.Config.SetConfiguration(Configuration.DefaultConfiguration);
+            if (!Configuration.DefaultConfiguration.isReady) await Configuration.DefaultConfiguration.InitialiseAsync();
+            Configuration.Config.CopyConfiguration(Configuration.DefaultConfiguration);
             BtnUpdateTheme_Click(sender, e);
         }
 
         private void BtnClearOut_Click(object sender, RoutedEventArgs e)
         {
             TxtOutput.Clear();
-        }
-
-        private void BtnStyleChange_Click(object sender, RoutedEventArgs e)
-        {
-            APOD.UpdateBackground(null, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
         }
 
         private async void BtnUpdateTheme_Click(object sender, RoutedEventArgs e)

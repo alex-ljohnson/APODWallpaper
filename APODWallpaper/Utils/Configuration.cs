@@ -17,8 +17,10 @@ namespace APODWallpaper.Utils
         Fill = 10,
         Span = 22
     }
-    public class Configuration : INotifyPropertyChanged
+    public class Configuration : INotifyPropertyChanged, IDisposable, Interfaces.IConfigurationService
     {
+        public static List<string> OpenConfigs = [];
+
         public bool isReady = false;
 
         private readonly string base_path = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
@@ -68,35 +70,27 @@ namespace APODWallpaper.Utils
         }
 
         public static readonly Configuration DefaultConfiguration = new("Default", false, false) { BaseUrl = "https://api.nasa.gov/planetary/apod", UseHD = true, RunStartup = true, ExplainImage = false, DownloadInfo = false, WallpaperStyle = (int)WallpaperStyleEnum.Fill, ConfiguratorTheme = "Light.xaml", PreviewQuality = 100, API_KEY= "5zgCnpExBIpD6hZvruRRJS48WfKYBe0PlVVaO5NZ", NetworkTimeout= 10};
-        private static readonly Lock padlock = new();
-        private static Configuration? _instance = null;
-        public static Configuration Config
-        {
-            get
-            {
-                lock (padlock)
-                {
-                    _instance ??= new Configuration("Config", true, true);
-                    return _instance;
-                }
-            }
-        }
-
-        private Configuration(string ID = "None", bool autoSave = true, bool file = true)
+        
+        public Configuration(string ID = "None", bool autoSave = true, bool file = true)
         {
             Trace.WriteLine("LOADING CONFIG...");
+            if (OpenConfigs.Contains(ID))
+            {
+                throw new Exception($"Config with ID {ID} already open");
+            }
+            OpenConfigs.Add(ID);
             this.autoSave = autoSave;
             this.ID = ID;
             fileTied = file;
-            var configPath = Utilities.GetDataPath("config.json");
+            var configPath = Utilities.GetDataPath($"{ID.ToLower()}.json");
             bool exists = File.Exists(configPath);
             if (!exists) { File.Create(configPath); }
-            fileStream = new(configPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, true);
+            fileStream = new(configPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read, 4096, true);
             writer = new(fileStream, Encoding.UTF8);
             reader = new(fileStream, Encoding.UTF8);
         }
 
-        public async Task Initialise()
+        public async Task InitialiseAsync()
         {
             Trace.WriteLine("Init " + ID);
             await LoadDataAsync(fileTied);
@@ -128,7 +122,7 @@ namespace APODWallpaper.Utils
 
         private void AutoSave()
         {
-            if (autoSave && ID != "Default")
+            if (autoSave && fileTied)
             {
                 SaveConfigAsync();
             }
@@ -157,7 +151,7 @@ namespace APODWallpaper.Utils
                 key?.DeleteValue("APODWallpaper");
             }
         }
-        public static bool CheckStartup()
+        public static bool CheckStartupSet()
         {
             var reg = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run");
             return reg?.GetValue("APODWallpaper") != null;
@@ -166,16 +160,8 @@ namespace APODWallpaper.Utils
         /// <summary>
         /// Set the current configuration, returns itself
         /// </summary>
-        public Configuration SetConfiguration(Configuration newConfiguration)
+        public Configuration CopyConfiguration(Configuration newConfiguration)
         {
-            //foreach (var i in GetType().GetProperties())
-            //{
-            //    if (i.PropertyType != this.GetType())
-            //    {
-
-            //        _configuration[i.Name] = (this, i.GetValue(newConfiguration));
-            //    }
-            //}
             foreach (var (key, val) in newConfiguration._configuration)
             {
                 _configuration[key] = val;
@@ -192,6 +178,20 @@ namespace APODWallpaper.Utils
         public override string ToString()
         {
             return JsonConvert.SerializeObject(_configuration, Formatting.Indented);
+        }
+
+        public void Dispose()
+        {
+            writer.Flush();
+            writer.Close();
+            writer?.Dispose();
+            reader.Close();
+            reader.Dispose();
+            fileStream.Flush();
+            fileStream.Close();
+            fileStream?.Dispose();
+            OpenConfigs.Remove(ID);
+            GC.SuppressFinalize(this);
         }
     }
 }

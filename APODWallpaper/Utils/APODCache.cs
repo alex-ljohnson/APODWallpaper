@@ -1,32 +1,24 @@
-﻿using Newtonsoft.Json;
+﻿using APODWallpaper.Interfaces;
+using Newtonsoft.Json;
 using System.Diagnostics;
+using System.Net;
 using System.Web;
-using APODWallpaper.Interfaces;
 
 namespace APODWallpaper.Utils
 {
     public sealed class APODCache : IAPODCache
     {
+        private readonly HttpClient httpClient;
+        private readonly Configuration config;
         private static readonly string CacheFolder = Utilities.GetDataPath("cache/");
         private static readonly string MetadataCacheFile = Utilities.GetDataPath("cache/metadata.cache");
 
         private Dictionary<DateOnly, APODInfo> _metadataCache = [];
-        private static readonly Lock CacheLock = new();
-        private static APODCache? _instance = null;
-        public static APODCache Instance
-        {
-            get
-            {
-                lock (CacheLock)
-                {
-                    _instance ??= new APODCache();
-                    return _instance;
-                }
-            }
-        }
 
-        public APODCache()
+        public APODCache(HttpClient httpClient, Configuration config)
         {
+            this.httpClient = httpClient;
+            this.config = config;
             EnsureCacheExists();
             LoadCache();
         }
@@ -135,7 +127,7 @@ namespace APODWallpaper.Utils
             return await SendRequestAsync(count: count);
         }
 
-
+        // TODO: Abstract out requests into another class to remove dependencies and API-specific logic from cache class
         /// <summary>
         /// Fetch info from API and add to cache
         /// </summary>
@@ -161,12 +153,12 @@ namespace APODWallpaper.Utils
             {
                 urlParams["count"] = count.ToString();
             }
-            urlParams["api_key"] = Configuration.Config.API_KEY;
-            Uri uri = new($"{Configuration.Config.BaseUrl}?{urlParams}");
+            urlParams["api_key"] = config.API_KEY;
+            Uri uri = new($"{config.BaseUrl}?{urlParams}");
             APODInfo[] imageInfo;
             try
             {
-                string responseContent = await NetClient.InstanceClient.GetStringAsync(uri);
+                string responseContent = await httpClient.GetStringAsync(uri);
                 
                 if (endDate != null || count != null)
                 {
@@ -186,6 +178,51 @@ namespace APODWallpaper.Utils
                 return null;
             } 
             return imageInfo;
+        }
+
+        public async Task<string> DownloadURLAsync(Uri? url, string filepath, IProgress<(long, long?)>? progress = null)
+        {
+            //string filename;
+            ArgumentNullException.ThrowIfNull(url);
+            try
+            {
+                using HttpResponseMessage response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+                Console.WriteLine(response.Content.Headers.ToString());
+                response.EnsureSuccessStatusCode();
+                var contentLength = response.Content.Headers.ContentLength;
+                if (!contentLength.HasValue)
+                {
+                    Console.WriteLine("Content length not provided");
+                }
+                using Stream contentStream = await response.Content.ReadAsStreamAsync();
+                using FileStream fileStream = new(filepath, FileMode.Create, FileAccess.ReadWrite, FileShare.Write);
+                if (config.DownloadInfo && contentLength.HasValue)
+                {
+                    long totalReadBytes = 0L;
+                    var buffer = new byte[81920];
+                    int readBytes;
+                    while ((readBytes = await contentStream.ReadAsync(buffer, 0, buffer.Length)) != 0)
+                    {
+                        await fileStream.WriteAsync(buffer, 0, readBytes);
+                        totalReadBytes += readBytes;
+                        progress?.Report((totalReadBytes, contentLength));
+                    }
+                }
+                else
+                {
+                    var copyTask = contentStream.CopyToAsync(fileStream);
+                    // Simple progress reporter for copy operation
+                    await copyTask;
+
+                }
+            }
+            catch (Exception ex) when (ex is HttpRequestException || ex is TimeoutException)
+            {
+                Utilities.ShowMessageBox("Please check your internet connection and try again", "Connection error", Utilities.MessageBoxType.Error);
+                Console.WriteLine(ex.StackTrace);
+                throw;
+            }
+            return filepath;
         }
     }
 }

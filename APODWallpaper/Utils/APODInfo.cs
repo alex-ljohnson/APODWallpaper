@@ -25,15 +25,6 @@ namespace APODWallpaper.Utils
         public Uri? Url { get; set; } = (url != null) ? new(url, UriKind.Absolute) : null;
 
         [JsonIgnore]
-        public Uri? RealUri
-        {
-            get
-            {
-                return (Configuration.Config.UseHD && HDUrl != null) ? HDUrl : Url;
-            }
-        }
-
-        [JsonIgnore]
         public string DateFormatted
         {
             get
@@ -58,6 +49,11 @@ namespace APODWallpaper.Utils
         {
             if (other == null) return false;
             return Date.Equals(other.Date);
+        }
+
+        public Uri? GetPreferredUri(bool useHd)
+        {
+            return (useHd && HDUrl != null) ? HDUrl : Url;
         }
     }
 }

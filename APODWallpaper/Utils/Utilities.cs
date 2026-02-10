@@ -28,6 +28,15 @@ namespace APODWallpaper.Utils
             return Path.GetFullPath(result);
         }
 
+        public static void EnsureDataDirectory()
+        {
+            var dataDir = GetDataPath("");
+            if (!Directory.Exists(dataDir))
+            {
+                Directory.CreateDirectory(dataDir);
+            }
+        }
+
         public enum MessageBoxType
         {
 
