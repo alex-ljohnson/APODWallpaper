@@ -38,13 +38,13 @@ Console.WriteLine($"APODWallpaper v{verName}\n--------------------\n");
 await APODWallpaper.APODWallpaper.Instance.UpdateAsync(force);
 namespace APODWallpaper
 {
-    public class APODWallpaper
+    public class APODWallpaper : IAPODWallpaper
     {
         [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW", CharSet = CharSet.Unicode)]
         private static extern int SystemParametersInfoW(uint uiAction, uint uiParam, string pvParam, uint fWinIni);
         public readonly string base_path = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!;
 
-        private static readonly object padlock = new();
+        private static readonly Lock padlock = new();
         private static APODWallpaper? _instance = null;
         public static string Version => "2026.01.14.1";
         public static APODWallpaper Instance

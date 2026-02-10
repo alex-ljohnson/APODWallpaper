@@ -100,6 +100,7 @@ namespace APODWallpaper.Utils
         {
             Trace.WriteLine("Init " + ID);
             await LoadDataAsync(fileTied);
+            isReady = true;
         }
 
         private async Task LoadDataAsync(bool fromFile = true)
@@ -111,7 +112,6 @@ namespace APODWallpaper.Utils
 
             }
 
-            isReady = true;
             Trace.WriteLine($"-- ID: {ID} --");
             foreach (var (key, val) in _configuration)
             {

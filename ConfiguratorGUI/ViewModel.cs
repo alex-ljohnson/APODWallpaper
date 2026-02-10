@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
+using Microsoft.Extensions.Logging;
 using System.Windows.Input;
 
 namespace ConfiguratorGUI
@@ -265,7 +266,7 @@ namespace ConfiguratorGUI
             {
                 MessageBox.Show(ex.Message);
             }
-            _ = SortDataAsync();
+            SortData();
         }
         private async Task LoadExplore()
         {
@@ -364,28 +365,41 @@ namespace ConfiguratorGUI
         }
         #endregion
 
-        private async Task LoadItemAsync(string itemPath)
+        private async Task<PictureData?> LoadItemAsync(string itemPath)
         {
-            if (!itemPath.EndsWith(".json")) return;
-            using StreamReader sr = new(itemPath);
-            Trace.WriteLine(itemPath + " before read");
-            var json = await sr.ReadToEndAsync();
-            Trace.WriteLine(itemPath + " is now done");
-            var data = JsonConvert.DeserializeObject<PictureData>(json);
-            if (data != null)
+            if (!itemPath.EndsWith(".json")) return null;
+            var startTime = DateTime.UtcNow;
+
+            PictureData? data = null;
+            try
             {
-                MyPictureData.Add(data);
+                using FileStream fs = new(itemPath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous);
+                using StreamReader sr = new(fs);
+                var json = await sr.ReadToEndAsync().ConfigureAwait(false);
+                
+                // Run synchronous/CPU-bound deserialization on the thread pool
+                data = await Task.Run(() => JsonConvert.DeserializeObject<PictureData>(json)).ConfigureAwait(false);
             }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"Deserialize failed for {itemPath}: {ex.Message}");
+            }
+
+            var endTime = DateTime.UtcNow;
+            Trace.WriteLine(itemPath + $" is now done; Total load time: {(endTime - startTime).TotalMilliseconds}ms;");
+            return data;
         }
 
-        public Task[] LoadData()
+        public async Task<PictureData[]> LoadData()
         {
             var imagesPath = Utilities.GetDataPath("images");
             Directory.CreateDirectory(imagesPath);
             string[] files = [.. Directory.EnumerateFiles(imagesPath).Where(x => x.EndsWith(".json"))];
-            var tasks = files.Select(LoadItemAsync).ToArray();
-            return tasks;
-
+            
+            var tasks = files.Select(LoadItemAsync);
+            var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+            
+            return results.Where(x => x != null).Select(x => x!).ToArray();
         }
 
         private static (int, long, long) GetImagesSize()
@@ -409,26 +423,26 @@ namespace ConfiguratorGUI
             return (c/2, size, cacheInfo.Length);
         }
 
-        private async Task SortDataAsync(IEnumerable<Task>? tasks = null)
+        private void SortData()
         {
-            if (tasks != null && tasks.Any())
-            {
-                Trace.WriteLine("Awaiting all items loaded");
-                await Task.WhenAll(tasks);
-            }   
-            MyPictureData = new ObservableCollection<PictureData>(MyPictureData.OrderDescending());
-
+            MyPictureData = new ObservableCollection<PictureData>(MyPictureData.OrderByDescending(x => x));
         }
+
         public async Task Initialise()
         {
-            var explore = LoadExplore();
-            var load = LoadData();
-            var sort = SortDataAsync(load);
-            if (load.Length > 0)
-            {
-                await Task.WhenAny(load);
-            }
-            await sort;
+            var startTime = DateTime.UtcNow;
+            
+            var exploreTask = LoadExplore();
+            var loadTask = LoadData();
+            var taskInitTime = DateTime.UtcNow;
+            await Task.WhenAll(exploreTask, loadTask);
+            var data = await loadTask;
+
+            // Since this is the initial load, setting the property fires NotifyPropertyChanged once
+            MyPictureData = new ObservableCollection<PictureData>(data.OrderByDescending(x => x));
+            
+            var endTime = DateTime.UtcNow;
+            Trace.WriteLine($"Initialisation times: Total: {(endTime - startTime).TotalMilliseconds}ms; Task spinup: {(taskInitTime - startTime).TotalMilliseconds}ms");
         }
 
         public ViewModel()

@@ -11,7 +11,7 @@ namespace APODWallpaper.Utils
         private static readonly string MetadataCacheFile = Utilities.GetDataPath("cache/metadata.cache");
 
         private Dictionary<DateOnly, APODInfo> _metadataCache = [];
-        private static readonly object CacheLock = new();
+        private static readonly Lock CacheLock = new();
         private static APODCache? _instance = null;
         public static APODCache Instance
         {
@@ -163,7 +163,6 @@ namespace APODWallpaper.Utils
             }
             urlParams["api_key"] = Configuration.Config.API_KEY;
             Uri uri = new($"{Configuration.Config.BaseUrl}?{urlParams}");
-            Trace.WriteLine(uri.ToString());
             APODInfo[] imageInfo;
             try
             {

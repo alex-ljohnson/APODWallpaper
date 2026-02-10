@@ -47,9 +47,12 @@ namespace ConfiguratorGUI
         private async void window_Loaded(object sender, RoutedEventArgs e)
         {
             BtnUpdateTheme_Click(sender, e);
+            var startTime = DateTime.UtcNow;
             await VM.Initialise();
-            _ = Updater.CheckUpdate(true);
+            Trace.WriteLine($"Init time: {(DateTime.UtcNow - startTime).TotalMilliseconds}ms");
+            
             Trace.WriteLine("\nWINDOW LOADED\n");
+            _ = Updater.CheckUpdate(true);
 
         }
 
@@ -114,8 +117,9 @@ namespace ConfiguratorGUI
             await Updater.CheckUpdate();
         }
 
-        private void BtnResetDefault_Click(object sender, RoutedEventArgs e)
+        private async void BtnResetDefault_Click(object sender, RoutedEventArgs e)
         {
+            if (!Configuration.DefaultConfiguration.isReady) await Configuration.DefaultConfiguration.Initialise();
             Configuration.Config.SetConfiguration(Configuration.DefaultConfiguration);
             BtnUpdateTheme_Click(sender, e);
         }

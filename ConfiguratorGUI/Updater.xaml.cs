@@ -68,7 +68,8 @@ Press the download button below to download and install it.";
             client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
             using HttpResponseMessage response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();
-            string fname = response.Content.Headers.ContentDisposition!.FileName!;
+            string? fname = response.Content.Headers.ContentDisposition?.FileName;
+            if (fname == null) fname = "ApodUpdateInstaller";
             string filePath = Path.GetFullPath(fname, Path.GetTempPath());
             Trace.WriteLine(fname);
             // Download file
@@ -81,7 +82,6 @@ Press the download button below to download and install it.";
         }
         public async static Task CheckUpdate(bool startUp = false)
         {
-
             // Update Check
             client.DefaultRequestHeaders.Accept.Clear();
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
