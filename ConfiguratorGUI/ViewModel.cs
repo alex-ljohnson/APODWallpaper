@@ -14,7 +14,7 @@ using APODWallpaper.Interfaces;
 
 namespace ConfiguratorGUI
 {
-    public class ViewModel(IAPODWallpaper apod, IAPODCache cache, Configuration config) : INotifyPropertyChanged
+    public class ViewModel(IAPODWallpaper apod, IAPODCache cache, IConfigurationService config) : INotifyPropertyChanged
     {
 
         public static string APODAppVersion { get; } = APODWallpaper.APODWallpaper.Version;
@@ -112,7 +112,7 @@ namespace ConfiguratorGUI
             }
             set
             {
-                _selectCommand = value;
+                _deleteCommand = value;
             }
         }
 
@@ -324,7 +324,7 @@ namespace ConfiguratorGUI
         }
         public async void CheckNew(object? param)
         {
-            if (apod.CheckNewAsync())
+            if (apod.CheckNew())
             {
                 MessageBox.Show("New image found.", "Downloading image");
                 PictureData? newData = default;

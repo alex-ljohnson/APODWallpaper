@@ -39,12 +39,7 @@ namespace APODWallpaper.Utils
         {
             get
             {
-                if (date == null)
-                {
-                    date = DateOnly.Parse(Path.GetFileNameWithoutExtension(Source));
-                    SaveFile();
-                }
-
+                date ??= DateOnly.Parse(Path.GetFileNameWithoutExtension(Source));
                 return (DateOnly)date;
             }
             set { date = value; }

@@ -2,22 +2,23 @@
 using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Net;
+using System.Net.Http;
 using System.Web;
 
 namespace APODWallpaper.Utils
 {
     public sealed class APODCache : IAPODCache
     {
-        private readonly HttpClient httpClient;
-        private readonly Configuration config;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IConfigurationService config;
         private static readonly string CacheFolder = Utilities.GetDataPath("cache/");
         private static readonly string MetadataCacheFile = Utilities.GetDataPath("cache/metadata.cache");
 
         private Dictionary<DateOnly, APODInfo> _metadataCache = [];
 
-        public APODCache(HttpClient httpClient, Configuration config)
+        public APODCache(IHttpClientFactory httpClientFactory, IConfigurationService config)
         {
-            this.httpClient = httpClient;
+            _httpClientFactory = httpClientFactory;
             this.config = config;
             EnsureCacheExists();
             LoadCache();
@@ -36,12 +37,6 @@ namespace APODWallpaper.Utils
             {
                 _metadataCache[info.Date] = info;
             });
-            if (_metadataCache == null)
-            {
-                _metadataCache = [];
-
-                Console.WriteLine("WARNING: Initialized new metadata cache");
-            }
         }
         public async Task SaveCacheAsync()
         {
@@ -156,6 +151,7 @@ namespace APODWallpaper.Utils
             urlParams["api_key"] = config.API_KEY;
             Uri uri = new($"{config.BaseUrl}?{urlParams}");
             APODInfo[] imageInfo;
+            var httpClient = _httpClientFactory.CreateClient("APODCache");
             try
             {
                 string responseContent = await httpClient.GetStringAsync(uri);
@@ -184,6 +180,7 @@ namespace APODWallpaper.Utils
         {
             //string filename;
             ArgumentNullException.ThrowIfNull(url);
+            var httpClient = _httpClientFactory.CreateClient("APODCache");
             try
             {
                 using HttpResponseMessage response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);

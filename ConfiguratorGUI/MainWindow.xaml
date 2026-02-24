@@ -312,7 +312,7 @@
                             <CheckBox x:Name="ChkExplainImage" Content="Show image explanation on update" IsChecked="{Binding ExplainImage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="API Key: " VerticalAlignment="Center"/>
-                                <TextBox x:Name="TxtApiKey" Text="{Binding .API_KEY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="350"/>
+                                <TextBox x:Name="TxtApiKey" Text="{Binding API_KEY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="350"/>
                             </StackPanel>
                             <!--<TextBlock Text="Max stored images: " VerticalAlignment="Center"/>-->
                             <StackPanel Orientation="Horizontal">

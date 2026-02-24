@@ -1,22 +1,26 @@
 ﻿using APODWallpaper.Utils;
-using Microsoft.Extensions.Configuration;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.Text;
 
 namespace APODWallpaper.Interfaces
 {
-
     public interface IConfigurationService
     {
         Task InitialiseAsync();
-        string ConfiguratorTheme { get; set; }
-        ObservableCollection<string> AvailableThemes { get; }
-    }
 
-    // Theme service implementation
-    // Configuration service implementation
-    
+        bool UseHD { get; set; }
+        bool RunStartup { get; set; }
+        bool DownloadInfo { get; set; }
+        bool ExplainImage { get; set; }
+        string BaseUrl { get; set; }
+        string ConfiguratorTheme { get; set; }
+        int NetworkTimeout { get; set; }
+        long PreviewQuality { get; set; }
+        long WallpaperStyle { get; set; }
+        string API_KEY { get; set; }
+
+        ObservableCollection<string> AvailableThemes { get; }
+
+        void LoadThemes(IEnumerable<string> themes);
+        void ChangeStartup();
+    }
 }

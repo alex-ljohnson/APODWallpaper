@@ -1,6 +1,7 @@
 ﻿using APODWallpaper;
 using APODWallpaper.Interfaces;
 using APODWallpaper.Utils;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
 using Newtonsoft.Json;
 using System.Runtime.InteropServices;
@@ -24,24 +25,26 @@ if (args.Length > 0)
         if (arg == "check")
         {
             var val = Configuration.CheckStartupSet();
-            if (val)
-            {
-                Console.WriteLine("Startup registry set");
-            }
-            else
-            {
-                Console.WriteLine("Startup not enabled");
-            }
+            Console.WriteLine(val ? "Startup registry set" : "Startup not enabled");
             Environment.Exit(0);
         }
     }
 }
 Console.WriteLine($"APODWallpaper v{verName}\n--------------------\n");
+
+// Initialise config first so NetworkTimeout is available for HttpClient registration
 Configuration config = new("Config");
 await config.InitialiseAsync();
-HttpClient httpClient = new() { Timeout = TimeSpan.FromSeconds(config.NetworkTimeout) };
-APODCache cache = new(httpClient, config);
-APODWallpaper.APODWallpaper apod = new(cache, config);
+
+var services = new ServiceCollection();
+services.AddSingleton<Configuration>(config);
+services.AddSingleton<IConfigurationService>(config);
+services.AddHttpClient("APODCache", client => client.Timeout = TimeSpan.FromSeconds(config.NetworkTimeout));
+services.AddSingleton<IAPODCache, APODCache>();
+services.AddSingleton<IAPODWallpaper, APODWallpaper.APODWallpaper>();
+
+var provider = services.BuildServiceProvider();
+var apod = provider.GetRequiredService<IAPODWallpaper>();
 await apod.UpdateAsync(force);
 namespace APODWallpaper
 {
@@ -53,8 +56,8 @@ namespace APODWallpaper
         public static string Version => "2026.01.14.1";
 
         private readonly IAPODCache APODCache;
-        private readonly Configuration Config;
-        public APODWallpaper(IAPODCache apodCache, Configuration config)
+        private readonly IConfigurationService Config;
+        public APODWallpaper(IAPODCache apodCache, IConfigurationService config)
         {
             APODCache = apodCache;
             Config = config;
@@ -64,7 +67,7 @@ namespace APODWallpaper
 
         public async Task<PictureData?> UpdateAsync(bool force = false)
         {
-            if (force || CheckNewAsync())
+            if (force || CheckNew())
             {
                 var fileInfo = await DownloadTodayAsync();
                 if (fileInfo == null) {
@@ -111,7 +114,7 @@ namespace APODWallpaper
             return await DownloadImageAsync(info);
         }
 
-        public bool CheckNewAsync()
+        public bool CheckNew()
         {
             var latest = APODCache.ReadLatest();
             var date = latest?.Date;

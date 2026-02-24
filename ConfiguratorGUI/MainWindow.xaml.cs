@@ -22,13 +22,16 @@ namespace ConfiguratorGUI
         private readonly ViewModel VM;
         private readonly StdOutRedirect redirect;
         private readonly IAPODWallpaper APOD;
-        public MainWindow(IAPODWallpaper apod)
+        private readonly Configuration Config;
+        public MainWindow(IAPODWallpaper apod, ViewModel vm, Configuration config)
         {
             this.APOD = apod;
+            this.VM = vm;
+            this.Config = config;
+            DataContext = vm;
             InitializeComponent();
             redirect = new StdOutRedirect(TxtOutput);
             Console.SetOut(redirect);
-            VM = (ViewModel)DataContext;
         }
 
         #region Window Control
@@ -124,7 +127,7 @@ namespace ConfiguratorGUI
         private async void BtnResetDefault_Click(object sender, RoutedEventArgs e)
         {
             if (!Configuration.DefaultConfiguration.isReady) await Configuration.DefaultConfiguration.InitialiseAsync();
-            Configuration.Config.CopyConfiguration(Configuration.DefaultConfiguration);
+            Config.CopyConfiguration(Configuration.DefaultConfiguration);
             BtnUpdateTheme_Click(sender, e);
         }
 
@@ -136,7 +139,7 @@ namespace ConfiguratorGUI
         private async void BtnUpdateTheme_Click(object sender, RoutedEventArgs e)
         {
             Trace.WriteLine(CmbConfiguratorTheme.SelectedItem);
-            Trace.WriteLine(Configuration.Config.ConfiguratorTheme);
+            Trace.WriteLine(Config.ConfiguratorTheme);
             if (CmbConfiguratorTheme.SelectedItem == null) { return; }
             await ((App)Application.Current).SetTheme();
         }
@@ -172,6 +175,11 @@ namespace ConfiguratorGUI
             {
                 e.CancelCommand();
             }
+        }
+
+        private void BtnStyleChange_Click(object sender, RoutedEventArgs e)
+        {
+            APOD.UpdateBackground(style: (WallpaperStyleEnum)Config.WallpaperStyle);
         }
 
         private void BtnExploreFolder_Click(object sender, RoutedEventArgs e)
