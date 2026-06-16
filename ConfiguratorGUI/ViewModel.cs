@@ -19,8 +19,8 @@ namespace ConfiguratorGUI
 
         public IConfigurationService Config => config;
 
-        public static string APODAppVersion { get; } = APODWallpaper.APODWallpaper.Version ?? "Unknown";
-        public static string ConfiguratorAppVersion { get; } = App.AppVersion ?? "Unknown";
+        public static string APODAppVersion { get; } = APODWallpaper.APODWallpaper.Version;
+        public static string ConfiguratorAppVersion { get; } = App.AppVersionDisplay;
     
         private DateOnly exploreEnd = APODDate.Today().AddDays(-1);
 

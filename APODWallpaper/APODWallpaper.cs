@@ -54,9 +54,11 @@ namespace APODWallpaper
         [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW", CharSet = CharSet.Unicode)]
         private static extern int SystemParametersInfoW(uint uiAction, uint uiParam, string pvParam, uint fWinIni);
         public readonly string base_path = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!;
-        public static string? Version => Assembly.GetExecutingAssembly()
+        private static string? RawVersion => Assembly.GetExecutingAssembly()
                     .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
                     .InformationalVersion;
+        // Display form with shortened commit SHA
+        public static string Version => VersionInfo.ForDisplay(RawVersion);
 
         private readonly IAPODCache APODCache;
         private readonly IConfigurationService Config;

@@ -17,9 +17,13 @@ namespace ConfiguratorGUI
     {
         private readonly IServiceProvider serviceProvider;
         private readonly Configuration Config;
-        public static string? AppVersion { get; } = Assembly.GetExecutingAssembly()
+        private static readonly string? rawVersion = Assembly.GetExecutingAssembly()
                     .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
                     .InformationalVersion;
+        // Numeric form for update comparison and HTTP headers (no SHA suffix)
+        public static string AppVersion { get; } = VersionInfo.Numeric(rawVersion);
+        // Display form with shortened commit SHA
+        public static string AppVersionDisplay { get; } = VersionInfo.ForDisplay(rawVersion);
         //private HostApplicationBuilder appBuilder;
         public App()
         {
