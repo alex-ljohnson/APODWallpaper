@@ -107,8 +107,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "signtool failed signing app binaries (exit $LASTEXITCODE)." }
 
           # 2. Build the installer, signing it (and its uninstaller) via Inno's
-          #    "standard" SignTool. $f is the file Inno wants signed
-          $signCmd = "`"$signtool`" sign /f `"$certPath`" /p `"$env:CERT_PWD`" " +
+          #    "standard" SignTool. Use Inno's $q macro instead of real quotes so
+          #    ISCC's Delphi parser doesn't choke on PowerShell's \" escaping
+          $q = '$q'
+          $signCmd = "$q$signtool$q sign /f $q$certPath$q /p $q$env:CERT_PWD$q " +
                      "/fd sha256 /tr http://timestamp.digicert.com /td sha256 `$f"
           & $iscc `
             "/DMyAppSourceDir=${{ github.workspace }}" `
