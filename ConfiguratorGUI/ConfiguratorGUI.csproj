@@ -15,12 +15,8 @@
 	
 	<!--Assembly info variables-->
 	<PropertyGroup>
-		<AssemblyVersion>1.0.0.1</AssemblyVersion>
-		<AssemblyCopyright>Copyright © Alexander Johnson 2026</AssemblyCopyright>
-		<AssemblyCompany>TransparentBox Co.</AssemblyCompany>
 		<AssemblyDescription>Configure APOD Options</AssemblyDescription>
 		<AssemblyProduct>APOD Configurator GUI</AssemblyProduct>
-		<Authors>Alexander Johnson</Authors>
 		<Product>$(AssemblyProduct)</Product>
 		<Company>$(AssemblyCompany)</Company>
 		<Copyright>$(AssemblyCopyright)</Copyright>

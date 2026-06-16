@@ -4,10 +4,11 @@ using APODWallpaper.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
 using Newtonsoft.Json;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 bool force = false;
-string verName = APODWallpaper.APODWallpaper.Version;
+string? verName = APODWallpaper.APODWallpaper.Version;
 if (args.Length > 0)
 {
     foreach (string i in args)
@@ -19,7 +20,7 @@ if (args.Length > 0)
         }
         if (arg is "version" or "v")
         {
-            Console.WriteLine($"APODWallpaper v{verName}");
+            Console.WriteLine($"APODWallpaper version: v{verName ?? "Unknown"}");
             Environment.Exit(0);
         }
         if (arg == "check")
@@ -53,7 +54,9 @@ namespace APODWallpaper
         [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW", CharSet = CharSet.Unicode)]
         private static extern int SystemParametersInfoW(uint uiAction, uint uiParam, string pvParam, uint fWinIni);
         public readonly string base_path = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!;
-        public static string Version => "2026.01.14.1";
+        public static string? Version => Assembly.GetExecutingAssembly()
+                    .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+                    .InformationalVersion;
 
         private readonly IAPODCache APODCache;
         private readonly IConfigurationService Config;
@@ -62,6 +65,7 @@ namespace APODWallpaper
             APODCache = apodCache;
             Config = config;
             Directory.CreateDirectory(Utilities.GetDataPath(""));
+            FileMigration.MigrateImageFilenamesToISO(Utilities.GetDataPath("images"));
             Config.ChangeStartup();
         }
 
@@ -99,10 +103,10 @@ namespace APODWallpaper
             if (File.Exists(filepath))
             {
                 Utilities.ShowMessageBox("Image already downloaded", "Already downloaded");
-                return new PictureData(imageInfo.Title, imageInfo.Explanation, filepath, imageInfo.Date);
+                return new PictureData(imageInfo.Title, imageInfo.Explanation, filepath, imageInfo.Date, imageInfo.GetPreferredUri(Config.UseHD)?.ToString());
             }
             var filename = await APODCache.DownloadURLAsync(imageInfo.GetPreferredUri(Config.UseHD), filepath);
-            PictureData downloadedInfo = new(imageInfo.Title, imageInfo.Explanation, filename, imageInfo.Date);
+            PictureData downloadedInfo = new(imageInfo.Title, imageInfo.Explanation, filename, imageInfo.Date, imageInfo.GetPreferredUri(Config.UseHD)?.ToString());
             var infoJson = JsonConvert.SerializeObject(downloadedInfo, Formatting.Indented);
             await File.WriteAllTextAsync(filename + ".json", infoJson);
             Console.WriteLine($"Time Taken: {(DateTime.UtcNow - startTime).TotalSeconds} seconds");
@@ -118,7 +122,7 @@ namespace APODWallpaper
         {
             var latest = APODCache.ReadLatest();
             var date = latest?.Date;
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var today = APODDate.Today();
             return date != today;
         }
 

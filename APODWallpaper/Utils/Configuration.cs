@@ -44,8 +44,10 @@ namespace APODWallpaper.Utils
         public bool ExplainImage { get { return _configuration.GetValueOrDefault(nameof(ExplainImage), false); } set { _configuration[nameof(ExplainImage)] = value; AutoSave(); OnPropertyChanged(nameof(ExplainImage)); } }
         public string BaseUrl { get { return _configuration.GetValueOrDefault(nameof(BaseUrl), "https://api.nasa.gov/planetary/apod"); } set { _configuration[nameof(BaseUrl)] = value; AutoSave(); OnPropertyChanged(nameof(BaseUrl)); } }
         public string ConfiguratorTheme { get { return _configuration.GetValueOrDefault(nameof(ConfiguratorTheme), "Light.xaml"); } set { _configuration[nameof(ConfiguratorTheme)] = value; AutoSave(); OnPropertyChanged(nameof(ConfiguratorTheme)); } }
-        public int NetworkTimeout { get { return _configuration.GetValueOrDefault(nameof(NetworkTimeout), 10); } set { _configuration[nameof(NetworkTimeout)] = value; AutoSave(); OnPropertyChanged(nameof(NetworkTimeout)); } }
-        public long PreviewQuality { get { return _configuration.GetValueOrDefault(nameof(PreviewQuality), 200); } set { 
+        
+        private const long MinNetworkTimeoutSeconds = 1L;
+        public long NetworkTimeout { get { return Math.Max((long)_configuration.GetValueOrDefault(nameof(NetworkTimeout), 20L), MinNetworkTimeoutSeconds); } set { _configuration[nameof(NetworkTimeout)] = value; AutoSave(); OnPropertyChanged(nameof(NetworkTimeout)); } }
+        public long PreviewQuality { get { return _configuration.GetValueOrDefault(nameof(PreviewQuality), 200L); } set { 
                 _configuration[nameof(PreviewQuality)] = value; AutoSave(); OnPropertyChanged(nameof(PreviewQuality)); } }
         public long WallpaperStyle { get { return (long)_configuration.GetValueOrDefault(nameof(WallpaperStyle), WallpaperStyleEnum.Fill); } set { _configuration[nameof(WallpaperStyle)] = value; AutoSave(); OnPropertyChanged(nameof(WallpaperStyle)); } }
         public string API_KEY { get { return _configuration.GetValueOrDefault(nameof(API_KEY), "5zgCnpExBIpD6hZvruRRJS48WfKYBe0PlVVaO5NZ"); } set { _configuration[nameof(API_KEY)] = value; AutoSave(); OnPropertyChanged(nameof(API_KEY)); } }
@@ -69,7 +71,7 @@ namespace APODWallpaper.Utils
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        public static readonly Configuration DefaultConfiguration = new("Default", false, false) { BaseUrl = "https://api.nasa.gov/planetary/apod", UseHD = true, RunStartup = true, ExplainImage = false, DownloadInfo = false, WallpaperStyle = (int)WallpaperStyleEnum.Fill, ConfiguratorTheme = "Light.xaml", PreviewQuality = 100, API_KEY= "5zgCnpExBIpD6hZvruRRJS48WfKYBe0PlVVaO5NZ", NetworkTimeout= 10};
+        public static readonly Configuration DefaultConfiguration = new("Default", false, false) { BaseUrl = "https://api.nasa.gov/planetary/apod", UseHD = true, RunStartup = true, ExplainImage = false, DownloadInfo = false, WallpaperStyle = (int)WallpaperStyleEnum.Fill, ConfiguratorTheme = "Light.xaml", PreviewQuality = 100, API_KEY= "5zgCnpExBIpD6hZvruRRJS48WfKYBe0PlVVaO5NZ", NetworkTimeout= 10L};
         
         public Configuration(string ID = "None", bool autoSave = true, bool file = true)
         {

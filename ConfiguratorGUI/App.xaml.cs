@@ -5,6 +5,7 @@ using ConfiguratorGUI.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
+using System.Reflection;
 using System.Windows;
 
 namespace ConfiguratorGUI
@@ -16,7 +17,9 @@ namespace ConfiguratorGUI
     {
         private readonly IServiceProvider serviceProvider;
         private readonly Configuration Config;
-        public const string AppVersion = "2026.01.14.1";
+        public static string? AppVersion { get; } = Assembly.GetExecutingAssembly()
+                    .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+                    .InformationalVersion;
         //private HostApplicationBuilder appBuilder;
         public App()
         {
@@ -34,8 +37,10 @@ namespace ConfiguratorGUI
             services.AddSingleton<Configuration>(s => new("Config", true, true));
             services.AddSingleton<IConfigurationService>(s => s.GetRequiredService<Configuration>());
 
-            // Named HttpClient for APODCache
-            services.AddHttpClient("APODCache", client => client.Timeout = TimeSpan.FromSeconds(20));
+            // Named HttpClient for APODCache timeout by ConfigurableTimeoutHandler
+            services.AddTransient<ConfigurableTimeoutHandler>();
+            services.AddHttpClient("APODCache")
+                    .AddHttpMessageHandler<ConfigurableTimeoutHandler>();
 
             // Core services registered as interfaces
             services.AddSingleton<IAPODCache, APODCache>();
@@ -58,8 +63,9 @@ namespace ConfiguratorGUI
         private async void Application_Startup(object sender, StartupEventArgs e)
         {
             Trace.WriteLine("At app startup");
-            var startTime = DateTime.Now;
+            var startTime = DateTime.UtcNow;
             await Config.InitialiseAsync();
+            FileMigration.MigrateImageFilenamesToISO(Utilities.GetDataPath("images"));
             var themeService = serviceProvider.GetRequiredService<IThemeService>();
             await themeService.InitializeThemesAsync();
             await themeService.ApplyThemeAsync(Resources);

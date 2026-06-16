@@ -13,7 +13,7 @@ namespace APODWallpaper.Interfaces
         bool ExplainImage { get; set; }
         string BaseUrl { get; set; }
         string ConfiguratorTheme { get; set; }
-        int NetworkTimeout { get; set; }
+        long NetworkTimeout { get; set; }
         long PreviewQuality { get; set; }
         long WallpaperStyle { get; set; }
         string API_KEY { get; set; }

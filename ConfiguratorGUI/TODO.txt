@@ -4,3 +4,11 @@ TODO list:
  - UPDATE README with new features
  - Update help.html with new features
  - Update version number in build scripts
+
+ - Setup APOD wallpaper as a background service that runs in the background and updates the wallpaper at specified intervals without needing to open the configurator GUI. This would allow users to have a seamless experience with their APOD wallpapers without needing to manually update them through the configurator.
+ - Add favourite folders to the left panel 
+ - Add sub media type support to properly handle jpg vs png vs webp etc. when type is set to "image"
+ - Enable advanced customisation of config through a "custom options" loader in the Configuration which won't show in UI but allows for all unrecognised options to be loaded and saved in the config file, allowing for more advanced users to have access to features that aren't fully supported in the UI yet, without needing to wait for them to be implemented in the UI.
+
+ POTENTIAL IDEAS:
+ - Add originalUrl to pictureData, and add option to open original image in browser when right-clicking on a picture. It would allow users to easily access the source of the image for reference or sharing purposes.

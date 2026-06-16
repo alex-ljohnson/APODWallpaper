@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 using MColor = System.Windows.Media.Color;
 using SPath = System.Windows.Shapes.Path;
 namespace ConfiguratorGUI
@@ -25,9 +26,9 @@ namespace ConfiguratorGUI
         private readonly Configuration Config;
         public MainWindow(IAPODWallpaper apod, ViewModel vm, Configuration config)
         {
-            this.APOD = apod;
-            this.VM = vm;
-            this.Config = config;
+            APOD = apod;
+            VM = vm;
+            Config = config;
             DataContext = vm;
             InitializeComponent();
             redirect = new StdOutRedirect(TxtOutput);
@@ -123,7 +124,6 @@ namespace ConfiguratorGUI
             await Updater.CheckUpdate();
         }
         // TODO: Move methods to viewmodel
-        // TODO: Refactor XAML to stop changing the DataContext in sections
         private async void BtnResetDefault_Click(object sender, RoutedEventArgs e)
         {
             if (!Configuration.DefaultConfiguration.isReady) await Configuration.DefaultConfiguration.InitialiseAsync();
@@ -192,5 +192,10 @@ namespace ConfiguratorGUI
             Process.Start(new ProcessStartInfo("Resources\\help.html") { UseShellExecute=true});
         }
 
+        private void BitmapImage_DownloadCompleted(object sender, EventArgs e)
+        {
+            //var img = sender as BitmapImage;
+            //Trace.WriteLine($"Image downloaded: {img?.Format} {img?.Metadata} ");
+        }
     }
 }

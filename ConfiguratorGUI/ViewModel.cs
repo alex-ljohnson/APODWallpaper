@@ -17,10 +17,12 @@ namespace ConfiguratorGUI
     public class ViewModel(IAPODWallpaper apod, IAPODCache cache, IConfigurationService config) : INotifyPropertyChanged
     {
 
-        public static string APODAppVersion { get; } = APODWallpaper.APODWallpaper.Version;
-        public static string ConfiguratorAppVersion { get; } = App.AppVersion;
+        public IConfigurationService Config => config;
 
-        private DateOnly exploreEnd = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1);
+        public static string APODAppVersion { get; } = APODWallpaper.APODWallpaper.Version ?? "Unknown";
+        public static string ConfiguratorAppVersion { get; } = App.AppVersion ?? "Unknown";
+
+        private DateOnly exploreEnd = APODDate.Today().AddDays(-1);
 
         const int ExploreCount = 12;
 
@@ -50,8 +52,8 @@ namespace ConfiguratorGUI
 
 #pragma warning disable CA1822 // Mark members as static
         public string ItemQuantity { get {
-                var (items, size, cacheSize) = GetImagesSize();
-                return $"Items: {items}; Storage space: {size / 1048576} MiB; Cache size: {cacheSize / 1024} KiB";
+                var (items, size) = GetImagesSize();
+                return $"Items: {items}; Storage space: {size / 1048576} MiB; Cache size: {GetCacheSize() / 1024} KiB";
             }
 #pragma warning restore CA1822 // Mark members as static
         }
@@ -281,7 +283,7 @@ namespace ConfiguratorGUI
         private async void ExploreNext()
         {
             Trace.WriteLine("Loading next...");
-            if (exploreEnd.AddDays(ExploreCount) <= DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1))
+            if (exploreEnd.AddDays(ExploreCount) <= APODDate.Today().AddDays(-1))
             {
                 WindowCursor = Cursors.Wait;
                 exploreEnd = exploreEnd.AddDays(ExploreCount);
@@ -292,7 +294,7 @@ namespace ConfiguratorGUI
         public async void ExplorePrev()
         {
             Trace.WriteLine("Loading prev...");
-            if (exploreEnd.AddDays(-ExploreCount) >= DateOnly.ParseExact("1995-06-16", "yyyy-MM-dd"))
+            if (exploreEnd.AddDays(-ExploreCount) >= APODDate.InceptionDate)
             {
                 WindowCursor = Cursors.Wait;
                 exploreEnd = exploreEnd.AddDays(-ExploreCount);
@@ -404,12 +406,23 @@ namespace ConfiguratorGUI
             return [.. results.Where(x => x != null).Select(x => x!)];
         }
 
-        private static (int, long, long) GetImagesSize()
+        /// <summary>
+        /// Calculates the number of image files and their total size in bytes within the images data directory.
+        /// </summary>
+        /// <remarks>The method searches for files in the directory returned by
+        /// Utilities.GetDataPath("images"). The count of files is divided by two before being returned, which may be
+        /// relevant depending on the directory's contents. The method returns (0, 0) if the directory does not exist or
+        /// contains no files.</remarks>
+        /// <returns>A tuple containing the number of image files (as an integer) and the total size of all image
+        /// files (+metadata) in bytes (as a long).</returns>
+        private static (int, long) GetImagesSize()
         {
             var imagesPath = Utilities.GetDataPath("images");
-            var files = Directory.GetFiles(imagesPath);
             int c = 0;
             long size = 0;
+            if (Directory.Exists(imagesPath))
+            {
+                var files = Directory.GetFiles(imagesPath);
             foreach (var file in files)
             {
                 var fileInfo = new FileInfo(file);
@@ -418,11 +431,18 @@ namespace ConfiguratorGUI
                     size += fileInfo.Length;
                     c++;
                 }
+                }
             }
+
+            return (c / 2, size);
+            }
+
+        private static long GetCacheSize()
+        {
             var cachePath = Utilities.GetDataPath("cache/metadata.cache");
             var cacheInfo = new FileInfo(cachePath);
+            return cacheInfo.Exists ? cacheInfo.Length : 0;
             
-            return (c/2, size, cacheInfo.Length);
         }
 
         private void SortData()
@@ -437,12 +457,13 @@ namespace ConfiguratorGUI
             var exploreTask = LoadExplore();
             var loadTask = LoadData();
             var taskInitTime = DateTime.UtcNow;
-            await Task.WhenAll(exploreTask, loadTask);
+            //await Task.WhenAll(exploreTask, loadTask);
             var data = await loadTask;
 
             // Since this is the initial load, setting the property fires NotifyPropertyChanged once
             MyPictureData = new ObservableCollection<PictureData>(data.OrderByDescending(x => x));
             
+            await exploreTask;
             var endTime = DateTime.UtcNow;
             Trace.WriteLine($"Initialisation times: Total: {(endTime - startTime).TotalMilliseconds}ms; Task spinup: {(taskInitTime - startTime).TotalMilliseconds}ms");
         }

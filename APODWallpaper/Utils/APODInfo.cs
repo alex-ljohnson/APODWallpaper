@@ -1,9 +1,10 @@
-﻿using Newtonsoft.Json;
+﻿using APODWallpaper.Interfaces;
+using Newtonsoft.Json;
 
 namespace APODWallpaper.Utils
 {
     [method: JsonConstructor]
-    public class APODInfo(string copyright, DateOnly date, string explanation, string? hdurl, string media_type, string service_version, string title, string url)
+    public class APODInfo(string? copyright, DateOnly date, string explanation, string? hdurl, string media_type, string service_version, string title, string url, DateOnly? retrievalDate = null)
     {
         //      {
         //  "copyright": "Panther Observatory",
@@ -15,7 +16,7 @@ namespace APODWallpaper.Utils
         //  "title": "Galaxy Wars: M81 versus M82",
         //  "url": "https://apod.nasa.gov/apod/image/0604/M81_M82_schedler_c25.jpg"
         //},
-        public string Copyright { get; set; } = copyright;
+        public string? Copyright { get; set; } = copyright;
         public DateOnly Date { get; set; } = date;
         public string Explanation { get; set; } = explanation;
         public Uri? HDUrl { get; set; } = (hdurl != null) ? new(hdurl, UriKind.Absolute) : null;
@@ -24,22 +25,25 @@ namespace APODWallpaper.Utils
         public string Title { get; set; } = title;
         public Uri? Url { get; set; } = (url != null) ? new(url, UriKind.Absolute) : null;
 
+        public DateOnly? RetrievalDate { get; set; } = retrievalDate;
+
         [JsonIgnore]
         public string DateFormatted
         {
             get
             {
-                return Date.ToString("yyyy-MM-dd");
+                return APODDate.ToIsoString(Date);
             }
         }
 
         [JsonIgnore]
         public string Filename
         { 
-            get {
-                return Date.ToString("D");
+            get 
+            {
+                return APODDate.ToIsoString(Date);
             }
-}
+        }
         public bool Equals(APODInfo? other)
         {
             if (other == null) return false;
@@ -51,8 +55,14 @@ namespace APODWallpaper.Utils
             return Date.Equals(other.Date);
         }
 
+        public override int GetHashCode()
+        {
+            return Date.GetHashCode();
+        }
+
         public Uri? GetPreferredUri(bool useHd)
         {
+            if (Url == null) return HDUrl;
             return (useHd && HDUrl != null) ? HDUrl : Url;
         }
     }

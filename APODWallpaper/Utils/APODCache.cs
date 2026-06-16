@@ -28,15 +28,38 @@ namespace APODWallpaper.Utils
         {
             Directory.CreateDirectory(CacheFolder);
         }
+
+        public bool IsCached(DateOnly date)
+        {
+            return _metadataCache.ContainsKey(date);
+        }
+
+
         #region Cache Ops
         public void LoadCache()
         {
             if (!File.Exists(MetadataCacheFile)) return;
             string cacheData = File.ReadAllText(MetadataCacheFile);
+            List<DateOnly> stale = [];
             JsonConvert.DeserializeObject<APODInfo[]>(cacheData)?.ToList().ForEach(info =>
             {
+                if (info.HDUrl == null && info.Url == null)
+                {
+                    stale.Add(info.Date);
+                }
                 _metadataCache[info.Date] = info;
             });
+
+            if (stale.Count > 0)
+                _ = Task.Run(() => RefreshStaleEntriesAsync(stale));
+        }
+
+        private async Task RefreshStaleEntriesAsync(List<DateOnly> dates)
+        {
+            foreach (var date in dates)
+            {
+                await RefreshAsync(date);
+            }
         }
         public async Task SaveCacheAsync()
         {
@@ -91,7 +114,7 @@ namespace APODWallpaper.Utils
 
         public async Task<APODInfo[]?> GetRangeAsync(DateOnly startDate, DateOnly endDate)
         {
-            if (endDate > DateOnly.FromDateTime(DateTime.UtcNow)) throw new ArgumentException("end_date was in the future");
+            if (endDate > APODDate.Today()) throw new ArgumentException("end_date was in the future");
             List<APODInfo> infos = [];
             int count = endDate.DayNumber - startDate.DayNumber + 1;
             for (int i = 0; i < count; i++)
@@ -111,6 +134,15 @@ namespace APODWallpaper.Utils
             {
                 return await SendRequestAsync(startDate: startDate, endDate: endDate);
             }
+        }
+
+        /// <summary>
+        /// fetches info for a specific date directly from the API, ignoring and replacing cached entry.
+        /// </summary>
+        public async Task<APODInfo?> RefreshAsync(DateOnly date)
+        {
+            var result = await SendRequestAsync(date: date);
+            return result is { Length: > 0 } ? result[0] : null;
         }
 
         /// <summary>
@@ -134,16 +166,16 @@ namespace APODWallpaper.Utils
         /// <exception cref="ArgumentException"></exception>
         private async Task<APODInfo[]?> SendRequestAsync(DateOnly? date = null, DateOnly? startDate = null, DateOnly? endDate = null, int? count = null)
         {
-            if (endDate != null && endDate > DateOnly.FromDateTime(DateTime.UtcNow)) throw new ArgumentException("end_date was in the future");
+            if (endDate != null && endDate > APODDate.Today()) throw new ArgumentException("end_date was in the future");
             var urlParams = HttpUtility.ParseQueryString("");
             if (date != null)
             {
-                urlParams["date"] = date?.ToString("yyyy-MM-dd");
+                urlParams["date"] = date is DateOnly d ? APODDate.ToIsoString(d) : null;
             } else if (startDate != null || endDate != null)
             {
-                if (startDate != null) urlParams["start_date"] = startDate?.ToString("yyyy-MM-dd");
+                if (startDate is DateOnly sd) urlParams["start_date"] = APODDate.ToIsoString(sd);
                 
-                urlParams["end_date"] = endDate?.ToString("yyyy-MM-dd");
+                if (endDate is DateOnly ed) urlParams["end_date"] = APODDate.ToIsoString(ed);
             } else if (count != null)
             {
                 urlParams["count"] = count.ToString();
@@ -164,12 +196,15 @@ namespace APODWallpaper.Utils
                 {
                     imageInfo = [JsonConvert.DeserializeObject<APODInfo>(responseContent)!];
                 }
+                // Stamp retrieval date
+                var retrieved = APODDate.Today();
+                foreach (var info in imageInfo)
+                    info?.RetrievalDate = retrieved;
                 await AddToCacheAsync(imageInfo);
             }
             catch (Exception ex) when (ex is JsonException || ex is NotSupportedException || ex is HttpRequestException || ex is TaskCanceledException)
             {
                 Utilities.ShowMessageBox("Please check your internet connection and try again.\nThis also occurs when the NASA API is down.", "Connection error", Utilities.MessageBoxType.Error);
-                Console.WriteLine(ex.StackTrace);
                 Console.WriteLine(ex.Message);
                 return null;
             } 

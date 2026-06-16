@@ -5,7 +5,12 @@ namespace ConfiguratorGUI
 {
     class RelayCommand(Action execute, Predicate<object?> canExecute) : ICommand
     {
-        public event EventHandler? CanExecuteChanged;
+
+        event EventHandler? ICommand.CanExecuteChanged
+        {
+            add => CommandManager.RequerySuggested += value;
+            remove => CommandManager.RequerySuggested -= value;
+        }
 
         public bool CanExecute(object? parameter)
         {
@@ -20,7 +25,11 @@ namespace ConfiguratorGUI
     class RelayCommand<T>(Action<T?> execute, Predicate<T?> canExecute) : ICommand
     {
 
-        public event EventHandler? CanExecuteChanged;
+        event EventHandler? ICommand.CanExecuteChanged
+        {
+            add => CommandManager.RequerySuggested += value;
+            remove => CommandManager.RequerySuggested -= value;
+        }
 
         public bool CanExecute(object? parameter)
         {
