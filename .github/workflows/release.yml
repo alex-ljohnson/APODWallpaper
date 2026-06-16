@@ -14,14 +14,14 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
-    environment: release   # scopes SIGNING_CERT_* secrets to this environment
+    environment: Release   # scopes SIGNING_CERT_* secrets to this environment
 
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
 
     - name: Setup .NET 10
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9  # v4.3.1
       with:
         dotnet-version: '10.0.x'
 
@@ -122,11 +122,50 @@ jobs:
           Remove-Item $certPath -Force -ErrorAction SilentlyContinue
         }
 
+    # Upload the signed installer to VirusTotal so we can link the scan in the
+    # release notes. Needs a VT_API_KEY repo secret (free VirusTotal API key).
+    # Non-blocking: a VT outage/rate-limit must not fail an otherwise-good release.
+    - name: Scan installer with VirusTotal
+      id: vt
+      continue-on-error: true
+      uses: crazy-max/ghaction-virustotal@d34968c958ae283fe976efed637081b9f9dcf74f  # v4.2.0
+      with:
+        vt_api_key: ${{ secrets.VT_API_KEY }}
+        files: |
+          setup/APODWallpaper_Setup_v${{ steps.ver.outputs.version }}.exe
+
+    # Append a Security footer (VirusTotal link + installer hashes) to the
+    # hand-written notes. The auto-generated changelog is still added by the
+    # release action via generate_release_notes below.
+    - name: Append security footer to release notes
+      shell: pwsh
+      env:
+        VT_ANALYSIS: ${{ steps.vt.outputs.analysis }}
+      run: |
+        $installer = "setup/APODWallpaper_Setup_v${{ steps.ver.outputs.version }}.exe"
+        $sha256 = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower()
+        $md5    = (Get-FileHash $installer -Algorithm MD5).Hash.ToLower()
+
+        # VT step may have been skipped/failed (continue-on-error); the analysis
+        # output is "<file>=<url>" on success, empty otherwise.
+        $vtUrl = $null
+        if (-not [string]::IsNullOrWhiteSpace($env:VT_ANALYSIS)) {
+          $vtUrl = ($env:VT_ANALYSIS -split '=', 2)[1]
+        }
+
+        $body  = Get-Content RELEASE_NOTES.md -Raw
+        $body += "`n`n# Security`n"
+        if ($vtUrl) { $body += "[VirusTotal]($vtUrl)`n`n" }
+        $body += "SHA-256: $sha256`n"
+        $body += "MD5: $md5`n"
+
+        Set-Content -Path release_body.md -Value $body -Encoding utf8
+
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@3bb1273
+      uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65  # v2.6.2
       with:
         name: APODWallpaper ${{ steps.ver.outputs.version }}
         tag_name: ${{ github.ref_name }}
-        body_path: RELEASE_NOTES.md          # hand-written notes; edit per release
+        body_path: release_body.md           # notes + security footer (composed above)
         generate_release_notes: true         # auto commit/PR list appended below
         files: setup/APODWallpaper_Setup_v${{ steps.ver.outputs.version }}.exe
