@@ -43,7 +43,7 @@ namespace APODWallpaper.Utils
             List<DateOnly> stale = [];
             JsonConvert.DeserializeObject<APODInfo[]>(cacheData)?.ToList().ForEach(info =>
             {
-                if (info.HDUrl == null && info.Url == null)
+                if (!info.IsValid)
                 {
                     stale.Add(info.Date);
                 }
@@ -100,16 +100,14 @@ namespace APODWallpaper.Utils
 
         public async Task<APODInfo?> GetAsync(DateOnly date)
         {
-            if (_metadataCache.TryGetValue(date, out var info))
+            // Invalid cache fall through to a fetch.
+            if (_metadataCache.TryGetValue(date, out var info) && info.IsValid)
             {
                 return info;
             }
-            else
-            {
-                var reqInfo = await SendRequestAsync(date: date);
-                return reqInfo != null && reqInfo.Length > 0 ? reqInfo[0] : null;
-            }
 
+            var reqInfo = await SendRequestAsync(date: date);
+            return reqInfo is { Length: > 0 } ? reqInfo[0] : null;
         }
 
         public async Task<APODInfo[]?> GetRangeAsync(DateOnly startDate, DateOnly endDate)
@@ -121,7 +119,7 @@ namespace APODWallpaper.Utils
             {
                 DateOnly date = startDate.AddDays(i);
                 var info = _metadataCache.GetValueOrDefault(date);
-                if (info != null)
+                if (info != null && info.IsValid)
                 {
                     infos.Add(info);
                 }

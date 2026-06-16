@@ -1,0 +1,37 @@
+name: Build Configurator GUI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    paths:
+      - 'ConfiguratorGUI/**'
+      - 'APODWallpaper/**' # Trigger if the dependency changes
+      - 'Directory.Build.props'
+      - 'APODWallpaper.slnx'
+  pull_request:
+    branches: [ "main", "master" ]
+    paths:
+      - 'ConfiguratorGUI/**'
+
+jobs:
+  build:
+    runs-on: windows-latest 
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 10
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Publish Configurator GUI
+      # Compiles and publishes just the GUI project
+      run: dotnet publish ConfiguratorGUI/ConfiguratorGUI.csproj --configuration Release -p:Patch=${{ github.run_number }} --output ./artifacts/ConfiguratorGUI
+
+    - name: Upload Build Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ConfiguratorGUI-v${{ github.run_number }}
+        path: ./artifacts/ConfiguratorGUI

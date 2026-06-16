@@ -1,0 +1,42 @@
+name: Build APOD Wallpaper Engine
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    paths:
+      # Only trigger if files in these specific locations change
+      - 'APODWallpaper/**'
+      - 'APODTesting/**'
+      - 'Directory.Build.props'
+      - 'APODWallpaper.slnx'
+  pull_request:
+    branches: [ "main", "master" ]
+    paths:
+      - 'APODWallpaper/**'
+
+jobs:
+  build:
+    runs-on: windows-latest 
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 10
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Run Tests
+      # Run tests before publishing to ensure the engine is stable
+      run: dotnet test APODTesting/APODTesting.csproj --configuration Release -p:Patch=${{ github.run_number }}
+
+    - name: Publish APOD Wallpaper
+      # Compiles and publishes just the wallpaper project
+      run: dotnet publish APODWallpaper/APODWallpaper.csproj --configuration Release -p:Patch=${{ github.run_number }} --output ./artifacts/APODWallpaper
+
+    - name: Upload Build Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: APODWallpaper-v${{ github.run_number }}
+        path: ./artifacts/APODWallpaper

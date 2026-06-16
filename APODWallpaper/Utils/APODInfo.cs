@@ -38,12 +38,16 @@ namespace APODWallpaper.Utils
 
         [JsonIgnore]
         public string Filename
-        { 
-            get 
+        {
+            get
             {
                 return APODDate.ToIsoString(Date);
             }
         }
+
+        // Valid only if at least one usable image URL
+        [JsonIgnore]
+        public bool IsValid => Url != null || HDUrl != null;
         public bool Equals(APODInfo? other)
         {
             if (other == null) return false;
