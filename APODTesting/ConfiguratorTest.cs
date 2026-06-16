@@ -1,17 +1,6 @@
 namespace APODTesting;
 
 [TestClass]
-public class ConfiguratorTest
+public sealed class ConfiguratorTest
 {
-    [TestInitialize]
-    public void Setup()
-    {
-
-    }
-
-    [TestMethod]
-    public void TestMethod1()
-    {
-
-    }
 }
