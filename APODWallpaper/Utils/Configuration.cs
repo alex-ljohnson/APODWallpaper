@@ -19,7 +19,7 @@ namespace APODWallpaper.Utils
     }
     public class Configuration : INotifyPropertyChanged, IDisposable, Interfaces.IConfigurationService
     {
-        public static List<string> OpenConfigs = [];
+        private static readonly HashSet<string> openConfigs = [];
 
         public bool isReady = false;
 
@@ -32,6 +32,7 @@ namespace APODWallpaper.Utils
         private readonly StreamReader reader;
 
 
+        private readonly SemaphoreSlim _saveLock = new(1, 1);
         private Dictionary<string, dynamic> _configuration = [];
         // To add new setting:
         // copy one of the properties below (change occurances of name and default value)
@@ -76,20 +77,28 @@ namespace APODWallpaper.Utils
         public Configuration(string ID = "None", bool autoSave = true, bool file = true)
         {
             Trace.WriteLine("LOADING CONFIG...");
-            if (OpenConfigs.Contains(ID))
+            if (openConfigs.Contains(ID))
             {
                 throw new Exception($"Config with ID {ID} already open");
             }
-            OpenConfigs.Add(ID);
+            openConfigs.Add(ID);
             this.autoSave = autoSave;
             this.ID = ID;
             fileTied = file;
             var configPath = Utilities.GetDataPath($"{ID.ToLower()}.json");
             bool exists = File.Exists(configPath);
             if (!exists) { File.Create(configPath); }
-            fileStream = new(configPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read, 4096, true);
-            writer = new(fileStream, Encoding.UTF8);
-            reader = new(fileStream, Encoding.UTF8);
+            try
+            {
+                fileStream = new(configPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read, 4096, true);
+                writer = new(fileStream, Encoding.UTF8);
+                reader = new(fileStream, Encoding.UTF8);
+            }
+            catch
+            {
+                openConfigs.Remove(ID);
+                throw;
+            }
         }
 
         public async Task InitialiseAsync()
@@ -126,18 +135,26 @@ namespace APODWallpaper.Utils
         {
             if (autoSave && fileTied)
             {
-                SaveConfigAsync();
+                _ = SaveConfigAsync();
             }
         }
 
-        public async void SaveConfigAsync()
+        public async Task SaveConfigAsync()
         {
-            string jsonString = JsonConvert.SerializeObject(_configuration, Formatting.Indented);
-            fileStream.SetLength(0);
-            await writer.WriteAsync(jsonString);
-            writer.Flush();
-            fileStream.Flush();
-            Trace.WriteLine($"Save Config: {jsonString}");
+            await _saveLock.WaitAsync();
+            try
+            {
+                string jsonString = JsonConvert.SerializeObject(_configuration, Formatting.Indented);
+                fileStream.SetLength(0);
+                fileStream.Position = 0;
+                await writer.WriteAsync(jsonString);
+                await writer.FlushAsync();
+                Trace.WriteLine($"Save Config: {jsonString}");
+            }
+            finally
+            {
+                _saveLock.Release();
+            }
         }
 
         public void ChangeStartup()
@@ -192,7 +209,8 @@ namespace APODWallpaper.Utils
             fileStream.Flush();
             fileStream.Close();
             fileStream?.Dispose();
-            OpenConfigs.Remove(ID);
+            openConfigs.Remove(ID);
+            _saveLock.Dispose();
             GC.SuppressFinalize(this);
         }
     }

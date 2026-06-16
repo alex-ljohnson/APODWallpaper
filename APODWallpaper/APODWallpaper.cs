@@ -66,7 +66,6 @@ namespace APODWallpaper
             Config = config;
             Directory.CreateDirectory(Utilities.GetDataPath(""));
             FileMigration.Run(new MigrationContext());
-            Config.ChangeStartup();
         }
 
         public async Task<PictureData?> UpdateAsync(bool force = false)

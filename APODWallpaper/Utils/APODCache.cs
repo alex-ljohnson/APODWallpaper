@@ -58,7 +58,14 @@ namespace APODWallpaper.Utils
         {
             foreach (var date in dates)
             {
-                await RefreshAsync(date);
+                try
+                {
+                    await RefreshAsync(date);
+                }
+                catch (Exception ex)
+                {
+                    Trace.WriteLine($"Stale refresh failed for {date}: {ex.Message}");
+                }
             }
         }
         public async Task SaveCacheAsync()
@@ -246,7 +253,7 @@ namespace APODWallpaper.Utils
 
                 }
             }
-            catch (Exception ex) when (ex is HttpRequestException || ex is TimeoutException)
+            catch (Exception ex) when (ex is HttpRequestException || ex is TimeoutException || ex is TaskCanceledException)
             {
                 Utilities.ShowMessageBox("Please check your internet connection and try again", "Connection error", Utilities.MessageBoxType.Error);
                 Console.WriteLine(ex.StackTrace);

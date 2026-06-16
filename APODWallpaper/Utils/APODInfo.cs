@@ -28,22 +28,10 @@ namespace APODWallpaper.Utils
         public DateOnly? RetrievalDate { get; set; } = retrievalDate;
 
         [JsonIgnore]
-        public string DateFormatted
-        {
-            get
-            {
-                return APODDate.ToIsoString(Date);
-            }
-        }
+        public string Filename => APODDate.ToIsoString(Date);
 
         [JsonIgnore]
-        public string Filename
-        {
-            get
-            {
-                return APODDate.ToIsoString(Date);
-            }
-        }
+        public string DateFormatted => Filename;
 
         // Valid only if at least one usable image URL
         [JsonIgnore]
