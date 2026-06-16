@@ -4,11 +4,34 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("APODTesting")]
+
 namespace APODWallpaper.Utils;
 
 public static partial class FileMigration
 {
     private static readonly Regex IsoDatePattern = IsoDateRegex();
+
+    private static readonly IReadOnlyList<Migration> Migrations =
+    [
+        new(1, "Image filenames to ISO", static ctx => MigrateImageFilenamesToISO(ctx.GetPath("images"))),
+        // Add future migrations here with the next sequential version number.
+    ];
+
+    /// <summary>Runs all pending migrations for the given context, advancing the persisted schema version.</summary>
+    public static void Run(MigrationContext ctx)
+        => Run(ctx, Migrations, ctx.GetPath("migrations.state"));
+
+    internal static void Run(MigrationContext ctx, IReadOnlyList<Migration> migrations, string statePath)
+    {
+        var current = ReadSchemaVersion(statePath);
+        foreach (var migration in migrations.Where(m => m.Version > current).OrderBy(m => m.Version))
+        {
+            Trace.WriteLine($"FileMigration: running migration {migration.Version} '{migration.Name}'");
+            migration.Run(ctx);
+            WriteSchemaVersion(statePath, migration.Version);
+        }
+    }
 
     /// <summary>
     /// Renames image files from old long-date format to ISO format. Also renames .json and updates path inside it.
@@ -101,6 +124,26 @@ public static partial class FileMigration
 
         date = default;
         return false;
+    }
+
+    internal static int ReadSchemaVersion(string statePath)
+    {
+        try
+        {
+            if (!File.Exists(statePath)) return 0;
+            return int.TryParse(File.ReadAllText(statePath).Trim(), out var v) ? v : 0;
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"FileMigration: failed to read state '{statePath}': {ex.Message}");
+            return 0;
+        }
+    }
+
+    internal static void WriteSchemaVersion(string statePath, int version)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(statePath)!);
+        File.WriteAllText(statePath, version.ToString());
     }
 
     [GeneratedRegex(@"^\d{4}-\d{2}-\d{2}$")]

@@ -4,10 +4,11 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ConfiguratorGUI"
+        xmlns:controls="clr-namespace:ConfiguratorGUI.Controls"
         xmlns:templates="clr-namespace:ConfiguratorGUI.Templates"
         xmlns:converters="clr-namespace:ConfiguratorGUI.Converters"
         xmlns:utils="clr-namespace:APODWallpaper.Utils;assembly=APODWallpaper"
-        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib" d:DataContext="{d:DesignInstance Type=local:ViewModel}"
         mc:Ignorable="d"
         Title="APODWallpaper Configurator" 
         
@@ -37,6 +38,7 @@
         <converters:InverseBoolConverter x:Key="inverseBoolConverter"/>
         <converters:PostfixConverter x:Key="postfixConverter"/>
         <converters:LongConverter x:Key="longConverter"/>
+        <converters:ImageRequestConverter x:Key="imageRequestConverter"/>
         <BooleanToVisibilityConverter x:Key="boolVisConverter"/>
         <Storyboard x:Key="closeAnim" Completed="CloseStoryboard_Completed">
             <DoubleAnimation Storyboard.TargetName="grdMain" Storyboard.TargetProperty="Opacity"
@@ -54,13 +56,18 @@
 
         <DataTemplate x:Key="ImageTemplate">
             <Image Stretch="UniformToFill" Height="160">
-                <Image.Source>
-                    <BitmapImage UriSource="{Binding RealUri}" CacheOption="OnLoad" DecodePixelWidth="{Binding DataContext.PreviewQuality, Source={x:Reference SettingsTab}, Converter={StaticResource longConverter}}"/>
-                </Image.Source>
+                <controls:AsyncImageLoader.Source>
+                    <MultiBinding Converter="{StaticResource imageRequestConverter}">
+                        <Binding Path="Url"/>
+                        <Binding Path="HDUrl"/>
+                        <Binding Path="DataContext.Config.UseHD" Source="{x:Reference window}"/>
+                        <Binding Path="DataContext.Config.PreviewQuality" Source="{x:Reference window}" Converter="{StaticResource longConverter}"/>
+                    </MultiBinding>
+                </controls:AsyncImageLoader.Source>
             </Image>
         </DataTemplate>
         <DataTemplate x:Key="VideoTemplate">
-            <MediaElement Source="{Binding RealUri}" LoadedBehavior="Play" Stretch="Uniform" Height="160"/>
+            <MediaElement Source="{Binding Url}" LoadedBehavior="Play" Stretch="Uniform" Height="160"/>
         </DataTemplate>
 
         <templates:ImageVideoSelector x:Key="MediaTemplateSelector"
@@ -199,24 +206,27 @@
         </Grid>
         <TabControl x:Name="mainTabControl" Background="{DynamicResource Light}" Grid.ColumnSpan="5" Grid.Row="1" BorderBrush="{DynamicResource Light}">
             <TabItem x:Name="ImageTab" Header="Image manager" Width="120">
-                <Grid ScrollViewer.CanContentScroll="True">
+                <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="1*" />
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="30" />
-                        <RowDefinition Height="1*" />
-                        <RowDefinition Height="50" />
+                        <RowDefinition Height="8*" />
+                        <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <TextBlock Text="{Binding ItemQuantity}" FontWeight="Bold" FontSize="16" Margin="5"/>
-                    <ListView ItemsSource="{Binding MyPictureData}" x:Name="wallpaperView" 
+                    <ListView ItemsSource="{Binding MyPictureData}" x:Name="wallpaperView"
                               SelectedItem="{Binding SelectedItem}" SelectionMode="Single"
-                              ScrollViewer.HorizontalScrollBarVisibility="Disabled" Grid.Row="1">
-                        <ItemsControl.ItemsPanel>
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              ScrollViewer.CanContentScroll="True" VirtualizingPanel.ScrollUnit="Pixel"
+                              VirtualizingPanel.VirtualizationMode="Recycling" Grid.Row="1">
+
+                        <ListView.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <WrapPanel Orientation="Horizontal"/>
+                                <controls:VirtualizingWrapPanel ItemWidth="230" ItemHeight="250"/>
                             </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
+                        </ListView.ItemsPanel>
                         <ListView.ItemTemplate>
                             <DataTemplate DataType="utils:PictureData">
                                 <Button Cursor="Hand" Command="{Binding DataContext.SelectCommand, Source={x:Reference wallpaperView}}" CommandParameter="{Binding Source}">
@@ -232,9 +242,12 @@
                                         <TextBlock Text="{Binding Path=Description}"/>
                                         <Button Command="{Binding DataContext.DeleteCommand, Source={x:Reference wallpaperView}}" CommandParameter="{Binding Source}">Delete</Button>
                                         <Image Stretch="UniformToFill">
-                                            <Image.Source>
-                                                <BitmapImage UriSource="{Binding Source}" CacheOption="OnLoad" DecodePixelWidth="{Binding DataContext.PreviewQuality, Source={x:Reference SettingsTab}, Converter={StaticResource longConverter}}"/>
-                                            </Image.Source>
+                                            <controls:AsyncImageLoader.Source>
+                                                <MultiBinding Converter="{StaticResource imageRequestConverter}">
+                                                    <Binding Path="Source"/>
+                                                    <Binding Path="DataContext.Config.PreviewQuality" Source="{x:Reference window}" Converter="{StaticResource longConverter}"/>
+                                                </MultiBinding>
+                                            </controls:AsyncImageLoader.Source>
                                         </Image>
                                     </StackPanel>
                                 </Button>
@@ -245,7 +258,7 @@
                 </Grid>
             </TabItem>
             <TabItem x:Name="ExploreTab" Header="Explore" Width="80">
-                <Grid ScrollViewer.CanContentScroll="True">
+                <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="1*" />
                         <ColumnDefinition Width="1*" />
@@ -256,30 +269,33 @@
                     </Grid.RowDefinitions>
                         <ListView ItemsSource="{Binding ExploreData}" x:Name="exploreView" SelectionMode="Single"
                             SelectedItem="{Binding ExploreSelected}"
-                            ScrollViewer.HorizontalScrollBarVisibility="Disabled" Grid.ColumnSpan="2">
-                            <ItemsControl.ItemsPanel>
+                            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                            ScrollViewer.CanContentScroll="True"
+                            VirtualizingPanel.ScrollUnit="Pixel"
+                            VirtualizingPanel.VirtualizationMode="Recycling" Grid.ColumnSpan="2">
+                            <ListView.ItemsPanel>
                                 <ItemsPanelTemplate>
-                                    <WrapPanel Orientation="Horizontal"/>
+                                    <controls:VirtualizingWrapPanel ItemWidth="230" ItemHeight="250"/>
                                 </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>  
+                            </ListView.ItemsPanel>  
                             <ListView.ItemTemplate>
                                 <DataTemplate DataType="utils:APODInfo">
                                 <Button Cursor="Hand">
-                                        <Button.ContextMenu>
-                                            <ContextMenu x:Name="itemContext" StaysOpen="True">
-                                                <MenuItem Header="Save Image..." Command="{Binding DataContext.DownloadCommand, Source={x:Reference exploreView}}" CommandParameter="{Binding Source={x:Reference exploreView}, Path=SelectedItem}"/>
-                                                <MenuItem Header="View Content..." Command="{Binding DataContext.ViewContentCommand, Source={x:Reference exploreView}}" CommandParameter="{Binding Source={x:Reference exploreView}, Path=SelectedItem}"/>
-                                            </ContextMenu>
-                                        </Button.ContextMenu>
-                                        <StackPanel Width="220" Height="240" Margin="5">
-                                            <TextBlock Text="{Binding Path=Title}" FontWeight="Bold"/>
-                                            <TextBlock Text="{Binding Path=Date, StringFormat=D}"/>
-                                            <TextBlock Text="{Binding Path=Explanation}"/>
+                                    <Button.ContextMenu>
+                                        <ContextMenu x:Name="itemContext" StaysOpen="True">
+                                            <MenuItem Header="Save Image..." Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding Path=PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                            <MenuItem Header="View Content..." Command="{Binding DataContext.ViewContentCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding Path=PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
+                                    <StackPanel Width="220" Height="240" Margin="5">
+                                        <TextBlock Text="{Binding Path=Title}" FontWeight="Bold"/>
+                                        <TextBlock Text="{Binding Path=Date, StringFormat=D}"/>
+                                        <TextBlock Text="{Binding Path=Explanation}"/>
 
                                         <ContentControl Content="{Binding}" ContentTemplateSelector="{StaticResource MediaTemplateSelector}" />
                                         
                                         <!--<Button Height="30" Command="{Binding DataContext.DownloadCommand, Source={x:Reference exploreView}}" CommandParameter="{Binding Source={x:Reference exploreView}, Path=SelectedItem}">Download</Button>-->
-                                        </StackPanel>
+                                    </StackPanel>
                                     </Button>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
@@ -309,15 +325,15 @@
                         </Grid.RowDefinitions>
                         <Label Content="   General" FontWeight="Bold" FontSize="14" Height="30"/>
                         <StackPanel Margin="10" Grid.Row="1">
-                            <CheckBox x:Name="ChkExplainImage" Content="Show image explanation on update" IsChecked="{Binding ExplainImage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <CheckBox x:Name="ChkExplainImage" Content="Show image explanation on update" IsChecked="{Binding Config.ExplainImage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="API Key: " VerticalAlignment="Center"/>
-                                <TextBox x:Name="TxtApiKey" Text="{Binding API_KEY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="350"/>
+                                <TextBox x:Name="TxtApiKey" Text="{Binding Config.API_KEY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="350"/>
                             </StackPanel>
                             <!--<TextBlock Text="Max stored images: " VerticalAlignment="Center"/>-->
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Network Timeout (s): " VerticalAlignment="Center"/>
-                                <TextBox x:Name="TxtNetworkTimeout" Text="{Binding NetworkTimeout, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PreviewTextInput="TxtNetworkTimeout_PreviewTextInput" DataObject.Pasting="TextBoxPasting" Width="160"/>
+                                <TextBox x:Name="TxtNetworkTimeout" Text="{Binding Config.NetworkTimeout, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PreviewTextInput="TxtNetworkTimeout_PreviewTextInput" DataObject.Pasting="TextBoxPasting" Width="160"/>
                                 
                             </StackPanel>
                         </StackPanel>
@@ -333,12 +349,12 @@
                         <StackPanel Grid.Row="1" Margin="10">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Configurator Theme: " VerticalAlignment="Center"/>
-                                <ComboBox x:Name="CmbConfiguratorTheme" Width="160" VerticalContentAlignment="Center" IsReadOnly="True" ItemsSource="{Binding AvailableThemes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource postfixConverter}, ConverterParameter=.xaml}" SelectedItem="{Binding ConfiguratorTheme, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource postfixConverter}, ConverterParameter=.xaml}"/>
+                                <ComboBox x:Name="CmbConfiguratorTheme" Width="160" VerticalContentAlignment="Center" IsReadOnly="True" ItemsSource="{Binding Config.AvailableThemes, Converter={StaticResource postfixConverter}, ConverterParameter=.xaml}" SelectedItem="{Binding Config.ConfiguratorTheme, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource postfixConverter}, ConverterParameter=.xaml}"/>
                                 <Button x:Name="BtnUpdateTheme" Margin="5 0" Content="Update..." Height="30" Width="70" Click="BtnUpdateTheme_Click"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Image preview quality (restart required): " VerticalAlignment="Center"/>
-                                <TextBox x:Name="TxtPreviewQuality" Text="{Binding PreviewQuality, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PreviewTextInput="TxtPreviewQuality_PreviewTextInput" DataObject.Pasting="TextBoxPasting" Width="160"/>
+                                <TextBox x:Name="TxtPreviewQuality" Text="{Binding Config.PreviewQuality, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PreviewTextInput="TxtPreviewQuality_PreviewTextInput" DataObject.Pasting="TextBoxPasting" Width="160"/>
                             </StackPanel>
 
                         </StackPanel>
@@ -352,18 +368,18 @@
                         </Grid.RowDefinitions>
                         <Label Content="   Image" FontWeight="Bold" FontSize="14" Height="30"/>
                         <StackPanel Grid.Row="1" Margin="10">
-                            <CheckBox x:Name="ChkStartup" Content="Update image on startup" IsChecked="{Binding RunStartup, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                            <CheckBox x:Name="ChkUseHD" Content="Download HD Images (when available)" IsChecked="{Binding Path=UseHD, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <CheckBox x:Name="ChkStartup" Content="Update image on startup" IsChecked="{Binding Config.RunStartup, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <CheckBox x:Name="ChkUseHD" Content="Download HD Images (when available)" IsChecked="{Binding Config.UseHD, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Desktop Fill type:  " VerticalAlignment="Center"/>
-                                <ComboBox x:Name="CmbWallpaperStyle" Width="160" VerticalContentAlignment="Center" IsReadOnly="True" ItemsSource="{Binding Source={StaticResource StyleEnumSource}}" SelectedItem="{Binding WallpaperStyle, Mode=TwoWay, Converter={StaticResource enumConverter}, UpdateSourceTrigger=PropertyChanged}"/>
+                                <ComboBox x:Name="CmbWallpaperStyle" Width="160" VerticalContentAlignment="Center" IsReadOnly="True" ItemsSource="{Binding Source={StaticResource StyleEnumSource}}" SelectedItem="{Binding Config.WallpaperStyle, Mode=TwoWay, Converter={StaticResource enumConverter}, UpdateSourceTrigger=PropertyChanged}"/>
                                 <Button x:Name="BtnStyleChange" Content="Update Style" Margin="5 0" Height="30" Width="90" Click="BtnStyleChange_Click"/>
                             </StackPanel>
                         </StackPanel>
                     </Grid>
                     <Border Grid.Column="0" Grid.Row="1" BorderThickness="10" CornerRadius="25" BorderBrush="{DynamicResource Light}"/>
 
-                    <Grid Grid.Row="1" Grid.Column="2" Background="{DynamicResource Mid}" Margin="10">
+                    <Grid Grid.Row="1" Grid.Column="1" Background="{DynamicResource Mid}" Margin="10">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="30"/>
                             <RowDefinition Height="*"/>

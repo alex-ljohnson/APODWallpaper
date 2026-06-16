@@ -65,7 +65,7 @@ namespace APODWallpaper
             APODCache = apodCache;
             Config = config;
             Directory.CreateDirectory(Utilities.GetDataPath(""));
-            FileMigration.MigrateImageFilenamesToISO(Utilities.GetDataPath("images"));
+            FileMigration.Run(new MigrationContext());
             Config.ChangeStartup();
         }
 

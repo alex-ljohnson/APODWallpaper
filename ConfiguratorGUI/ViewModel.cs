@@ -7,10 +7,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
-using Microsoft.Extensions.Logging;
 using System.Windows.Input;
 using APODWallpaper;
 using APODWallpaper.Interfaces;
+using System.Net.NetworkInformation;
 
 namespace ConfiguratorGUI
 {
@@ -21,7 +21,7 @@ namespace ConfiguratorGUI
 
         public static string APODAppVersion { get; } = APODWallpaper.APODWallpaper.Version ?? "Unknown";
         public static string ConfiguratorAppVersion { get; } = App.AppVersion ?? "Unknown";
-
+    
         private DateOnly exploreEnd = APODDate.Today().AddDays(-1);
 
         const int ExploreCount = 12;
@@ -369,8 +369,9 @@ namespace ConfiguratorGUI
         }
         #endregion
 
-        private async Task<PictureData?> LoadItemAsync(string itemPath)
+        private async Task<PictureData?> LoadItemAsync(FileInfo ItemFiles)
         {
+            var itemPath = ItemFiles.FullName;
             if (!itemPath.EndsWith(".json")) return null;
             var startTime = DateTime.UtcNow;
 
@@ -383,27 +384,104 @@ namespace ConfiguratorGUI
                 
                 // Run synchronous/CPU-bound deserialization on the thread pool
                 data = await Task.Run(() => JsonConvert.DeserializeObject<PictureData>(json)).ConfigureAwait(false);
+                if (data != null && !File.Exists(data.Source))
+                {
+                    // Image is missing, redownload the image
+                    Trace.WriteLine($"Image missing for {itemPath}, attempting to redownload...");
+                    var info = await cache.GetAsync(data.Date);
+                    var url = info?.GetPreferredUri(config.UseHD);
+                    if (info != null && url != null)
+                    {
+                        await cache.DownloadURLAsync(url, data.Source);
+                    }
+                }
             }
             catch (Exception ex)
             {
                 Trace.WriteLine($"Deserialize failed for {itemPath}: {ex.Message}");
             }
-
+            
             var endTime = DateTime.UtcNow;
             Trace.WriteLine(itemPath + $" is now done; Total load time: {(endTime - startTime).TotalMilliseconds}ms;");
             return data;
         }
 
+        private static (IEnumerable<string>, IEnumerable<string>) FindBrokenPairs(IEnumerable<FileInfo> files)
+        {
+            var jsonFiles = files.Where(f => f.Extension.Equals(".json", StringComparison.OrdinalIgnoreCase));
+            var imageFiles = files.Where(f => !f.Extension.Equals(".json", StringComparison.OrdinalIgnoreCase));
+
+            // Pairs match on the image filename: the sidecar "<date>.jpg.json" maps to "<date>.jpg".
+            var jsonBaseNames = jsonFiles.Select(f => Path.GetFileNameWithoutExtension(f.Name))
+                                         .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var imageBaseNames = imageFiles.Select(f => f.Name)
+                                           .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            // Carry full paths forward; Source must be an absolute path everywhere else.
+            var imagesMissingJsons = imageFiles.Where(f => !jsonBaseNames.Contains(f.Name))
+                                               .Select(f => f.FullName);
+            var jsonsMissingImages = jsonFiles.Where(f => !imageBaseNames.Contains(Path.GetFileNameWithoutExtension(f.Name)))
+                                              .Select(f => f.FullName);
+            return (imagesMissingJsons, jsonsMissingImages);
+        }
+
+        // Repairs image/json pairs and returns the recovered items. Callers add these to the
+        // UI-bound collection on the UI thread; this method must not touch MyPictureData itself.
+        private async Task<PictureData[]> FixBrokenPairsAsync((IEnumerable<string>, IEnumerable<string>) brokenPairs)
+        {
+            // To fix json missing image: download the image for specified date and update json accordingly.
+            // To fix image missing json: look at name (equal to date) and create json fetched values from api.
+            var (images, jsons) = brokenPairs;
+            var recovered = await Task.WhenAll(images.Select(FetchMissingJsonAsync));
+            return [.. recovered.Where(x => x != null).Select(x => x!)];
+        }
+
+        private async Task<PictureData?> FetchMissingJsonAsync(string imagePath)
+        {
+            var datePart = Path.GetFileNameWithoutExtension(imagePath);
+            try
+            {
+                var info = await cache.GetAsync(APODDate.ParseIso(datePart));
+                if (info == null)
+                {
+                    Trace.WriteLine($"Failed to fetch missing JSON for {imagePath}: API returned null for date {datePart}");
+                    return null;
+                }
+                var newPictureData = new PictureData(info)
+                {
+                    Source = imagePath
+                };
+                await newPictureData.SaveFileAsync();
+                return newPictureData;
+            }
+            catch (Exception ex)
+            {
+                // One broken pair must not abort the whole load.
+                Trace.WriteLine($"Failed to repair {imagePath}: {ex.Message}");
+                return null;
+            }
+        }
+
         public async Task<PictureData[]> LoadData()
         {
             var imagesPath = Utilities.GetDataPath("images");
-            Directory.CreateDirectory(imagesPath);
-            string[] files = [.. Directory.EnumerateFiles(imagesPath).Where(x => x.EndsWith(".json"))];
-            
-            var tasks = files.Select(LoadItemAsync);
+            var imgDir = Directory.CreateDirectory(imagesPath);
+            var files = imgDir.EnumerateFiles().ToHashSet();
+            // Check for broken image/json pairs
+            // Missing images are automatically downloaded on json load, so we only need to fix missing jsons here.
+            // Need to change the method to only use missing jsons.
+            var brokenPairs = FindBrokenPairs(files);
+
+            var fixedPairsTask = FixBrokenPairsAsync(brokenPairs);
+
+            var jsonFiles = files.Where(f => f.Extension.Equals(".json", StringComparison.OrdinalIgnoreCase));
+            var tasks = jsonFiles.Select(LoadItemAsync);
             var results = await Task.WhenAll(tasks).ConfigureAwait(false);
-            
-            return [.. results.Where(x => x != null).Select(x => x!)];
+
+            // Fold recovered pairs into the result so the caller sorts them into MyPictureData
+            // on the UI thread, instead of mutating the bound collection off-thread.
+            var recovered = await fixedPairsTask.ConfigureAwait(false);
+            return [.. results.Where(x => x != null).Select(x => x!), .. recovered];
         }
 
         /// <summary>
@@ -423,26 +501,26 @@ namespace ConfiguratorGUI
             if (Directory.Exists(imagesPath))
             {
                 var files = Directory.GetFiles(imagesPath);
-            foreach (var file in files)
-            {
-                var fileInfo = new FileInfo(file);
-                if (fileInfo.Exists)
+                foreach (var file in files)
                 {
-                    size += fileInfo.Length;
-                    c++;
-                }
+                    var fileInfo = new FileInfo(file);
+                    if (fileInfo.Exists)
+                    {
+                        size += fileInfo.Length;
+                        c++;
+                    }
                 }
             }
 
             return (c / 2, size);
-            }
+        }
 
         private static long GetCacheSize()
         {
             var cachePath = Utilities.GetDataPath("cache/metadata.cache");
             var cacheInfo = new FileInfo(cachePath);
             return cacheInfo.Exists ? cacheInfo.Length : 0;
-            
+
         }
 
         private void SortData()
@@ -462,7 +540,7 @@ namespace ConfiguratorGUI
 
             // Since this is the initial load, setting the property fires NotifyPropertyChanged once
             MyPictureData = new ObservableCollection<PictureData>(data.OrderByDescending(x => x));
-            
+
             await exploreTask;
             var endTime = DateTime.UtcNow;
             Trace.WriteLine($"Initialisation times: Total: {(endTime - startTime).TotalMilliseconds}ms; Task spinup: {(taskInitTime - startTime).TotalMilliseconds}ms");

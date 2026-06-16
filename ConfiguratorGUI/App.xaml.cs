@@ -65,7 +65,7 @@ namespace ConfiguratorGUI
             Trace.WriteLine("At app startup");
             var startTime = DateTime.UtcNow;
             await Config.InitialiseAsync();
-            FileMigration.MigrateImageFilenamesToISO(Utilities.GetDataPath("images"));
+            FileMigration.Run(new MigrationContext());
             var themeService = serviceProvider.GetRequiredService<IThemeService>();
             await themeService.InitializeThemesAsync();
             await themeService.ApplyThemeAsync(Resources);
