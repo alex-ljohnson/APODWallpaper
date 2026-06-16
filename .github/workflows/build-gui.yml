@@ -26,6 +26,9 @@ jobs:
       with:
         dotnet-version: '10.0.x'
 
+    - name: Run Tests
+      run: dotnet test APODTesting/APODTesting.csproj --configuration Release -p:Patch=${{ github.run_number }}
+
     - name: Publish Configurator GUI
       # Compiles and publishes just the GUI project
       run: dotnet publish ConfiguratorGUI/ConfiguratorGUI.csproj --configuration Release -p:Patch=${{ github.run_number }} --output ./artifacts/ConfiguratorGUI
