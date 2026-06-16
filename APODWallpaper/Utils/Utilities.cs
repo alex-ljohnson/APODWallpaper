@@ -13,7 +13,7 @@ namespace APODWallpaper.Utils
 
         public static readonly string current = GetDataPath("current.jpg");
         public static readonly string last = GetDataPath("last.jpg");
-        public static string GetDataPath(string path)
+        public static string GetDataPath(string? path = null)
         {
             var appdata = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             string result;
@@ -26,6 +26,15 @@ namespace APODWallpaper.Utils
                 result = Path.Combine(appdata, "APODWallpaper", path);
             }
             return Path.GetFullPath(result);
+        }
+
+        public static void EnsureDataDirectory()
+        {
+            var dataDir = GetDataPath("");
+            if (!Directory.Exists(dataDir))
+            {
+                Directory.CreateDirectory(dataDir);
+            }
         }
 
         public enum MessageBoxType

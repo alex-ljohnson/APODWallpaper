@@ -103,7 +103,7 @@ Press the download button below to download and install it.";
             string tag = ((string)content["tag_name"])[1..];
             Trace.WriteLine("Last release tag: " + tag);
             Version tagVersion = new(tag);
-            Version version = new(App.AppVersion);
+            Version version = new(App.AppVersion ?? "0.0.0.0");
             if (tagVersion == version)
             {
                 if (!startUp)

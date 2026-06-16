@@ -1,0 +1,132 @@
+name: Release
+
+# Tag-driven release: tag the repo with the full version, e.g.
+#   git tag v2026.06.16.1 && git push origin v2026.06.16.1
+# The tag (minus the leading 'v') is the truth for the .NET AND the installer.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # required to create the GitHub Release
+
+jobs:
+  release:
+    runs-on: windows-latest
+    environment: release   # scopes SIGNING_CERT_* secrets to this environment
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 10
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    # Split the tag (v2026.06.16.1) into version parts so the build output
+    # matches the tag exactly instead of using the build-time date.
+    - name: Derive version from tag
+      id: ver
+      shell: pwsh
+      run: |
+        $tag = "${{ github.ref_name }}"
+        $version = $tag.TrimStart('v')
+        $parts = $version.Split('.')
+        if ($parts.Length -ne 4) {
+          throw "Tag '$tag' must be of the form vYYYY.MM.DD.Patch (got version '$version')."
+        }
+        "version=$version"      >> $env:GITHUB_OUTPUT
+        "year=$($parts[0])"     >> $env:GITHUB_OUTPUT
+        "month=$($parts[1])"    >> $env:GITHUB_OUTPUT
+        "day=$($parts[2])"      >> $env:GITHUB_OUTPUT
+        "patch=$($parts[3])"    >> $env:GITHUB_OUTPUT
+        Write-Host "Releasing version $version"
+
+    - name: Run Tests
+      run: >
+        dotnet test APODTesting/APODTesting.csproj
+        --configuration Release
+        -p:BuildYear=${{ steps.ver.outputs.year }}
+        -p:BuildMonth=${{ steps.ver.outputs.month }}
+        -p:BuildDay=${{ steps.ver.outputs.day }}
+        -p:Patch=${{ steps.ver.outputs.patch }}
+
+    # Publish BOTH projects framework-dependent into a shared dist/ folder.
+    # README.md and Resources/help.html are copied to the output automatically
+    # (Content / CopyToOutputDirectory=Always in the .csproj files).
+    - name: Publish APOD Wallpaper Engine
+      run: >
+        dotnet publish APODWallpaper/APODWallpaper.csproj
+        --configuration Release --no-self-contained --output ./dist
+        -p:BuildYear=${{ steps.ver.outputs.year }}
+        -p:BuildMonth=${{ steps.ver.outputs.month }}
+        -p:BuildDay=${{ steps.ver.outputs.day }}
+        -p:Patch=${{ steps.ver.outputs.patch }}
+
+    - name: Publish Configurator GUI
+      run: >
+        dotnet publish ConfiguratorGUI/ConfiguratorGUI.csproj
+        --configuration Release --no-self-contained --output ./dist
+        -p:BuildYear=${{ steps.ver.outputs.year }}
+        -p:BuildMonth=${{ steps.ver.outputs.month }}
+        -p:BuildDay=${{ steps.ver.outputs.day }}
+        -p:Patch=${{ steps.ver.outputs.patch }}
+
+    - name: Build & sign installer (Inno Setup)
+      shell: pwsh
+      env:
+        CERT_B64: ${{ secrets.SIGNING_CERT_BASE64 }}
+        CERT_PWD: ${{ secrets.SIGNING_CERT_PASSWORD }}
+      run: |
+        $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+        if (-not (Test-Path $iscc)) {
+          choco install innosetup --no-progress -y
+        }
+
+        # Decode the code-signing certificate from the secret to a temp .pfx.
+        $certPath = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+        [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:CERT_B64))
+
+        # Locate the newest signtool.exe shipped with the Windows SDK.
+        $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" |
+                    Sort-Object FullName | Select-Object -Last 1).FullName
+        if (-not $signtool) { throw "signtool.exe not found on the runner." }
+
+        # Common signtool arguments (timestamped SHA-256).
+        $signArgs = @(
+          "sign", "/f", $certPath, "/p", $env:CERT_PWD,
+          "/fd", "sha256", "/tr", "http://timestamp.digicert.com", "/td", "sha256"
+        )
+
+        try {
+          # 1. Sign the application binaries inside the publish folder
+          $exes = @("dist\APODWallpaper.exe", "dist\ConfiguratorGUI.exe")
+          & $signtool @signArgs $exes
+          if ($LASTEXITCODE -ne 0) { throw "signtool failed signing app binaries (exit $LASTEXITCODE)." }
+
+          # 2. Build the installer, signing it (and its uninstaller) via Inno's
+          #    "standard" SignTool. $f is the file Inno wants signed
+          $signCmd = "`"$signtool`" sign /f `"$certPath`" /p `"$env:CERT_PWD`" " +
+                     "/fd sha256 /tr http://timestamp.digicert.com /td sha256 `$f"
+          & $iscc `
+            "/DMyAppSourceDir=${{ github.workspace }}" `
+            "/DMyRepoDir=${{ github.workspace }}" `
+            "/DMyAppVersion=${{ steps.ver.outputs.version }}" `
+            "/Sstandard=$signCmd" `
+            "APODWallpaper.iss"
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE." }
+        }
+        finally {
+          Remove-Item $certPath -Force -ErrorAction SilentlyContinue
+        }
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@3bb1273
+      with:
+        name: APODWallpaper ${{ steps.ver.outputs.version }}
+        tag_name: ${{ github.ref_name }}
+        body_path: RELEASE_NOTES.md          # hand-written notes; edit per release
+        generate_release_notes: true         # auto commit/PR list appended below
+        files: setup/APODWallpaper_Setup_v${{ steps.ver.outputs.version }}.exe

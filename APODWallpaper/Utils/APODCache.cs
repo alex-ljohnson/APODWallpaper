@@ -1,32 +1,25 @@
-﻿using Newtonsoft.Json;
+﻿using APODWallpaper.Interfaces;
+using Newtonsoft.Json;
 using System.Diagnostics;
+using System.Net;
+using System.Net.Http;
 using System.Web;
-using APODWallpaper.Interfaces;
 
 namespace APODWallpaper.Utils
 {
     public sealed class APODCache : IAPODCache
     {
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IConfigurationService config;
         private static readonly string CacheFolder = Utilities.GetDataPath("cache/");
         private static readonly string MetadataCacheFile = Utilities.GetDataPath("cache/metadata.cache");
 
         private Dictionary<DateOnly, APODInfo> _metadataCache = [];
-        private static readonly Lock CacheLock = new();
-        private static APODCache? _instance = null;
-        public static APODCache Instance
-        {
-            get
-            {
-                lock (CacheLock)
-                {
-                    _instance ??= new APODCache();
-                    return _instance;
-                }
-            }
-        }
 
-        public APODCache()
+        public APODCache(IHttpClientFactory httpClientFactory, IConfigurationService config)
         {
+            _httpClientFactory = httpClientFactory;
+            this.config = config;
             EnsureCacheExists();
             LoadCache();
         }
@@ -35,20 +28,44 @@ namespace APODWallpaper.Utils
         {
             Directory.CreateDirectory(CacheFolder);
         }
+
+        public bool IsCached(DateOnly date)
+        {
+            return _metadataCache.ContainsKey(date);
+        }
+
+
         #region Cache Ops
         public void LoadCache()
         {
             if (!File.Exists(MetadataCacheFile)) return;
             string cacheData = File.ReadAllText(MetadataCacheFile);
+            List<DateOnly> stale = [];
             JsonConvert.DeserializeObject<APODInfo[]>(cacheData)?.ToList().ForEach(info =>
             {
+                if (!info.IsValid)
+                {
+                    stale.Add(info.Date);
+                }
                 _metadataCache[info.Date] = info;
             });
-            if (_metadataCache == null)
-            {
-                _metadataCache = [];
 
-                Console.WriteLine("WARNING: Initialized new metadata cache");
+            if (stale.Count > 0)
+                _ = Task.Run(() => RefreshStaleEntriesAsync(stale));
+        }
+
+        private async Task RefreshStaleEntriesAsync(List<DateOnly> dates)
+        {
+            foreach (var date in dates)
+            {
+                try
+                {
+                    await RefreshAsync(date);
+                }
+                catch (Exception ex)
+                {
+                    Trace.WriteLine($"Stale refresh failed for {date}: {ex.Message}");
+                }
             }
         }
         public async Task SaveCacheAsync()
@@ -90,28 +107,26 @@ namespace APODWallpaper.Utils
 
         public async Task<APODInfo?> GetAsync(DateOnly date)
         {
-            if (_metadataCache.TryGetValue(date, out var info))
+            // Invalid cache fall through to a fetch.
+            if (_metadataCache.TryGetValue(date, out var info) && info.IsValid)
             {
                 return info;
             }
-            else
-            {
-                var reqInfo = await SendRequestAsync(date: date);
-                return reqInfo != null && reqInfo.Length > 0 ? reqInfo[0] : null;
-            }
 
+            var reqInfo = await SendRequestAsync(date: date);
+            return reqInfo is { Length: > 0 } ? reqInfo[0] : null;
         }
 
         public async Task<APODInfo[]?> GetRangeAsync(DateOnly startDate, DateOnly endDate)
         {
-            if (endDate > DateOnly.FromDateTime(DateTime.UtcNow)) throw new ArgumentException("end_date was in the future");
+            if (endDate > APODDate.Today()) throw new ArgumentException("end_date was in the future");
             List<APODInfo> infos = [];
             int count = endDate.DayNumber - startDate.DayNumber + 1;
             for (int i = 0; i < count; i++)
             {
                 DateOnly date = startDate.AddDays(i);
                 var info = _metadataCache.GetValueOrDefault(date);
-                if (info != null)
+                if (info != null && info.IsValid)
                 {
                     infos.Add(info);
                 }
@@ -127,6 +142,15 @@ namespace APODWallpaper.Utils
         }
 
         /// <summary>
+        /// fetches info for a specific date directly from the API, ignoring and replacing cached entry.
+        /// </summary>
+        public async Task<APODInfo?> RefreshAsync(DateOnly date)
+        {
+            var result = await SendRequestAsync(date: date);
+            return result is { Length: > 0 } ? result[0] : null;
+        }
+
+        /// <summary>
         /// Fetches info for random APOD images. Randomisation occurs on the server side, so this method does not check the cache, but does cache results.
         /// </summary>
         /// <param name="count">Number of random images to fetch</param>
@@ -135,7 +159,7 @@ namespace APODWallpaper.Utils
             return await SendRequestAsync(count: count);
         }
 
-
+        // TODO: Abstract out requests into another class to remove dependencies and API-specific logic from cache class
         /// <summary>
         /// Fetch info from API and add to cache
         /// </summary>
@@ -147,26 +171,27 @@ namespace APODWallpaper.Utils
         /// <exception cref="ArgumentException"></exception>
         private async Task<APODInfo[]?> SendRequestAsync(DateOnly? date = null, DateOnly? startDate = null, DateOnly? endDate = null, int? count = null)
         {
-            if (endDate != null && endDate > DateOnly.FromDateTime(DateTime.UtcNow)) throw new ArgumentException("end_date was in the future");
+            if (endDate != null && endDate > APODDate.Today()) throw new ArgumentException("end_date was in the future");
             var urlParams = HttpUtility.ParseQueryString("");
             if (date != null)
             {
-                urlParams["date"] = date?.ToString("yyyy-MM-dd");
+                urlParams["date"] = date is DateOnly d ? APODDate.ToIsoString(d) : null;
             } else if (startDate != null || endDate != null)
             {
-                if (startDate != null) urlParams["start_date"] = startDate?.ToString("yyyy-MM-dd");
+                if (startDate is DateOnly sd) urlParams["start_date"] = APODDate.ToIsoString(sd);
                 
-                urlParams["end_date"] = endDate?.ToString("yyyy-MM-dd");
+                if (endDate is DateOnly ed) urlParams["end_date"] = APODDate.ToIsoString(ed);
             } else if (count != null)
             {
                 urlParams["count"] = count.ToString();
             }
-            urlParams["api_key"] = Configuration.Config.API_KEY;
-            Uri uri = new($"{Configuration.Config.BaseUrl}?{urlParams}");
+            urlParams["api_key"] = config.API_KEY;
+            Uri uri = new($"{config.BaseUrl}?{urlParams}");
             APODInfo[] imageInfo;
+            var httpClient = _httpClientFactory.CreateClient("APODCache");
             try
             {
-                string responseContent = await NetClient.InstanceClient.GetStringAsync(uri);
+                string responseContent = await httpClient.GetStringAsync(uri);
                 
                 if (endDate != null || count != null)
                 {
@@ -176,16 +201,65 @@ namespace APODWallpaper.Utils
                 {
                     imageInfo = [JsonConvert.DeserializeObject<APODInfo>(responseContent)!];
                 }
+                // Stamp retrieval date
+                var retrieved = APODDate.Today();
+                foreach (var info in imageInfo)
+                    info?.RetrievalDate = retrieved;
                 await AddToCacheAsync(imageInfo);
             }
             catch (Exception ex) when (ex is JsonException || ex is NotSupportedException || ex is HttpRequestException || ex is TaskCanceledException)
             {
                 Utilities.ShowMessageBox("Please check your internet connection and try again.\nThis also occurs when the NASA API is down.", "Connection error", Utilities.MessageBoxType.Error);
-                Console.WriteLine(ex.StackTrace);
                 Console.WriteLine(ex.Message);
                 return null;
             } 
             return imageInfo;
+        }
+
+        public async Task<string> DownloadURLAsync(Uri? url, string filepath, IProgress<(long, long?)>? progress = null)
+        {
+            //string filename;
+            ArgumentNullException.ThrowIfNull(url);
+            var httpClient = _httpClientFactory.CreateClient("APODCache");
+            try
+            {
+                using HttpResponseMessage response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+                Console.WriteLine(response.Content.Headers.ToString());
+                response.EnsureSuccessStatusCode();
+                var contentLength = response.Content.Headers.ContentLength;
+                if (!contentLength.HasValue)
+                {
+                    Console.WriteLine("Content length not provided");
+                }
+                using Stream contentStream = await response.Content.ReadAsStreamAsync();
+                using FileStream fileStream = new(filepath, FileMode.Create, FileAccess.ReadWrite, FileShare.Write);
+                if (config.DownloadInfo && contentLength.HasValue)
+                {
+                    long totalReadBytes = 0L;
+                    var buffer = new byte[81920];
+                    int readBytes;
+                    while ((readBytes = await contentStream.ReadAsync(buffer, 0, buffer.Length)) != 0)
+                    {
+                        await fileStream.WriteAsync(buffer, 0, readBytes);
+                        totalReadBytes += readBytes;
+                        progress?.Report((totalReadBytes, contentLength));
+                    }
+                }
+                else
+                {
+                    var copyTask = contentStream.CopyToAsync(fileStream);
+                    // Simple progress reporter for copy operation
+                    await copyTask;
+
+                }
+            }
+            catch (Exception ex) when (ex is HttpRequestException || ex is TimeoutException || ex is TaskCanceledException)
+            {
+                Utilities.ShowMessageBox("Please check your internet connection and try again", "Connection error", Utilities.MessageBoxType.Error);
+                Console.WriteLine(ex.StackTrace);
+                throw;
+            }
+            return filepath;
         }
     }
 }

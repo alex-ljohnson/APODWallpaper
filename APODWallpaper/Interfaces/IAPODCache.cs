@@ -10,6 +10,7 @@ namespace APODWallpaper.Interfaces
     // TODO: Implement interfaces for different classes requierd in APODWallpaper
     public interface IAPODCache
     {
+        public bool IsCached(DateOnly date);
         public Task AddToCacheAsync(IEnumerable<APODInfo> infos);
         public Task AddToCacheAsync(APODInfo info);
         public Task SaveCacheAsync();
@@ -19,9 +20,12 @@ namespace APODWallpaper.Interfaces
         public Task<APODInfo?> GetToday();
         public Task<APODInfo[]?> GetRangeAsync(DateOnly startDate, DateOnly endDate);
         public Task<APODInfo[]?> FetchRandAsync(int count);
+        public Task<APODInfo?> RefreshAsync(DateOnly date);
         //public Task<APODInfo[]> GetAllFromCacheAsync();
         //public Task<bool> ExistsInCacheAsync(DateOnly date);
         //public Task ClearCacheAsync();
+
+        public Task<string> DownloadURLAsync(Uri? url, string filepath, IProgress<(long, long?)>? progress = null);
 
     }
 }

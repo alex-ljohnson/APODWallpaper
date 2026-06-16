@@ -7,19 +7,22 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
-using Microsoft.Extensions.Logging;
 using System.Windows.Input;
+using APODWallpaper;
+using APODWallpaper.Interfaces;
+using System.Net.NetworkInformation;
 
 namespace ConfiguratorGUI
 {
-    public class ViewModel : INotifyPropertyChanged
+    public class ViewModel(IAPODWallpaper apod, IAPODCache cache, IConfigurationService config) : INotifyPropertyChanged
     {
-        private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
 
-        public static string APODAppVersion { get; } = App.AppVersion;
-        public static string ConfiguratorAppVersion { get; } = APODWallpaper.APODWallpaper.Version;
+        public IConfigurationService Config => config;
 
-        private DateOnly exploreEnd = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1);
+        public static string APODAppVersion { get; } = APODWallpaper.APODWallpaper.Version ?? "Unknown";
+        public static string ConfiguratorAppVersion { get; } = App.AppVersion ?? "Unknown";
+    
+        private DateOnly exploreEnd = APODDate.Today().AddDays(-1);
 
         const int ExploreCount = 12;
 
@@ -49,8 +52,8 @@ namespace ConfiguratorGUI
 
 #pragma warning disable CA1822 // Mark members as static
         public string ItemQuantity { get {
-                var (items, size, cacheSize) = GetImagesSize();
-                return $"Items: {items}; Storage space: {size / 1048576} MiB; Cache size: {cacheSize / 1024} KiB";
+                var (items, size) = GetImagesSize();
+                return $"Items: {items}; Storage space: {size / 1048576} MiB; Cache size: {GetCacheSize() / 1024} KiB";
             }
 #pragma warning restore CA1822 // Mark members as static
         }
@@ -111,7 +114,7 @@ namespace ConfiguratorGUI
             }
             set
             {
-                _selectCommand = value;
+                _deleteCommand = value;
             }
         }
 
@@ -191,9 +194,10 @@ namespace ConfiguratorGUI
                 _viewContentCommand ??= new RelayCommand<APODInfo>(async (data) =>
                 {
                     if (data == null) return;
+                    var uri = data.GetPreferredUri(config.UseHD);
                     MessageBox.Show($"{data.Explanation}\n\nCopyright: {data.Copyright}\n\nPress OK to open content in browser...", $"{data.Title} - {data.DateFormatted}");
-                    if (data.RealUri == null) return;
-                    Process.Start(new ProcessStartInfo { FileName = data.RealUri.AbsoluteUri, UseShellExecute = true });
+                    if (uri == null) return;
+                    Process.Start(new ProcessStartInfo { FileName = uri.AbsoluteUri, UseShellExecute = true });
                 }, (s) => true);
                 return _viewContentCommand;
             }
@@ -250,7 +254,7 @@ namespace ConfiguratorGUI
             Task<PictureData?>? downloadTask = default;
             try { 
             
-                downloadTask = APOD.DownloadImageAsync(data);
+                downloadTask = apod.DownloadImageAsync(data);
             } catch (NotImageException)
             {
                 return;
@@ -271,15 +275,15 @@ namespace ConfiguratorGUI
         private async Task LoadExplore()
         {
             var exploreStart = exploreEnd.AddDays(-ExploreCount + 1);
-            var data = await APODCache.Instance.GetRangeAsync(exploreStart, exploreEnd);
-            var filteredData = data?.Where(x => x.RealUri != null);
+            var data = await cache.GetRangeAsync(exploreStart, exploreEnd);
+            var filteredData = data?.Where(x => x.GetPreferredUri(config.UseHD) != null);
             if (filteredData != null)
                 ExploreData = new(filteredData);
         }
         private async void ExploreNext()
         {
             Trace.WriteLine("Loading next...");
-            if (exploreEnd.AddDays(ExploreCount) <= DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1))
+            if (exploreEnd.AddDays(ExploreCount) <= APODDate.Today().AddDays(-1))
             {
                 WindowCursor = Cursors.Wait;
                 exploreEnd = exploreEnd.AddDays(ExploreCount);
@@ -290,7 +294,7 @@ namespace ConfiguratorGUI
         public async void ExplorePrev()
         {
             Trace.WriteLine("Loading prev...");
-            if (exploreEnd.AddDays(-ExploreCount) >= DateOnly.ParseExact("1995-06-16", "yyyy-MM-dd"))
+            if (exploreEnd.AddDays(-ExploreCount) >= APODDate.InceptionDate)
             {
                 WindowCursor = Cursors.Wait;
                 exploreEnd = exploreEnd.AddDays(-ExploreCount);
@@ -302,7 +306,7 @@ namespace ConfiguratorGUI
         {
             Trace.WriteLine("Loading random...");
             WindowCursor = Cursors.Wait;
-            var data = await APODCache.Instance.FetchRandAsync(ExploreCount);
+            var data = await cache.FetchRandAsync(ExploreCount);
             if (data != null) ExploreData = new(data);
             
             WindowCursor = Cursors.Arrow;
@@ -318,17 +322,17 @@ namespace ConfiguratorGUI
         public void SelectOption(string? source)
         {
             if (source == null) { return; }
-            APOD.UpdateBackground(source, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
+            apod.UpdateBackground(source, (WallpaperStyleEnum)config.WallpaperStyle);
         }
         public async void CheckNew(object? param)
         {
-            if (APOD.CheckNewAsync())
+            if (apod.CheckNew())
             {
                 MessageBox.Show("New image found.", "Downloading image");
                 PictureData? newData = default;
                 try
                 {
-                    newData = await APOD.UpdateAsync(true);
+                    newData = await apod.UpdateAsync(true);
                 } catch (NotImageException ex)
                 {
                     MessageBox.Show(ex.Message, "APOD isn't an image");
@@ -365,8 +369,9 @@ namespace ConfiguratorGUI
         }
         #endregion
 
-        private async Task<PictureData?> LoadItemAsync(string itemPath)
+        private async Task<PictureData?> LoadItemAsync(FileInfo ItemFiles)
         {
+            var itemPath = ItemFiles.FullName;
             if (!itemPath.EndsWith(".json")) return null;
             var startTime = DateTime.UtcNow;
 
@@ -379,48 +384,143 @@ namespace ConfiguratorGUI
                 
                 // Run synchronous/CPU-bound deserialization on the thread pool
                 data = await Task.Run(() => JsonConvert.DeserializeObject<PictureData>(json)).ConfigureAwait(false);
+                if (data != null && !File.Exists(data.Source))
+                {
+                    // Image is missing, redownload the image
+                    Trace.WriteLine($"Image missing for {itemPath}, attempting to redownload...");
+                    var info = await cache.GetAsync(data.Date);
+                    var url = info?.GetPreferredUri(config.UseHD);
+                    if (info != null && url != null)
+                    {
+                        await cache.DownloadURLAsync(url, data.Source);
+                    }
+                }
             }
             catch (Exception ex)
             {
                 Trace.WriteLine($"Deserialize failed for {itemPath}: {ex.Message}");
             }
-
+            
             var endTime = DateTime.UtcNow;
             Trace.WriteLine(itemPath + $" is now done; Total load time: {(endTime - startTime).TotalMilliseconds}ms;");
             return data;
         }
 
+        private static (IEnumerable<string>, IEnumerable<string>) FindBrokenPairs(IEnumerable<FileInfo> files)
+        {
+            var jsonFiles = files.Where(f => f.Extension.Equals(".json", StringComparison.OrdinalIgnoreCase));
+            var imageFiles = files.Where(f => !f.Extension.Equals(".json", StringComparison.OrdinalIgnoreCase));
+
+            // Pairs match on the image filename: the sidecar "<date>.jpg.json" maps to "<date>.jpg".
+            var jsonBaseNames = jsonFiles.Select(f => Path.GetFileNameWithoutExtension(f.Name))
+                                         .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var imageBaseNames = imageFiles.Select(f => f.Name)
+                                           .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            // Carry full paths forward; Source must be an absolute path everywhere else.
+            var imagesMissingJsons = imageFiles.Where(f => !jsonBaseNames.Contains(f.Name))
+                                               .Select(f => f.FullName);
+            var jsonsMissingImages = jsonFiles.Where(f => !imageBaseNames.Contains(Path.GetFileNameWithoutExtension(f.Name)))
+                                              .Select(f => f.FullName);
+            return (imagesMissingJsons, jsonsMissingImages);
+        }
+
+        // Repairs image/json pairs and returns the recovered items. Callers add these to the
+        // UI-bound collection on the UI thread; this method must not touch MyPictureData itself.
+        private async Task<PictureData[]> FixBrokenPairsAsync((IEnumerable<string>, IEnumerable<string>) brokenPairs)
+        {
+            // To fix json missing image: download the image for specified date and update json accordingly.
+            // To fix image missing json: look at name (equal to date) and create json fetched values from api.
+            var (images, jsons) = brokenPairs;
+            var recovered = await Task.WhenAll(images.Select(FetchMissingJsonAsync));
+            return [.. recovered.Where(x => x != null).Select(x => x!)];
+        }
+
+        private async Task<PictureData?> FetchMissingJsonAsync(string imagePath)
+        {
+            var datePart = Path.GetFileNameWithoutExtension(imagePath);
+            try
+            {
+                var info = await cache.GetAsync(APODDate.ParseIso(datePart));
+                if (info == null)
+                {
+                    Trace.WriteLine($"Failed to fetch missing JSON for {imagePath}: API returned null for date {datePart}");
+                    return null;
+                }
+                var newPictureData = new PictureData(info)
+                {
+                    Source = imagePath
+                };
+                await newPictureData.SaveFileAsync();
+                return newPictureData;
+            }
+            catch (Exception ex)
+            {
+                // One broken pair must not abort the whole load.
+                Trace.WriteLine($"Failed to repair {imagePath}: {ex.Message}");
+                return null;
+            }
+        }
+
         public async Task<PictureData[]> LoadData()
         {
             var imagesPath = Utilities.GetDataPath("images");
-            Directory.CreateDirectory(imagesPath);
-            string[] files = [.. Directory.EnumerateFiles(imagesPath).Where(x => x.EndsWith(".json"))];
-            
-            var tasks = files.Select(LoadItemAsync);
+            var imgDir = Directory.CreateDirectory(imagesPath);
+            var files = imgDir.EnumerateFiles().ToHashSet();
+            // Check for broken image/json pairs
+            // Missing images are automatically downloaded on json load, so we only need to fix missing jsons here.
+            // Need to change the method to only use missing jsons.
+            var brokenPairs = FindBrokenPairs(files);
+
+            var fixedPairsTask = FixBrokenPairsAsync(brokenPairs);
+
+            var jsonFiles = files.Where(f => f.Extension.Equals(".json", StringComparison.OrdinalIgnoreCase));
+            var tasks = jsonFiles.Select(LoadItemAsync);
             var results = await Task.WhenAll(tasks).ConfigureAwait(false);
-            
-            return results.Where(x => x != null).Select(x => x!).ToArray();
+
+            // Fold recovered pairs into the result so the caller sorts them into MyPictureData
+            // on the UI thread, instead of mutating the bound collection off-thread.
+            var recovered = await fixedPairsTask.ConfigureAwait(false);
+            return [.. results.Where(x => x != null).Select(x => x!), .. recovered];
         }
 
-        private static (int, long, long) GetImagesSize()
+        /// <summary>
+        /// Calculates the number of image files and their total size in bytes within the images data directory.
+        /// </summary>
+        /// <remarks>The method searches for files in the directory returned by
+        /// Utilities.GetDataPath("images"). The count of files is divided by two before being returned, which may be
+        /// relevant depending on the directory's contents. The method returns (0, 0) if the directory does not exist or
+        /// contains no files.</remarks>
+        /// <returns>A tuple containing the number of image files (as an integer) and the total size of all image
+        /// files (+metadata) in bytes (as a long).</returns>
+        private static (int, long) GetImagesSize()
         {
             var imagesPath = Utilities.GetDataPath("images");
-            var files = Directory.GetFiles(imagesPath);
             int c = 0;
             long size = 0;
-            foreach (var file in files)
+            if (Directory.Exists(imagesPath))
             {
-                var fileInfo = new FileInfo(file);
-                if (fileInfo.Exists)
+                var files = Directory.GetFiles(imagesPath);
+                foreach (var file in files)
                 {
-                    size += fileInfo.Length;
-                    c++;
+                    var fileInfo = new FileInfo(file);
+                    if (fileInfo.Exists)
+                    {
+                        size += fileInfo.Length;
+                        c++;
+                    }
                 }
             }
+
+            return (c / 2, size);
+        }
+
+        private static long GetCacheSize()
+        {
             var cachePath = Utilities.GetDataPath("cache/metadata.cache");
             var cacheInfo = new FileInfo(cachePath);
-            
-            return (c/2, size, cacheInfo.Length);
+            return cacheInfo.Exists ? cacheInfo.Length : 0;
+
         }
 
         private void SortData()
@@ -435,20 +535,36 @@ namespace ConfiguratorGUI
             var exploreTask = LoadExplore();
             var loadTask = LoadData();
             var taskInitTime = DateTime.UtcNow;
-            await Task.WhenAll(exploreTask, loadTask);
+            //await Task.WhenAll(exploreTask, loadTask);
             var data = await loadTask;
 
             // Since this is the initial load, setting the property fires NotifyPropertyChanged once
             MyPictureData = new ObservableCollection<PictureData>(data.OrderByDescending(x => x));
-            
+
+            await exploreTask;
             var endTime = DateTime.UtcNow;
             Trace.WriteLine($"Initialisation times: Total: {(endTime - startTime).TotalMilliseconds}ms; Task spinup: {(taskInitTime - startTime).TotalMilliseconds}ms");
         }
 
-        public ViewModel()
-        {
+        //public MainViewModel(IUpdateService updateSvc, IImageLoader imgLoader)
+        //{
+        //    _updateService = updateSvc;
+        //    _imageLoader = imgLoader;
 
-        }
+        //    // Start non-blocking initialization
+        //    _ = InitializeAsync();
+        //}
 
+        //private async Task InitializeAsync()
+        //{
+        //    // 1. Parallel start for speed
+        //    var updateTask = _updateService.CheckForUpdatesAsync();
+        //    var imagesTask = _imageLoader.LoadAllAsync();
+
+        //    await Task.WhenAll(updateTask, imagesTask);
+
+        //    // 2. Update UI properties safely via DataBinding
+        //}
     }
 }
+

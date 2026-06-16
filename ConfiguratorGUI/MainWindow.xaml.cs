@@ -1,10 +1,13 @@
-﻿using APODWallpaper.Utils;
+﻿using APODWallpaper;
+using APODWallpaper.Utils;
 using System.Diagnostics;
+using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 using MColor = System.Windows.Media.Color;
 using SPath = System.Windows.Shapes.Path;
 namespace ConfiguratorGUI
@@ -17,15 +20,19 @@ namespace ConfiguratorGUI
         private static readonly SPath PathNotMax = new() { Data = new RectangleGeometry() { Rect = new Rect(0, 0, 8, 8) }, Stroke = new SolidColorBrush(MColor.FromRgb(240, 240, 240)) };
         private static readonly SPath PathMax = new() { Fill = new SolidColorBrush(MColor.FromRgb(70, 72, 89)), Data = new GeometryGroup() { Children = { new RectangleGeometry() { Rect = new Rect(0, 0, 8, 8) }, new RectangleGeometry() { Rect = new Rect(2, -2, 8, 8) } } }, Stroke = new SolidColorBrush(MColor.FromRgb(240, 240, 240)) };
 
-        private readonly APODWallpaper.APODWallpaper APOD = APODWallpaper.APODWallpaper.Instance;
         private readonly ViewModel VM;
         private readonly StdOutRedirect redirect;
-        public MainWindow()
+        private readonly IAPODWallpaper APOD;
+        private readonly Configuration Config;
+        public MainWindow(IAPODWallpaper apod, ViewModel vm, Configuration config)
         {
+            APOD = apod;
+            VM = vm;
+            Config = config;
+            DataContext = vm;
             InitializeComponent();
             redirect = new StdOutRedirect(TxtOutput);
             Console.SetOut(redirect);
-            VM = (ViewModel)DataContext;
         }
 
         #region Window Control
@@ -116,11 +123,11 @@ namespace ConfiguratorGUI
         {
             await Updater.CheckUpdate();
         }
-
+        // TODO: Move methods to viewmodel
         private async void BtnResetDefault_Click(object sender, RoutedEventArgs e)
         {
-            if (!Configuration.DefaultConfiguration.isReady) await Configuration.DefaultConfiguration.Initialise();
-            Configuration.Config.SetConfiguration(Configuration.DefaultConfiguration);
+            if (!Configuration.DefaultConfiguration.isReady) await Configuration.DefaultConfiguration.InitialiseAsync();
+            Config.CopyConfiguration(Configuration.DefaultConfiguration);
             BtnUpdateTheme_Click(sender, e);
         }
 
@@ -129,15 +136,10 @@ namespace ConfiguratorGUI
             TxtOutput.Clear();
         }
 
-        private void BtnStyleChange_Click(object sender, RoutedEventArgs e)
-        {
-            APOD.UpdateBackground(null, (WallpaperStyleEnum)Configuration.Config.WallpaperStyle);
-        }
-
         private async void BtnUpdateTheme_Click(object sender, RoutedEventArgs e)
         {
             Trace.WriteLine(CmbConfiguratorTheme.SelectedItem);
-            Trace.WriteLine(Configuration.Config.ConfiguratorTheme);
+            Trace.WriteLine(Config.ConfiguratorTheme);
             if (CmbConfiguratorTheme.SelectedItem == null) { return; }
             await ((App)Application.Current).SetTheme();
         }
@@ -175,6 +177,11 @@ namespace ConfiguratorGUI
             }
         }
 
+        private void BtnStyleChange_Click(object sender, RoutedEventArgs e)
+        {
+            APOD.UpdateBackground(style: (WallpaperStyleEnum)Config.WallpaperStyle);
+        }
+
         private void BtnExploreFolder_Click(object sender, RoutedEventArgs e)
         {
             Process.Start("explorer.exe", Environment.ExpandEnvironmentVariables("%appdata%\\APODWallpaper\\images"));
@@ -185,5 +192,10 @@ namespace ConfiguratorGUI
             Process.Start(new ProcessStartInfo("Resources\\help.html") { UseShellExecute=true});
         }
 
+        private void BitmapImage_DownloadCompleted(object sender, EventArgs e)
+        {
+            //var img = sender as BitmapImage;
+            //Trace.WriteLine($"Image downloaded: {img?.Format} {img?.Metadata} ");
+        }
     }
 }

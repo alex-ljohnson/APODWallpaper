@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup>
+    <Authors>Alexander Johnson</Authors>
+    <Company>TransparentBox Co.</Company>
+    <Copyright>Copyright © Alexander Johnson $([System.DateTime]::UtcNow.ToString('yyyy'))</Copyright>
+
+    <BuildYear>$([System.DateTime]::UtcNow.ToString('yyyy'))</BuildYear>
+    <BuildMonth>$([System.DateTime]::UtcNow.ToString('MM'))</BuildMonth>
+    <BuildDay>$([System.DateTime]::UtcNow.ToString('dd'))</BuildDay>
+    
+    <Patch Condition="'$(Patch)' == ''">$([System.Math]::Floor($([System.DateTime]::UtcNow.TimeOfDay.TotalMinutes)))</Patch>
+
+    <Version>$(BuildYear).$(BuildMonth).$(BuildDay).$(Patch)</Version>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <FileVersion>$(Version)</FileVersion>
+  </PropertyGroup>
+</Project>

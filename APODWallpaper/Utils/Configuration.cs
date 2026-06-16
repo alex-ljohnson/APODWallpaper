@@ -17,8 +17,10 @@ namespace APODWallpaper.Utils
         Fill = 10,
         Span = 22
     }
-    public class Configuration : INotifyPropertyChanged
+    public class Configuration : INotifyPropertyChanged, IDisposable, Interfaces.IConfigurationService
     {
+        private static readonly HashSet<string> openConfigs = [];
+
         public bool isReady = false;
 
         private readonly string base_path = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
@@ -30,6 +32,7 @@ namespace APODWallpaper.Utils
         private readonly StreamReader reader;
 
 
+        private readonly SemaphoreSlim _saveLock = new(1, 1);
         private Dictionary<string, dynamic> _configuration = [];
         // To add new setting:
         // copy one of the properties below (change occurances of name and default value)
@@ -42,8 +45,10 @@ namespace APODWallpaper.Utils
         public bool ExplainImage { get { return _configuration.GetValueOrDefault(nameof(ExplainImage), false); } set { _configuration[nameof(ExplainImage)] = value; AutoSave(); OnPropertyChanged(nameof(ExplainImage)); } }
         public string BaseUrl { get { return _configuration.GetValueOrDefault(nameof(BaseUrl), "https://api.nasa.gov/planetary/apod"); } set { _configuration[nameof(BaseUrl)] = value; AutoSave(); OnPropertyChanged(nameof(BaseUrl)); } }
         public string ConfiguratorTheme { get { return _configuration.GetValueOrDefault(nameof(ConfiguratorTheme), "Light.xaml"); } set { _configuration[nameof(ConfiguratorTheme)] = value; AutoSave(); OnPropertyChanged(nameof(ConfiguratorTheme)); } }
-        public int NetworkTimeout { get { return _configuration.GetValueOrDefault(nameof(NetworkTimeout), 10); } set { _configuration[nameof(NetworkTimeout)] = value; AutoSave(); OnPropertyChanged(nameof(NetworkTimeout)); } }
-        public long PreviewQuality { get { return _configuration.GetValueOrDefault(nameof(PreviewQuality), 200); } set { 
+        
+        private const long MinNetworkTimeoutSeconds = 1L;
+        public long NetworkTimeout { get { return Math.Max((long)_configuration.GetValueOrDefault(nameof(NetworkTimeout), 20L), MinNetworkTimeoutSeconds); } set { _configuration[nameof(NetworkTimeout)] = value; AutoSave(); OnPropertyChanged(nameof(NetworkTimeout)); } }
+        public long PreviewQuality { get { return _configuration.GetValueOrDefault(nameof(PreviewQuality), 200L); } set { 
                 _configuration[nameof(PreviewQuality)] = value; AutoSave(); OnPropertyChanged(nameof(PreviewQuality)); } }
         public long WallpaperStyle { get { return (long)_configuration.GetValueOrDefault(nameof(WallpaperStyle), WallpaperStyleEnum.Fill); } set { _configuration[nameof(WallpaperStyle)] = value; AutoSave(); OnPropertyChanged(nameof(WallpaperStyle)); } }
         public string API_KEY { get { return _configuration.GetValueOrDefault(nameof(API_KEY), "5zgCnpExBIpD6hZvruRRJS48WfKYBe0PlVVaO5NZ"); } set { _configuration[nameof(API_KEY)] = value; AutoSave(); OnPropertyChanged(nameof(API_KEY)); } }
@@ -67,36 +72,36 @@ namespace APODWallpaper.Utils
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        public static readonly Configuration DefaultConfiguration = new("Default", false, false) { BaseUrl = "https://api.nasa.gov/planetary/apod", UseHD = true, RunStartup = true, ExplainImage = false, DownloadInfo = false, WallpaperStyle = (int)WallpaperStyleEnum.Fill, ConfiguratorTheme = "Light.xaml", PreviewQuality = 100, API_KEY= "5zgCnpExBIpD6hZvruRRJS48WfKYBe0PlVVaO5NZ", NetworkTimeout= 10};
-        private static readonly Lock padlock = new();
-        private static Configuration? _instance = null;
-        public static Configuration Config
-        {
-            get
-            {
-                lock (padlock)
-                {
-                    _instance ??= new Configuration("Config", true, true);
-                    return _instance;
-                }
-            }
-        }
-
-        private Configuration(string ID = "None", bool autoSave = true, bool file = true)
+        public static readonly Configuration DefaultConfiguration = new("Default", false, false) { BaseUrl = "https://api.nasa.gov/planetary/apod", UseHD = true, RunStartup = true, ExplainImage = false, DownloadInfo = false, WallpaperStyle = (int)WallpaperStyleEnum.Fill, ConfiguratorTheme = "Light.xaml", PreviewQuality = 100, API_KEY= "5zgCnpExBIpD6hZvruRRJS48WfKYBe0PlVVaO5NZ", NetworkTimeout= 10L};
+        
+        public Configuration(string ID = "None", bool autoSave = true, bool file = true)
         {
             Trace.WriteLine("LOADING CONFIG...");
+            if (openConfigs.Contains(ID))
+            {
+                throw new Exception($"Config with ID {ID} already open");
+            }
+            openConfigs.Add(ID);
             this.autoSave = autoSave;
             this.ID = ID;
             fileTied = file;
-            var configPath = Utilities.GetDataPath("config.json");
+            var configPath = Utilities.GetDataPath($"{ID.ToLower()}.json");
             bool exists = File.Exists(configPath);
             if (!exists) { File.Create(configPath); }
-            fileStream = new(configPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, true);
-            writer = new(fileStream, Encoding.UTF8);
-            reader = new(fileStream, Encoding.UTF8);
+            try
+            {
+                fileStream = new(configPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read, 4096, true);
+                writer = new(fileStream, Encoding.UTF8);
+                reader = new(fileStream, Encoding.UTF8);
+            }
+            catch
+            {
+                openConfigs.Remove(ID);
+                throw;
+            }
         }
 
-        public async Task Initialise()
+        public async Task InitialiseAsync()
         {
             Trace.WriteLine("Init " + ID);
             await LoadDataAsync(fileTied);
@@ -128,20 +133,28 @@ namespace APODWallpaper.Utils
 
         private void AutoSave()
         {
-            if (autoSave && ID != "Default")
+            if (autoSave && fileTied)
             {
-                SaveConfigAsync();
+                _ = SaveConfigAsync();
             }
         }
 
-        public async void SaveConfigAsync()
+        public async Task SaveConfigAsync()
         {
-            string jsonString = JsonConvert.SerializeObject(_configuration, Formatting.Indented);
-            fileStream.SetLength(0);
-            await writer.WriteAsync(jsonString);
-            writer.Flush();
-            fileStream.Flush();
-            Trace.WriteLine($"Save Config: {jsonString}");
+            await _saveLock.WaitAsync();
+            try
+            {
+                string jsonString = JsonConvert.SerializeObject(_configuration, Formatting.Indented);
+                fileStream.SetLength(0);
+                fileStream.Position = 0;
+                await writer.WriteAsync(jsonString);
+                await writer.FlushAsync();
+                Trace.WriteLine($"Save Config: {jsonString}");
+            }
+            finally
+            {
+                _saveLock.Release();
+            }
         }
 
         public void ChangeStartup()
@@ -157,7 +170,7 @@ namespace APODWallpaper.Utils
                 key?.DeleteValue("APODWallpaper");
             }
         }
-        public static bool CheckStartup()
+        public static bool CheckStartupSet()
         {
             var reg = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run");
             return reg?.GetValue("APODWallpaper") != null;
@@ -166,16 +179,8 @@ namespace APODWallpaper.Utils
         /// <summary>
         /// Set the current configuration, returns itself
         /// </summary>
-        public Configuration SetConfiguration(Configuration newConfiguration)
+        public Configuration CopyConfiguration(Configuration newConfiguration)
         {
-            //foreach (var i in GetType().GetProperties())
-            //{
-            //    if (i.PropertyType != this.GetType())
-            //    {
-
-            //        _configuration[i.Name] = (this, i.GetValue(newConfiguration));
-            //    }
-            //}
             foreach (var (key, val) in newConfiguration._configuration)
             {
                 _configuration[key] = val;
@@ -192,6 +197,21 @@ namespace APODWallpaper.Utils
         public override string ToString()
         {
             return JsonConvert.SerializeObject(_configuration, Formatting.Indented);
+        }
+
+        public void Dispose()
+        {
+            writer.Flush();
+            writer.Close();
+            writer?.Dispose();
+            reader.Close();
+            reader.Dispose();
+            fileStream.Flush();
+            fileStream.Close();
+            fileStream?.Dispose();
+            openConfigs.Remove(ID);
+            _saveLock.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 }

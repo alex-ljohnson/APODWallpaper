@@ -1,10 +1,11 @@
 ﻿using APODWallpaper;
+using APODWallpaper.Interfaces;
 using APODWallpaper.Utils;
+using ConfiguratorGUI.Services;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Primitives;
+using Microsoft.Extensions.Logging;
 using System.Diagnostics;
-using System.IO;
-using System.Text.RegularExpressions;
+using System.Reflection;
 using System.Windows;
 
 namespace ConfiguratorGUI
@@ -15,101 +16,66 @@ namespace ConfiguratorGUI
     public partial class App : Application
     {
         private readonly IServiceProvider serviceProvider;
-        public const string AppVersion = "2026.01.14.1";
-
+        private readonly Configuration Config;
+        public static string? AppVersion { get; } = Assembly.GetExecutingAssembly()
+                    .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+                    .InformationalVersion;
+        //private HostApplicationBuilder appBuilder;
         public App()
         {
+            //appBuilder = Host.CreateApplicationBuilder();
             var services = new ServiceCollection();
             ConfigureServices(services);
             serviceProvider = services.BuildServiceProvider();
+
+            Config = serviceProvider.GetRequiredService<Configuration>();
         }
 
         private void ConfigureServices(IServiceCollection services)
         {
-            services.AddSingleton<Configuration>();
-            services.AddSingleton<APODWallpaper.APODWallpaper>();
-            services.AddTransient<MainWindow>(s => new MainWindow
-            {
-                DataContext = s.GetRequiredService<ViewModel>()
-            });
-        }
+            // Configuration - registered as both concrete type and interface (same singleton instance)
+            services.AddSingleton<Configuration>(s => new("Config", true, true));
+            services.AddSingleton<IConfigurationService>(s => s.GetRequiredService<Configuration>());
 
+            // Named HttpClient for APODCache timeout by ConfigurableTimeoutHandler
+            services.AddTransient<ConfigurableTimeoutHandler>();
+            services.AddHttpClient("APODCache")
+                    .AddHttpMessageHandler<ConfigurableTimeoutHandler>();
 
-        [GeneratedRegex(@"[\s]{2,}", RegexOptions.None)]
-        private static partial Regex WhitespaceRegex();
-        private static async Task<bool> CheckThemeAsync()
-        {
-            using var stream = new FileStream($"./Styles/{Configuration.Config.ConfiguratorTheme}", FileMode.Open, FileAccess.Read);
-            using var reader = new StreamReader(stream, true);
-            string contents = (await reader.ReadToEndAsync()).Trim().ReplaceLineEndings(" ");
-            contents = WhitespaceRegex().Replace(contents, " ");
-            return contents.StartsWith("<ResourceDictionary xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\">")
-            && contents.EndsWith("</ResourceDictionary>");
-        }
-        public async Task SetTheme()
-        {
-            // Not a default theme
-            if (!Configuration.DefaultThemes.Contains(Configuration.Config.ConfiguratorTheme))
-            {
-                if (!(File.Exists($"./Styles/{Configuration.Config.ConfiguratorTheme}") && await CheckThemeAsync()))
-                {
-                    Trace.WriteLine("Invalid theme");
-                    await ResetTheme();
-                    return;
-                }
-            }
-            try
-            {
-                Resources.MergedDictionaries[0].Source = new Uri($"./Styles/{Configuration.Config.ConfiguratorTheme}", UriKind.Relative);
-            }
-            catch (IOException)
-            {
-                Resources.MergedDictionaries[0].Source = new Uri(Path.GetFullPath($"./Styles/{Configuration.Config.ConfiguratorTheme}"), UriKind.Absolute);
-            }
-        }
-        private async Task ResetTheme()
-        {
-            Configuration.Config.ConfiguratorTheme = "Light.xaml";
-            MessageBox.Show("Error in loading custom theme, default theme applied", "Theme error", MessageBoxButton.OK, MessageBoxImage.Error);
-            await SetTheme();
-        }
+            // Core services registered as interfaces
+            services.AddSingleton<IAPODCache, APODCache>();
+            services.AddSingleton<IAPODWallpaper, APODWallpaper.APODWallpaper>();
+            services.AddSingleton<ViewModel>();
 
-        private static void LoadThemesIntoConfig()
-        {
-            List<string> themes = ["Light.xaml", "Dark.xaml"];
-            if (Directory.Exists("./Styles"))
-            {
-                foreach (var file in Directory.EnumerateFiles("./Styles"))
-                {
-                    Trace.WriteLine($"Found theme: {file}");
-                    if (file.EndsWith(".xaml") && File.Exists(file))
-                    {
-                        var name = file[(file.LastIndexOf('\\') + 1)..];
-                        Trace.WriteLine("Found theme: " + name);
-                        themes.Add(name);
-                    }
-                }
-                Configuration.Config.LoadThemes(themes);
-            }
-            else
-            {
-                Directory.CreateDirectory("./Styles");
-            }
+            // Theme service
+            services.AddSingleton<IThemeService, ThemeStyleService>();
 
+            services.AddLogging(services => services.AddConsole());
+            services.AddTransient<MainWindow>();
         }
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+            var mainWindow = serviceProvider.GetRequiredService<MainWindow>();
+            mainWindow.Show();
         }
 
         private async void Application_Startup(object sender, StartupEventArgs e)
         {
             Trace.WriteLine("At app startup");
-            var startTime = DateTime.Now;
-            await Configuration.Config.Initialise();
-            LoadThemesIntoConfig();
-            await SetTheme();
+            var startTime = DateTime.UtcNow;
+            await Config.InitialiseAsync();
+            FileMigration.Run(new MigrationContext());
+            var themeService = serviceProvider.GetRequiredService<IThemeService>();
+            await themeService.InitializeThemesAsync();
+            await themeService.ApplyThemeAsync(Resources);
             Trace.WriteLine($"App startup time: {(DateTime.UtcNow - startTime).TotalMilliseconds}ms");
+        }
+
+        public async Task SetTheme()
+        {
+            var themeService = serviceProvider.GetRequiredService<IThemeService>();
+            await themeService.ApplyThemeAsync(Resources);
         }
     }
 }
