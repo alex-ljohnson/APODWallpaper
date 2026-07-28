@@ -87,8 +87,10 @@ namespace APODWallpaper.Utils
             this.ID = ID;
             fileTied = file;
             var configPath = Utilities.GetDataPath($"{ID.ToLower()}.json");
-            bool exists = File.Exists(configPath);
-            if (!exists) { File.Create(configPath); }
+            if (!File.Exists(configPath))
+            {
+                using var fs = File.Create(configPath);
+            }
             try
             {
                 fileStream = new(configPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read, 4096, true);
