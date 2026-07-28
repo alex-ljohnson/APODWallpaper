@@ -1,5 +1,6 @@
 TODO list:
  - Add cache management options
+ - Fix window scaling issues and max size limit
  - Limit files kept to specified size
  - Bound the AsyncImageLoader frozen-image cache (static dictionary, never evicted - keeps every decoded preview resident for the process lifetime). Use an LRU/size-bounded cache or evict when the grid is gone.
  - UPDATE README with new features
