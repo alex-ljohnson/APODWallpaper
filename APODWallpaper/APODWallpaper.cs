@@ -35,11 +35,12 @@ if (args.Length > 0)
         }
     }
 }
-Console.WriteLine($"APODWallpaper v{verName}\n--------------------\n");
 
 // Initialise config first so NetworkTimeout is available for HttpClient registration
 Configuration config = new("Config");
 await config.InitialiseAsync();
+if (config.ShowConsole) { AllocConsole(); Console.WriteLine("Console active..."); }
+Console.WriteLine($"APODWallpaper v{verName}\n--------------------\n");
 
 var services = new ServiceCollection();
 services.AddSingleton<Configuration>(config);
@@ -49,7 +50,6 @@ services.AddSingleton<IAPODCache, APODCache>();
 services.AddSingleton<IAPODWallpaper, APODWallpaper.APODWallpaper>();
 
 var provider = services.BuildServiceProvider();
-if (config.ShowConsole) { AllocConsole(); Console.WriteLine("Console active..."); }
 var apod = provider.GetRequiredService<IAPODWallpaper>();
 await apod.UpdateAsync(force);
 namespace APODWallpaper
