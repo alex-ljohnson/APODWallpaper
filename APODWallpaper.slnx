@@ -12,6 +12,9 @@
     <Platform Solution="*|x86" Project="x86" />
     <Deploy />
   </Project>
+  <Project Path="APODBenchmarks/APODBenchmarks.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
   <Project Path="APODTesting/APODTesting.csproj" />
   <Project Path="APODWallpaper/APODWallpaper.csproj">
     <Platform Solution="*|x64" Project="x64" />
