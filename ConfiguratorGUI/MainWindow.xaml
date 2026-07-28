@@ -356,7 +356,7 @@
                                 <TextBlock Text="Image preview quality (restart required): " VerticalAlignment="Center"/>
                                 <TextBox x:Name="TxtPreviewQuality" Text="{Binding Config.PreviewQuality, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PreviewTextInput="TxtPreviewQuality_PreviewTextInput" DataObject.Pasting="TextBoxPasting" Width="160"/>
                             </StackPanel>
-
+                            <CheckBox x:Name="ChkShowConsole" Content="Show Console window on image update" IsChecked="{Binding Config.ShowConsole, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Grid>
                     <Border Grid.Column="1" Grid.Row="0" BorderThickness="10" CornerRadius="25" BorderBrush="{DynamicResource Light}"/>

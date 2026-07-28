@@ -7,6 +7,10 @@ using Newtonsoft.Json;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
+[DllImport("kernel32.dll", SetLastError = true)]
+[return: MarshalAs(UnmanagedType.Bool)]
+static extern bool AllocConsole();
+
 bool force = false;
 string? verName = APODWallpaper.APODWallpaper.Version;
 if (args.Length > 0)
@@ -45,6 +49,7 @@ services.AddSingleton<IAPODCache, APODCache>();
 services.AddSingleton<IAPODWallpaper, APODWallpaper.APODWallpaper>();
 
 var provider = services.BuildServiceProvider();
+if (config.ShowConsole) { AllocConsole(); Console.WriteLine("Console active..."); }
 var apod = provider.GetRequiredService<IAPODWallpaper>();
 await apod.UpdateAsync(force);
 namespace APODWallpaper
