@@ -195,8 +195,8 @@ namespace ConfiguratorGUI
                 {
                     if (data == null) return;
                     var uri = data.GetPreferredUri(config.UseHD);
-                    MessageBox.Show($"{data.Explanation}\n\nCopyright: {data.Copyright}\n\nPress OK to open content in browser...", $"{data.Title} - {data.DateFormatted}");
-                    if (uri == null) return;
+                    var mRes = MessageBox.Show($"{data.Explanation}\n\nCopyright: {data.Copyright}\n\nPress OK to open content in browser...", $"{data.Title} - {data.DateFormatted}", MessageBoxButton.OKCancel);
+                    if (uri == null || mRes != MessageBoxResult.OK) return;
                     Process.Start(new ProcessStartInfo { FileName = uri.AbsoluteUri, UseShellExecute = true });
                 }, (s) => true);
                 return _viewContentCommand;
