@@ -41,9 +41,11 @@ namespace ConfiguratorGUI
             services.AddSingleton<Configuration>(s => new("Config", true, true));
             services.AddSingleton<IConfigurationService>(s => s.GetRequiredService<Configuration>());
 
-            // Named HttpClient for APODCache timeout by ConfigurableTimeoutHandler
+            // Named HttpClient for APODCache, retries outermost so each attempt gets its own timeout
+            services.AddTransient<TransientRetryHandler>();
             services.AddTransient<ConfigurableTimeoutHandler>();
-            services.AddHttpClient("APODCache")
+            services.AddHttpClient("APODCache", client => client.Timeout = Timeout.InfiniteTimeSpan)
+                    .AddHttpMessageHandler<TransientRetryHandler>()
                     .AddHttpMessageHandler<ConfigurableTimeoutHandler>();
 
             // Core services registered as interfaces

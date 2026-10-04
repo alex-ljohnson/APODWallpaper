@@ -10,15 +10,21 @@ namespace ConfiguratorGUI
         {
             if (value != null)
             {
-                output.Text += value + "\n";
+                Append(value + "\n");
             }
         }
         public override void Write(string? value)
         {
             if (value != null)
             {
-                output.Text += value;
+                Append(value);
             }
+        }
+
+        // TextBox is UI thread only, background requests log too. Always queue to keep line order
+        private void Append(string text)
+        {
+            output.Dispatcher.InvokeAsync(() => output.Text += text);
         }
 
         public override Encoding Encoding { get { return Encoding.UTF8; } }

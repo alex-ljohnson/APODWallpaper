@@ -60,7 +60,8 @@ namespace APODWallpaper.Utils
             {
                 try
                 {
-                    await RefreshAsync(date);
+                    // Background work, don't pop a dialog per failed date
+                    await SendRequestAsync(date: date, quiet: true);
                 }
                 catch (Exception ex)
                 {
@@ -167,9 +168,10 @@ namespace APODWallpaper.Utils
         /// <param name="startDate"></param>
         /// <param name="endDate"></param>
         /// <param name="count"></param>
+        /// <param name="quiet">Log failures without showing a message box</param>
         /// <returns></returns>
         /// <exception cref="ArgumentException"></exception>
-        private async Task<APODInfo[]?> SendRequestAsync(DateOnly? date = null, DateOnly? startDate = null, DateOnly? endDate = null, int? count = null)
+        private async Task<APODInfo[]?> SendRequestAsync(DateOnly? date = null, DateOnly? startDate = null, DateOnly? endDate = null, int? count = null, bool quiet = false)
         {
             if (endDate != null && endDate > APODDate.Today()) throw new ArgumentException("end_date was in the future");
             var urlParams = HttpUtility.ParseQueryString("");
@@ -209,7 +211,8 @@ namespace APODWallpaper.Utils
             }
             catch (Exception ex) when (ex is JsonException || ex is NotSupportedException || ex is HttpRequestException || ex is TaskCanceledException)
             {
-                Utilities.ShowMessageBox("Please check your internet connection and try again.\nThis also occurs when the NASA API is down.", "Connection error", Utilities.MessageBoxType.Error);
+                if (!quiet)
+                    Utilities.ShowMessageBox("Please check your internet connection and try again.\nThis also occurs when the NASA API is down.", "Connection error", Utilities.MessageBoxType.Error);
                 Console.WriteLine(ex.Message);
                 return null;
             } 

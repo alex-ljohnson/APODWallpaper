@@ -300,6 +300,11 @@
                                 </DataTemplate>
                             </ListView.ItemTemplate>
                         </ListView>
+                    <Border Grid.ColumnSpan="2" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="24 12" CornerRadius="4"
+                            Background="{DynamicResource Mid}" IsHitTestVisible="False"
+                            Visibility="{Binding IsExploreLoading, Converter={StaticResource boolVisConverter}}">
+                        <TextBlock Text="Loading..." FontSize="16" Foreground="{DynamicResource Foreground}"/>
+                    </Border>
                     <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Center" Margin="0 5">
                         <Button x:Name="BtnLoadPrev" Content="Previous" Width="250" Height="32" Command="{Binding PrevCommand}"/>
                             <Button x:Name="BtnLoadNext" Content="Next" Width="250" Height="32" Command="{Binding NextCommand}"/>
@@ -394,7 +399,7 @@
                             </Grid.RowDefinitions>
                             <Button x:Name="BtnExploreFolder" Content="Explore images folder..." Grid.Row="0" Width="250" Height="32" Click="BtnExploreFolder_Click"/>
                             <Button x:Name="BtnUpdate" Content="Check for update..." Grid.Row="1" Width="250" Height="32"  Click="BtnUpdate_Click"/>
-                            <Button x:Name="BtnForceRun" Content="Force Run" Grid.Row="2" Width="250" Height="32" Click="BtnForceRun_Click"/>
+                            <Button x:Name="BtnForceRun" Content="Force Run" Grid.Row="2" Width="250" Height="32" Click="BtnForceRun_Click" IsEnabled="{Binding IsUpdating, Converter={StaticResource inverseBoolConverter}}"/>
                             <Button x:Name="BtnResetDefault" Content="Reset to Defaults" Grid.Row="3" Width="250" Height="32" Click="BtnResetDefault_Click"/>
                         </Grid>
                     </Grid>

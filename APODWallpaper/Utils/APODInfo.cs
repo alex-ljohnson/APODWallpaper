@@ -35,7 +35,11 @@ namespace APODWallpaper.Utils
 
         // Valid only if at least one usable image URL
         [JsonIgnore]
-        public bool IsValid => Url != null || HDUrl != null;
+        public bool IsValid => IsUsable(Url) || IsUsable(HDUrl);
+
+        // API scraper falls back to site theme images (e.g. NASA logo) when the APOD page layout breaks
+        private static bool IsUsable(Uri? uri) =>
+            uri != null && !uri.AbsolutePath.Contains("/wp-content/themes/", StringComparison.OrdinalIgnoreCase);
         public bool Equals(APODInfo? other)
         {
             if (other == null) return false;

@@ -39,6 +39,29 @@ namespace ConfiguratorGUI
             }
         }
 
+        // Busy flags disable commands that would race each other during slow API requests
+        private bool isUpdating;
+        public bool IsUpdating
+        {
+            get => isUpdating;
+            set { isUpdating = value; OnBusyChanged(); }
+        }
+
+        private bool isExploreLoading;
+        public bool IsExploreLoading
+        {
+            get => isExploreLoading;
+            private set { isExploreLoading = value; OnBusyChanged(); }
+        }
+
+        private void OnBusyChanged([CallerMemberName] string? name = null)
+        {
+            OnPropertyChanged(name);
+            // AppStarting as the window stays usable while requests run
+            WindowCursor = isUpdating || isExploreLoading ? Cursors.AppStarting : Cursors.Arrow;
+            CommandManager.InvalidateRequerySuggested();
+        }
+
         private ObservableCollection<PictureData> myPictureData = [];
         public ObservableCollection<PictureData> MyPictureData
         {
@@ -137,7 +160,7 @@ namespace ConfiguratorGUI
         {
             get
             {
-                _checkNewCommand ??= new RelayCommand<object>(CheckNew, (s) => true);
+                _checkNewCommand ??= new RelayCommand<object>(CheckNew, (s) => !IsUpdating);
                 return _checkNewCommand;
             }
             set
@@ -211,7 +234,7 @@ namespace ConfiguratorGUI
         {
             get
             {
-                _nextCommand ??= new RelayCommand(ExploreNext, (s) => true);
+                _nextCommand ??= new RelayCommand(ExploreNext, (s) => !IsExploreLoading);
                 return _nextCommand;
             }
             set
@@ -224,7 +247,7 @@ namespace ConfiguratorGUI
         {
             get
             {
-                _prevCommand ??= new RelayCommand(ExplorePrev, (s) => true);
+                _prevCommand ??= new RelayCommand(ExplorePrev, (s) => !IsExploreLoading);
                 return _prevCommand;
             }
             set
@@ -238,7 +261,7 @@ namespace ConfiguratorGUI
         {
             get
             {
-                _randCommand ??= new RelayCommand(ExploreRandom, (s) => true);
+                _randCommand ??= new RelayCommand(ExploreRandom, (s) => !IsExploreLoading);
                 return _randCommand;
             }
             set
@@ -274,42 +297,55 @@ namespace ConfiguratorGUI
         }
         private async Task LoadExplore()
         {
-            var exploreStart = exploreEnd.AddDays(-ExploreCount + 1);
-            var data = await cache.GetRangeAsync(exploreStart, exploreEnd);
-            var filteredData = data?.Where(x => x.GetPreferredUri(config.UseHD) != null);
-            if (filteredData != null)
-                ExploreData = new(filteredData);
+            IsExploreLoading = true;
+            try
+            {
+                var exploreStart = exploreEnd.AddDays(-ExploreCount + 1);
+                var data = await cache.GetRangeAsync(exploreStart, exploreEnd);
+                var filteredData = data?.Where(x => x.IsValid);
+                if (filteredData != null)
+                    ExploreData = new(filteredData);
+            }
+            finally
+            {
+                IsExploreLoading = false;
+            }
         }
         private async void ExploreNext()
         {
+            // Guard as well as canExecute, requery is deferred so a fast double click can get through
+            if (IsExploreLoading) return;
             Trace.WriteLine("Loading next...");
             if (exploreEnd.AddDays(ExploreCount) <= APODDate.Today().AddDays(-1))
             {
-                WindowCursor = Cursors.Wait;
                 exploreEnd = exploreEnd.AddDays(ExploreCount);
                 await LoadExplore();
-                WindowCursor = Cursors.Arrow;
             }
         }
         public async void ExplorePrev()
         {
+            if (IsExploreLoading) return;
             Trace.WriteLine("Loading prev...");
             if (exploreEnd.AddDays(-ExploreCount) >= APODDate.InceptionDate)
             {
-                WindowCursor = Cursors.Wait;
                 exploreEnd = exploreEnd.AddDays(-ExploreCount);
                 await LoadExplore();
-                WindowCursor = Cursors.Arrow;
             }
         }
         public async void ExploreRandom()
         {
+            if (IsExploreLoading) return;
             Trace.WriteLine("Loading random...");
-            WindowCursor = Cursors.Wait;
-            var data = await cache.FetchRandAsync(ExploreCount);
-            if (data != null) ExploreData = new(data);
-            
-            WindowCursor = Cursors.Arrow;
+            IsExploreLoading = true;
+            try
+            {
+                var data = await cache.FetchRandAsync(ExploreCount);
+                if (data != null) ExploreData = new(data.Where(x => x.IsValid));
+            }
+            finally
+            {
+                IsExploreLoading = false;
+            }
         }
 
         public void DeleteOption(string? source)
@@ -326,16 +362,22 @@ namespace ConfiguratorGUI
         }
         public async void CheckNew(object? param)
         {
+            if (IsUpdating) return;
             if (apod.CheckNew())
             {
                 MessageBox.Show("New image found.", "Downloading image");
                 PictureData? newData = default;
+                IsUpdating = true;
                 try
                 {
                     newData = await apod.UpdateAsync(true);
                 } catch (NotImageException ex)
                 {
                     MessageBox.Show(ex.Message, "APOD isn't an image");
+                }
+                finally
+                {
+                    IsUpdating = false;
                 }
                 if (newData != null)
                 {

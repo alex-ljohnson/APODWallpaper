@@ -106,8 +106,10 @@ namespace ConfiguratorGUI
 
         async private void BtnForceRun_Click(object sender, RoutedEventArgs e)
         {
+            if (VM.IsUpdating) return;
             TxtOutput.Clear();
             OutputTab.Focus();
+            VM.IsUpdating = true;
             try
             {
                 await APOD.UpdateAsync(true);
@@ -115,6 +117,10 @@ namespace ConfiguratorGUI
             {
                 MessageBox.Show(ex.Message, "APOD isn't an image");
                 return;
+            }
+            finally
+            {
+                VM.IsUpdating = false;
             }
             Console.WriteLine("\nProcess Finished!\n");
         }

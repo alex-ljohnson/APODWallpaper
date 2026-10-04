@@ -36,7 +36,6 @@ if (args.Length > 0)
     }
 }
 
-// Initialise config first so NetworkTimeout is available for HttpClient registration
 Configuration config = new("Config");
 await config.InitialiseAsync();
 if (config.ShowConsole) { AllocConsole(); Console.WriteLine("Console active..."); }
@@ -45,7 +44,12 @@ Console.WriteLine($"APODWallpaper v{verName}\n--------------------\n");
 var services = new ServiceCollection();
 services.AddSingleton<Configuration>(config);
 services.AddSingleton<IConfigurationService>(config);
-services.AddHttpClient("APODCache", client => client.Timeout = TimeSpan.FromSeconds(config.NetworkTimeout));
+// Retries outermost so each attempt gets its own timeout
+services.AddTransient<TransientRetryHandler>();
+services.AddTransient<ConfigurableTimeoutHandler>();
+services.AddHttpClient("APODCache", client => client.Timeout = Timeout.InfiniteTimeSpan)
+        .AddHttpMessageHandler<TransientRetryHandler>()
+        .AddHttpMessageHandler<ConfigurableTimeoutHandler>();
 services.AddSingleton<IAPODCache, APODCache>();
 services.AddSingleton<IAPODWallpaper, APODWallpaper.APODWallpaper>();
 
@@ -81,12 +85,14 @@ namespace APODWallpaper
             {
                 var fileInfo = await DownloadTodayAsync();
                 if (fileInfo == null) {
-                    Utilities.ShowMessageBox("Could not download image.", "Download error", Utilities.MessageBoxType.Error | Utilities.MessageBoxType.OK);
+                    // Cause already shown to the user by the fetch or URL check
+                    Console.WriteLine("Could not download image");
                     return null;
                 }
                 UpdateBackground(fileInfo.Source, style: (WallpaperStyleEnum)Config.WallpaperStyle);
-                string? todayExp = (await APODCache.GetToday())?.Explanation;
-                if (Config.ExplainImage && todayExp != null) { Utilities.ShowMessageBox(todayExp, "Image Updated", Utilities.MessageBoxType.Information | Utilities.MessageBoxType.OK); }
+                // Reuse downloaded info, a second API call can fail after the wallpaper is already set
+                string? todayExp = fileInfo.Description;
+                if (Config.ExplainImage && !string.IsNullOrEmpty(todayExp)) { Utilities.ShowMessageBox(todayExp, "Image Updated", Utilities.MessageBoxType.Information | Utilities.MessageBoxType.OK); }
                 return fileInfo;
             }
             else
@@ -101,6 +107,7 @@ namespace APODWallpaper
             APODInfo? imageInfo = information ?? await APODCache.GetToday();
             if (imageInfo == null) return null;
             if (imageInfo.GetPreferredUri(Config.UseHD) == null) { Utilities.ShowMessageBox("No media URL is given.", "No URL available"); Environment.Exit(1); }
+            if (!imageInfo.IsValid) { Utilities.ShowMessageBox("NASA returned an invalid image URL, the API may be having issues. Try again later.", "Invalid image"); return null; }
             if (imageInfo.MediaType != "image") { Utilities.ShowMessageBox("APOD is not an image.", "Not an image"); throw new NotImageException("APOD is not an image"); }
             Console.WriteLine("Getting image data");
 

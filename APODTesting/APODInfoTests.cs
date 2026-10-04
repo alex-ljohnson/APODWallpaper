@@ -32,4 +32,12 @@ public sealed class APODInfoTests
         };
         Assert.IsTrue(info.IsValid);
     }
+
+    [TestMethod]
+    public void IsValidWithSiteThemeImageReturnsFalse()
+    {
+        const string logo = "https://science.nasa.gov/wp-content/themes/nasa-child/assets/images/nasa-logo@2x.png";
+        var info = new APODInfo(null, DateOnly.FromDateTime(DateTime.UtcNow), "test", logo, "image", "v1", "NASA Science", logo);
+        Assert.IsFalse(info.IsValid);
+    }
 }

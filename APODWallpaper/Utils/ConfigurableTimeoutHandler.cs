@@ -1,7 +1,7 @@
 using APODWallpaper.Interfaces;
 using System.Net.Http;
 
-namespace ConfiguratorGUI.Services
+namespace APODWallpaper.Utils
 {
     public class ConfigurableTimeoutHandler(IConfigurationService config) : DelegatingHandler
     {
