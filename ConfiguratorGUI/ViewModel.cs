@@ -14,10 +14,11 @@ using System.Net.NetworkInformation;
 
 namespace ConfiguratorGUI
 {
-    public class ViewModel(IAPODWallpaper apod, IAPODCache cache, IConfigurationService config) : INotifyPropertyChanged
+    public class ViewModel(IAPODWallpaper apod, IAPODCache cache, IConfigurationService config, KeySetupViewModel keySetup) : INotifyPropertyChanged
     {
 
         public IConfigurationService Config => config;
+        public KeySetupViewModel KeySetup => keySetup;
 
         public static string APODAppVersion { get; } = APODWallpaper.APODWallpaper.Version;
         public static string ConfiguratorAppVersion { get; } = App.AppVersionDisplay;
@@ -39,7 +40,7 @@ namespace ConfiguratorGUI
             }
         }
 
-        // Busy flags disable commands that would race each other during slow API requests
+        // Busy flags disable commands that would race during slow API requests
         private bool isUpdating;
         public bool IsUpdating
         {
@@ -311,6 +312,11 @@ namespace ConfiguratorGUI
                 IsExploreLoading = false;
             }
         }
+        private async void OnKeySaved(object? sender, EventArgs e)
+        {
+            if (IsExploreLoading) return;
+            await LoadExplore();
+        }
         private async void ExploreNext()
         {
             // Guard as well as canExecute, requery is deferred so a fast double click can get through
@@ -573,6 +579,7 @@ namespace ConfiguratorGUI
         public async Task Initialise()
         {
             var startTime = DateTime.UtcNow;
+            keySetup.KeySaved += OnKeySaved;
             
             var exploreTask = LoadExplore();
             var loadTask = LoadData();

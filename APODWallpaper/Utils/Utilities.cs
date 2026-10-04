@@ -47,15 +47,27 @@ namespace APODWallpaper.Utils
             Error = 0x10,
             Information = 0x40,
         }
-        public static void ShowMessageBox(string msg, string title = "APOD Wallpaper", MessageBoxType type = MessageBoxType.OK)
+        public enum MessageBoxResult
+        {
+            None = 0,
+            OK = 1,
+            Cancel = 2,
+            Yes = 6,
+            No = 7,
+        }
+        public static MessageBoxResult ShowMessageBox(string msg, string title = "APOD Wallpaper", MessageBoxType type = MessageBoxType.OK)
         {
             if (OperatingSystem.IsWindows())
             {
-                _ = MessageBoxW(hwnd, msg, title, (int)type);
-            } else
-            {
-                Console.WriteLine($"{title}\n{msg}");
+                return (MessageBoxResult)MessageBoxW(hwnd, msg, title, (int)type);
             }
+            Console.WriteLine($"{title}\n{msg}");
+            return MessageBoxResult.None;
+        }
+
+        public static void OpenInBrowser(string url)
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
         }
 
     }

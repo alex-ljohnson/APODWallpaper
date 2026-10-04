@@ -11,15 +11,17 @@ namespace APODWallpaper.Utils
     {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfigurationService config;
+        private readonly IApiKeyErrorHandler keyErrorHandler;
         private static readonly string CacheFolder = Utilities.GetDataPath("cache/");
         private static readonly string MetadataCacheFile = Utilities.GetDataPath("cache/metadata.cache");
 
         private Dictionary<DateOnly, APODInfo> _metadataCache = [];
 
-        public APODCache(IHttpClientFactory httpClientFactory, IConfigurationService config)
+        public APODCache(IHttpClientFactory httpClientFactory, IConfigurationService config, IApiKeyErrorHandler keyErrorHandler)
         {
             _httpClientFactory = httpClientFactory;
             this.config = config;
+            this.keyErrorHandler = keyErrorHandler;
             EnsureCacheExists();
             LoadCache();
         }
@@ -187,14 +189,22 @@ namespace APODWallpaper.Utils
             {
                 urlParams["count"] = count.ToString();
             }
-            urlParams["api_key"] = config.API_KEY;
+            urlParams["api_key"] = config.EffectiveApiKey;
             Uri uri = new($"{config.BaseUrl}?{urlParams}");
             APODInfo[] imageInfo;
             var httpClient = _httpClientFactory.CreateClient("APODCache");
             try
             {
-                string responseContent = await httpClient.GetStringAsync(uri);
-                
+                using var response = await httpClient.GetAsync(uri);
+                string responseContent = await response.Content.ReadAsStringAsync();
+                if (ApiKey.ParseError(response.StatusCode, responseContent, config.UsingDemoKey, ApiKey.ReadLimit(response)) is ApiKeyError keyError)
+                {
+                    Console.WriteLine(keyError.Message);
+                    if (!quiet) keyErrorHandler.Handle(keyError);
+                    return null;
+                }
+                response.EnsureSuccessStatusCode();
+
                 if (endDate != null || count != null)
                 {
                     imageInfo = JsonConvert.DeserializeObject<APODInfo[]>(responseContent)!;

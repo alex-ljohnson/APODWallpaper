@@ -16,11 +16,16 @@ This is a program to download the "Astronomy Picture Of the Day" (APOD) from the
 ## Usage
 ### First Run
 #### API Key
-As of `v2025.10.20`, an API key is required to access the NASA APOD API. While you can use `DEMO_KEY`, it is rate limited and may not work if the limit from your IP is exceeded - the limit is quite low!  
-It is recommended that you sign up for your own free API key from NASA.  
-Alternatively, you can continue using the previous key (set by default), but this may also be rate limited if many other users are using it.
+Pictures come from NASA's APOD API, which needs an API key. Get a free one from [api.nasa.gov](https://api.nasa.gov/), it takes about a minute.
 
-On first run the program will prompt you to enter your NASA API key. You can get a free API key from [here (nasa.gov)](https://api.nasa.gov/).
+Without a key, APODWallpaper uses NASA's `DEMO_KEY`, which is limited to a few requests per hour per network. This is enough for the daily wallpaper but runs out quickly when browsing Explore. When it runs out you'll be told so and offered the key setup.
+
+You can enter your key:
+- in the installer, on the "NASA API key" page
+- in the Configurator, under Settings > API Key > Set up... (it checks the key with NASA before saving)
+- from the command line: `APODWallpaper.exe --set-key YOUR_KEY` (pass an empty key to go back to `DEMO_KEY`)
+
+Older versions shipped a shared key that every install used, so it kept hitting its limit. It is no longer used, and is cleared from existing settings automatically.
 ### Settings
 The settings can be accessed either from the Configurator GUI (if installed) or by editing the `config.json` file in the data directory `%appdata%/APODWallpaper/config.json`.
 

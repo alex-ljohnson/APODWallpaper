@@ -52,7 +52,11 @@ namespace APODWallpaper.Utils
         public long PreviewQuality { get { return _configuration.GetValueOrDefault(nameof(PreviewQuality), 200L); } set { 
                 _configuration[nameof(PreviewQuality)] = value; AutoSave(); OnPropertyChanged(nameof(PreviewQuality)); } }
         public long WallpaperStyle { get { return (long)_configuration.GetValueOrDefault(nameof(WallpaperStyle), WallpaperStyleEnum.Fill); } set { _configuration[nameof(WallpaperStyle)] = value; AutoSave(); OnPropertyChanged(nameof(WallpaperStyle)); } }
-        public string API_KEY { get { return _configuration.GetValueOrDefault(nameof(API_KEY), "5zgCnpExBIpD6hZvruRRJS48WfKYBe0PlVVaO5NZ"); } set { _configuration[nameof(API_KEY)] = value; AutoSave(); OnPropertyChanged(nameof(API_KEY)); } }
+        public string API_KEY { get { return _configuration.GetValueOrDefault(nameof(API_KEY), ""); } set { _configuration[nameof(API_KEY)] = value; AutoSave(); OnPropertyChanged(nameof(API_KEY)); OnPropertyChanged(nameof(UsingDemoKey)); } }
+        public bool KeySetupDismissed { get { return _configuration.GetValueOrDefault(nameof(KeySetupDismissed), false); } set { _configuration[nameof(KeySetupDismissed)] = value; AutoSave(); OnPropertyChanged(nameof(KeySetupDismissed)); } }
+
+        public string EffectiveApiKey => string.IsNullOrWhiteSpace(API_KEY) ? ApiKey.DemoKey : API_KEY.Trim();
+        public bool UsingDemoKey => EffectiveApiKey == ApiKey.DemoKey;
 
         public static readonly ReadOnlyCollection<string> DefaultThemes = new(["Light.xaml", "Dark.xaml"]);
         private ObservableCollection<string> availableThemes = new(DefaultThemes);
@@ -73,7 +77,7 @@ namespace APODWallpaper.Utils
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        public static readonly Configuration DefaultConfiguration = new("Default", false, false) { BaseUrl = "https://api.nasa.gov/planetary/apod", UseHD = true, RunStartup = true, ShowConsole = false, ExplainImage = false, DownloadInfo = false, WallpaperStyle = (int)WallpaperStyleEnum.Fill, ConfiguratorTheme = "Light.xaml", PreviewQuality = 100, API_KEY= "5zgCnpExBIpD6hZvruRRJS48WfKYBe0PlVVaO5NZ", NetworkTimeout= 10L};
+        public static readonly Configuration DefaultConfiguration = new("Default", false, false) { BaseUrl = "https://api.nasa.gov/planetary/apod", UseHD = true, RunStartup = true, ShowConsole = false, ExplainImage = false, DownloadInfo = false, WallpaperStyle = (int)WallpaperStyleEnum.Fill, ConfiguratorTheme = "Light.xaml", PreviewQuality = 100, NetworkTimeout= 10L};
         
         public Configuration(string ID = "None", bool autoSave = true, bool file = true)
         {
@@ -87,6 +91,7 @@ namespace APODWallpaper.Utils
             this.ID = ID;
             fileTied = file;
             var configPath = Utilities.GetDataPath($"{ID.ToLower()}.json");
+            Utilities.EnsureDataDirectory();
             if (!File.Exists(configPath))
             {
                 using var fs = File.Create(configPath);
@@ -117,7 +122,7 @@ namespace APODWallpaper.Utils
             {
                 string jsonString = await reader.ReadToEndAsync();
                 _configuration = JsonConvert.DeserializeAnonymousType(jsonString, new Dictionary<string, dynamic>()) ?? [];
-
+                ClearLegacyKey();
             }
 
             Trace.WriteLine($"-- ID: {ID} --");
@@ -127,6 +132,15 @@ namespace APODWallpaper.Utils
             }
             OnPropertyChanged("");
 
+        }
+
+        private void ClearLegacyKey()
+        {
+            if (_configuration.GetValueOrDefault(nameof(API_KEY)) is string key && key.Trim() == ApiKey.LegacySharedKey)
+            {
+                _configuration.Remove(nameof(API_KEY));
+                AutoSave();
+            }
         }
 
         public void LoadThemes(IEnumerable<string> themes)
@@ -204,14 +218,9 @@ namespace APODWallpaper.Utils
 
         public void Dispose()
         {
-            writer.Flush();
-            writer.Close();
-            writer?.Dispose();
-            reader.Close();
+            writer.Dispose();
             reader.Dispose();
-            fileStream.Flush();
-            fileStream.Close();
-            fileStream?.Dispose();
+            fileStream.Dispose();
             openConfigs.Remove(ID);
             _saveLock.Dispose();
             GC.SuppressFinalize(this);

@@ -13,6 +13,29 @@ static extern bool AllocConsole();
 
 bool force = false;
 string? verName = APODWallpaper.APODWallpaper.Version;
+// Run by the installer, keys are case sensitive so handle before the loop below lowercases args
+int setKeyAt = Array.FindIndex(args, a => a.Trim().Trim('-').Equals("set-key", StringComparison.OrdinalIgnoreCase));
+if (setKeyAt >= 0)
+{
+    string key = setKeyAt + 1 < args.Length ? args[setKeyAt + 1].Trim() : "";
+    try
+    {
+        using Configuration keyConfig = new("Config");
+        await keyConfig.InitialiseAsync();
+        keyConfig.API_KEY = key;
+        // Blank means the demo key was chosen, so the Configurator shouldn't ask again
+        if (key.Length == 0) keyConfig.KeySetupDismissed = true;
+        await keyConfig.SaveConfigAsync();
+        Console.WriteLine(key.Length == 0 ? "API key cleared, using NASA's demo key" : "API key saved");
+    }
+    catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+    {
+        // Installer reports a non-zero exit code to the user
+        Console.WriteLine($"Couldn't save API key: {ex.Message}");
+        Environment.ExitCode = 1;
+    }
+    return;
+}
 if (args.Length > 0)
 {
     foreach (string i in args)
@@ -50,6 +73,7 @@ services.AddTransient<ConfigurableTimeoutHandler>();
 services.AddHttpClient("APODCache", client => client.Timeout = Timeout.InfiniteTimeSpan)
         .AddHttpMessageHandler<TransientRetryHandler>()
         .AddHttpMessageHandler<ConfigurableTimeoutHandler>();
+services.AddSingleton<IApiKeyErrorHandler, PromptApiKeyErrorHandler>();
 services.AddSingleton<IAPODCache, APODCache>();
 services.AddSingleton<IAPODWallpaper, APODWallpaper.APODWallpaper>();
 

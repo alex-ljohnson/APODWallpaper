@@ -193,6 +193,13 @@ namespace ConfiguratorGUI
             Process.Start("explorer.exe", Environment.ExpandEnvironmentVariables("%appdata%\\APODWallpaper\\images"));
         }
 
+        private void KeySetupOverlay_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            // Focus once layout has run, keeps Tab and Esc inside the panel
+            if ((bool)e.NewValue)
+                Dispatcher.BeginInvoke(() => TxtKeySetupInput.Focus(), System.Windows.Threading.DispatcherPriority.Input);
+        }
+
         private void BtnOpenHelp_Click(object sender, RoutedEventArgs e)
         {
             Process.Start(new ProcessStartInfo("Resources\\help.html") { UseShellExecute=true});

@@ -12,7 +12,9 @@ namespace APODWallpaper.Utils
             try
             {
                 return await base.SendAsync(request, cts.Token);
-            } catch (TaskCanceledException ex)
+            }
+            // Only our own timeout becomes a 408, a caller cancelling should still see the cancellation
+            catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
             {
                 HttpResponseMessage timeoutResponse = new(System.Net.HttpStatusCode.RequestTimeout)
                 {

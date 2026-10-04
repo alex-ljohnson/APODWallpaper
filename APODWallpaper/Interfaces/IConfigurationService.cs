@@ -17,6 +17,9 @@ namespace APODWallpaper.Interfaces
         long PreviewQuality { get; set; }
         long WallpaperStyle { get; set; }
         string API_KEY { get; set; }
+        bool KeySetupDismissed { get; set; }
+        string EffectiveApiKey { get; }
+        bool UsingDemoKey { get; }
 
         ObservableCollection<string> AvailableThemes { get; }
 

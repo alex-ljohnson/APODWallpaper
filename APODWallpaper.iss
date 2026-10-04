@@ -99,3 +99,127 @@ Root: HKCU; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Components: APODWallpaper; Flags: nowait postinstall skipifsilent
 Filename: "{app}\{#MyConfiguratorExeName}"; Description: "{cm:LaunchProgram,{#StringChange('the Configurator', '&', '&&')}}"; Components: Configurator; Flags: nowait postinstall
 
+
+[Code]
+const
+  // Old default key, shared by every install so it kept running out
+  LegacySharedKey = '5zgCnpExBIpD6hZvruRRJS48WfKYBe0PlVVaO5NZ';
+  SignupUrl = 'https://api.nasa.gov/';
+
+var
+  ApiKeyPage: TInputQueryWizardPage;
+
+// Pulls "API_KEY" out of an existing config.json, a full JSON parser isn't worth it here
+function ReadExistingApiKey(): String;
+var
+  Json: AnsiString;
+  S: String;
+  P: Integer;
+begin
+  Result := '';
+  if not LoadStringFromFile(ExpandConstant('{userappdata}\APODWallpaper\config.json'), Json) then Exit;
+  S := String(Json);
+  P := Pos('"API_KEY"', S);
+  if P = 0 then Exit;
+  Delete(S, 1, P + Length('"API_KEY"') - 1);
+  S := TrimLeft(S);
+  if Copy(S, 1, 1) <> ':' then Exit;
+  Delete(S, 1, 1);
+  S := TrimLeft(S);
+  // null or anything else that isn't a string
+  if Copy(S, 1, 1) <> '"' then Exit;
+  Delete(S, 1, 1);
+  P := Pos('"', S);
+  if P = 0 then Exit;
+  Result := Trim(Copy(S, 1, P - 1));
+  if Result = LegacySharedKey then Result := '';
+end;
+
+procedure SignupLinkClick(Sender: TObject);
+var
+  ErrorCode: Integer;
+begin
+  ShellExec('open', SignupUrl, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+end;
+
+procedure InitializeWizard();
+var
+  SignupLink: TNewStaticText;
+begin
+  ApiKeyPage := CreateInputQueryPage(wpSelectTasks,
+    'NASA API key', 'Pictures come from NASA''s free API',
+    'Without a key APODWallpaper uses NASA''s demo key, which only allows a few requests an hour from your network. ' +
+    'A free personal key avoids running out and takes about a minute to get.' + #13#10#13#10 +
+    'Paste your key below, or leave it blank to use the demo key. You can change it later in the Configurator.');
+  ApiKeyPage.Add('&API key:', False);
+  ApiKeyPage.Values[0] := ReadExistingApiKey();
+
+  SignupLink := TNewStaticText.Create(ApiKeyPage);
+  SignupLink.Parent := ApiKeyPage.Surface;
+  SignupLink.Caption := 'Get a free key at api.nasa.gov';
+  SignupLink.Left := ApiKeyPage.Edits[0].Left;
+  SignupLink.Top := ApiKeyPage.Edits[0].Top + ApiKeyPage.Edits[0].Height + ScaleY(10);
+  SignupLink.Cursor := crHand;
+  SignupLink.Font.Style := [fsUnderline];
+  SignupLink.OnClick := @SignupLinkClick;
+end;
+
+function IsAlphaNumeric(const S: String): Boolean;
+var
+  I: Integer;
+  C: Char;
+begin
+  Result := True;
+  for I := 1 to Length(S) do
+  begin
+    C := S[I];
+    if not (((C >= 'a') and (C <= 'z')) or ((C >= 'A') and (C <= 'Z')) or ((C >= '0') and (C <= '9'))) then
+    begin
+      Result := False;
+      Exit;
+    end;
+  end;
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  Key: String;
+begin
+  Result := True;
+  if CurPageID <> ApiKeyPage.ID then Exit;
+  Key := Trim(ApiKeyPage.Values[0]);
+  ApiKeyPage.Values[0] := Key;
+  // NASA keys are 40 letters and digits, anything else is probably a bad paste
+  if (Key <> '') and ((Length(Key) <> 40) or not IsAlphaNumeric(Key)) then
+    Result := MsgBox('That doesn''t look like a NASA API key, they are 40 letters and numbers.' + #13#10#13#10 +
+      'Use it anyway?', mbConfirmation, MB_YESNO) = IDYES;
+end;
+
+function GetApiKey(): String;
+begin
+  Result := Trim(ApiKeyPage.Values[0]);
+  // Would break the command line quoting
+  StringChangeEx(Result, '"', '', True);
+end;
+
+// Runs before the Finished page so the postinstall launches see the key
+// Silent installs (the Configurator's updater) never showed the page so leave the key alone
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  Key, Fallback: String;
+  ResultCode: Integer;
+begin
+  if (CurStep <> ssPostInstall) or WizardSilent() then Exit;
+  Key := GetApiKey();
+  WizardForm.StatusLabel.Caption := 'Saving NASA API key...';
+  if (not Exec(ExpandConstant('{app}\{#MyAppExeName}'), '--set-key "' + Key + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode)
+      or (ResultCode <> 0)) and (Key <> '') then
+  begin
+    // Lightweight installs have no Configurator to fall back on
+    if WizardIsComponentSelected('Configurator') then
+      Fallback := 'You can add it later in the Configurator under Settings.'
+    else
+      Fallback := 'You can add it later by running this installer again.';
+    MsgBox('Your NASA API key couldn''t be saved. ' + Fallback, mbError, MB_OK);
+  end;
+end;

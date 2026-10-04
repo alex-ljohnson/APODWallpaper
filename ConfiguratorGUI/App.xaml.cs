@@ -48,6 +48,10 @@ namespace ConfiguratorGUI
                     .AddHttpMessageHandler<TransientRetryHandler>()
                     .AddHttpMessageHandler<ConfigurableTimeoutHandler>();
 
+            // Key setup panel doubles as the handler for API key errors
+            services.AddSingleton<KeySetupViewModel>();
+            services.AddSingleton<IApiKeyErrorHandler>(s => s.GetRequiredService<KeySetupViewModel>());
+
             // Core services registered as interfaces
             services.AddSingleton<IAPODCache, APODCache>();
             services.AddSingleton<IAPODWallpaper, APODWallpaper.APODWallpaper>();
@@ -75,6 +79,9 @@ namespace ConfiguratorGUI
             var themeService = serviceProvider.GetRequiredService<IThemeService>();
             await themeService.InitializeThemesAsync();
             await themeService.ApplyThemeAsync(Resources);
+            // Startup updater passes this when NASA refused the key
+            bool setupRequested = e.Args.Any(a => a.Equals(PromptApiKeyErrorHandler.SetupArg, StringComparison.OrdinalIgnoreCase));
+            serviceProvider.GetRequiredService<KeySetupViewModel>().OpenIfNeeded(setupRequested);
             Trace.WriteLine($"App startup time: {(DateTime.UtcNow - startTime).TotalMilliseconds}ms");
         }
 
