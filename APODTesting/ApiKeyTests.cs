@@ -1,33 +1,35 @@
 using APODWallpaper.Utils;
 using System.Net;
+using System.Web;
 
 namespace APODTesting;
 
 [TestClass]
 public sealed class ApiKeyTests
 {
-    private static string ErrorBody(string code) => $$$"""{"error":{"code":"{{{code}}}","message":"..."}}""";
+    private static string GatewayError(string code) => $$$"""{"error":{"code":"{{{code}}}","message":"..."}}""";
+    private const string WordPressError = """{"code":"rest_forbidden","message":"Sorry","data":{"status":403}}""";
 
     [TestMethod]
-    public void ParsesInvalidKey()
+    public void UnauthorizedIsInvalidKey()
     {
-        var error = ApiKey.ParseError(HttpStatusCode.Forbidden, ErrorBody("API_KEY_INVALID"), usingDemoKey: false);
+        var error = ApiKey.ParseError(HttpStatusCode.Unauthorized, "", usingDemoKey: false);
         Assert.AreEqual(ApiKeyErrorKind.Invalid, error?.Kind);
         Assert.IsTrue(error!.SetupHelps);
     }
 
     [TestMethod]
-    public void ParsesOtherKeyCodesAsInvalid()
+    public void ParsesGatewayKeyCodes()
     {
-        var error = ApiKey.ParseError(HttpStatusCode.Forbidden, ErrorBody("API_KEY_DISABLED"), usingDemoKey: false);
-        Assert.AreEqual(ApiKeyErrorKind.Invalid, error?.Kind);
+        Assert.AreEqual(ApiKeyErrorKind.Invalid, ApiKey.ParseError(HttpStatusCode.Forbidden, GatewayError("API_KEY_INVALID"), false)?.Kind);
+        Assert.AreEqual(ApiKeyErrorKind.Invalid, ApiKey.ParseError(HttpStatusCode.Forbidden, GatewayError("API_KEY_DISABLED"), false)?.Kind);
+        Assert.AreEqual(ApiKeyErrorKind.Missing, ApiKey.ParseError(HttpStatusCode.Forbidden, GatewayError("API_KEY_MISSING"), false)?.Kind);
     }
 
     [TestMethod]
-    public void ParsesMissingKey()
+    public void WordPressForbiddenIsInvalidKey()
     {
-        var error = ApiKey.ParseError(HttpStatusCode.Forbidden, ErrorBody("API_KEY_MISSING"), usingDemoKey: false);
-        Assert.AreEqual(ApiKeyErrorKind.Missing, error?.Kind);
+        Assert.AreEqual(ApiKeyErrorKind.Invalid, ApiKey.ParseError(HttpStatusCode.Forbidden, WordPressError, false)?.Kind);
     }
 
     [TestMethod]
@@ -42,7 +44,7 @@ public sealed class ApiKeyTests
     [TestMethod]
     public void PersonalRateLimitDoesNotOfferSetup()
     {
-        var error = ApiKey.ParseError(HttpStatusCode.Forbidden, ErrorBody("OVER_RATE_LIMIT"), usingDemoKey: false);
+        var error = ApiKey.ParseError(HttpStatusCode.Forbidden, GatewayError("OVER_RATE_LIMIT"), usingDemoKey: false);
         Assert.AreEqual(ApiKeyErrorKind.RateLimited, error?.Kind);
         Assert.IsFalse(error!.SetupHelps);
     }
@@ -57,27 +59,31 @@ public sealed class ApiKeyTests
     [TestMethod]
     public void IgnoresNonKeyFailures()
     {
-        Assert.IsNull(ApiKey.ParseError(HttpStatusCode.InternalServerError, ErrorBody("API_KEY_INVALID"), false));
+        Assert.IsNull(ApiKey.ParseError(HttpStatusCode.InternalServerError, GatewayError("API_KEY_INVALID"), false));
+        Assert.IsNull(ApiKey.ParseError(HttpStatusCode.NotFound, """{"code":"apod_basic_not_found"}""", false));
         Assert.IsNull(ApiKey.ParseError(HttpStatusCode.OK, "{}", false));
-        // Some other 403, e.g. an HTML error page
+        // HTML block page, or JSON with no error code
         Assert.IsNull(ApiKey.ParseError(HttpStatusCode.Forbidden, "<html></html>", false));
+        Assert.IsNull(ApiKey.ParseError(HttpStatusCode.Forbidden, "{}", false));
     }
 
-    private sealed class StubHandler(HttpStatusCode status, string body, int? limit = null) : HttpMessageHandler
-    {
-        public string? Query { get; private set; }
+    private static ApodApiClient Client(HttpMessageHandler handler) =>
+        new(new StubFactory(handler), new StubConfig(), "https://example.test/apod-basic");
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    private static string KeyOf(Uri uri) => HttpUtility.ParseQueryString(uri.Query)["api_key"]!;
+
+    private static FakeHandler ByKey(Func<HttpResponseMessage> user, Func<HttpResponseMessage> madeUp) =>
+        new(uri => KeyOf(uri) == ApiKey.MadeUpKey ? madeUp() : user());
+
+    private static HttpResponseMessage Ok(int? limit = null)
+    {
+        var response = FakeHandler.Json("{}");
+        if (limit is int l)
         {
-            Query = request.RequestUri?.Query;
-            var response = new HttpResponseMessage(status) { Content = new StringContent(body) };
-            if (limit is int l)
-            {
-                response.Headers.Add("X-RateLimit-Limit", l.ToString());
-                response.Headers.Add("X-RateLimit-Remaining", (l - 1).ToString());
-            }
-            return Task.FromResult(response);
+            response.Headers.Add("X-RateLimit-Limit", l.ToString());
+            response.Headers.Add("X-RateLimit-Remaining", (l - 1).ToString());
         }
+        return response;
     }
 
     // Never answers until cancelled
@@ -90,68 +96,103 @@ public sealed class ApiKeyTests
         }
     }
 
-    private sealed class ThrowingHandler : HttpMessageHandler
+    [TestMethod]
+    public async Task CheckUsesSingleRouteForYesterday()
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
-            throw new HttpRequestException("offline");
+        var handler = ByKey(() => Ok(), () => Ok());
+        await ApiKey.CheckAsync(Client(handler), "abc123");
+        handler.Requests.TryPeek(out var uri);
+        Assert.AreEqual("/apod-basic/" + APODDate.ToCode(APODDate.Today().AddDays(-1)), uri!.AbsolutePath);
+        Assert.AreEqual("abc123", KeyOf(uri));
     }
 
     [TestMethod]
-    public async Task CheckAcceptsWorkingKey()
+    public async Task CheckReportsEnforcedKeys()
     {
-        var stub = new StubHandler(HttpStatusCode.OK, "{}", limit: 1000);
-        var check = await ApiKey.CheckAsync(new HttpClient(stub), "https://example.com/apod", "abc123");
+        var handler = ByKey(() => Ok(limit: 1000), () => FakeHandler.Json(GatewayError("API_KEY_INVALID"), HttpStatusCode.Forbidden));
+        var check = await ApiKey.CheckAsync(Client(handler), "abc123");
         Assert.IsTrue(check.Accepted);
+        Assert.AreEqual(true, check.Enforced);
         Assert.AreEqual(1000, check.Limit);
         Assert.AreEqual(999, check.Remaining);
-        StringAssert.Contains(stub.Query, "api_key=abc123");
     }
 
     [TestMethod]
-    public async Task CheckAcceptsKeyWhenUpstreamFails()
+    public async Task CheckReportsKeysNotEnforced()
     {
-        // NASA's key gateway let the key through, APOD itself 500'd
-        var check = await ApiKey.CheckAsync(new HttpClient(new StubHandler(HttpStatusCode.InternalServerError, "", limit: 1000)), "https://example.com/apod", "abc123");
+        var handler = ByKey(() => Ok(), () => Ok());
+        var check = await ApiKey.CheckAsync(Client(handler), "abc123");
         Assert.IsTrue(check.Accepted);
+        Assert.AreEqual(false, check.Enforced);
+        Assert.AreEqual(2, handler.Requests.Count);
     }
 
     [TestMethod]
-    public async Task CheckGivesNoVerdictWhenGatewayFails()
+    public async Task CheckRejectsInvalidKeyWithoutProbing()
     {
-        // No rate limit headers, the key was never looked at
-        var check = await ApiKey.CheckAsync(new HttpClient(new StubHandler(HttpStatusCode.BadGateway, "")), "https://example.com/apod", "abc123");
-        Assert.IsFalse(check.Reachable);
-        Assert.IsFalse(check.Accepted);
-    }
-
-    [TestMethod]
-    public async Task CheckRejectsInvalidKey()
-    {
-        var check = await ApiKey.CheckAsync(new HttpClient(new StubHandler(HttpStatusCode.Forbidden, ErrorBody("API_KEY_INVALID"))), "https://example.com/apod", "nope");
+        var handler = ByKey(() => FakeHandler.Json(GatewayError("API_KEY_INVALID"), HttpStatusCode.Forbidden), () => Ok());
+        var check = await ApiKey.CheckAsync(Client(handler), "nope");
         Assert.IsTrue(check.Reachable);
         Assert.IsFalse(check.Accepted);
         Assert.AreEqual(ApiKeyErrorKind.Invalid, check.Error?.Kind);
+        Assert.AreEqual(1, handler.Requests.Count);
     }
 
     [TestMethod]
     public async Task CheckAcceptsRateLimitedKey()
     {
-        var check = await ApiKey.CheckAsync(new HttpClient(new StubHandler(HttpStatusCode.TooManyRequests, ErrorBody("OVER_RATE_LIMIT"))), "https://example.com/apod", "abc123");
+        var handler = ByKey(() => FakeHandler.Json("", HttpStatusCode.TooManyRequests), () => FakeHandler.Json(GatewayError("API_KEY_INVALID"), HttpStatusCode.Forbidden));
+        var check = await ApiKey.CheckAsync(Client(handler), "abc123");
         Assert.IsTrue(check.Accepted);
+    }
+
+    [TestMethod]
+    public async Task CheckAcceptsKeyWhenDateIsMissing()
+    {
+        // A 404 got past any key check
+        var handler = ByKey(() => FakeHandler.Json(Fixtures.Read("not-found"), HttpStatusCode.NotFound), () => Ok());
+        var check = await ApiKey.CheckAsync(Client(handler), "abc123");
+        Assert.IsTrue(check.Accepted);
+    }
+
+    [TestMethod]
+    public async Task CheckGivesNoVerdictWhenServerFails()
+    {
+        var check = await ApiKey.CheckAsync(Client(new FakeHandler(_ => FakeHandler.Json("", HttpStatusCode.BadGateway))), "abc123");
+        Assert.IsFalse(check.Reachable);
+        Assert.IsFalse(check.Accepted);
+    }
+
+    [TestMethod]
+    public async Task CheckLeavesEnforcedUnknownWhenProbeFails()
+    {
+        var handler = ByKey(() => Ok(), () => FakeHandler.Json("", HttpStatusCode.BadGateway));
+        var check = await ApiKey.CheckAsync(Client(handler), "abc123");
+        Assert.IsTrue(check.Accepted);
+        Assert.IsNull(check.Enforced);
+    }
+
+    [TestMethod]
+    public async Task CheckLeavesEnforcedUnknownWhenProbeIsRateLimited()
+    {
+        var handler = ByKey(() => Ok(), () => FakeHandler.Json("", HttpStatusCode.TooManyRequests));
+        var check = await ApiKey.CheckAsync(Client(handler), "abc123");
+        Assert.IsTrue(check.Accepted);
+        Assert.IsNull(check.Enforced);
     }
 
     [TestMethod]
     public async Task CheckStopsWhenCancelled()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
-        var check = await ApiKey.CheckAsync(new HttpClient(new HangingHandler()), "https://example.com/apod", "abc123", cts.Token);
+        var check = await ApiKey.CheckAsync(Client(new HangingHandler()), "abc123", cts.Token);
         Assert.IsFalse(check.Reachable);
     }
 
     [TestMethod]
     public async Task CheckReportsUnreachable()
     {
-        var check = await ApiKey.CheckAsync(new HttpClient(new ThrowingHandler()), "https://example.com/apod", "abc123");
+        var check = await ApiKey.CheckAsync(Client(new FakeHandler(_ => throw new HttpRequestException("offline"))), "abc123");
         Assert.IsFalse(check.Reachable);
         Assert.IsFalse(check.Accepted);
     }
@@ -211,6 +252,21 @@ public sealed class ConfigurationApiKeyTests
         {
             Assert.AreEqual("abc123", config.EffectiveApiKey);
             Assert.IsFalse(config.UsingDemoKey);
+        }
+        finally { Cleanup(config, path); }
+    }
+
+    [TestMethod]
+    public async Task LegacyApiSettingsAreRemoved()
+    {
+        var (config, path) = await LoadAsync("""{"BaseUrl":"https://api.nasa.gov/planetary/apod","UseHD":true,"KeySetupDismissed":true,"ExplainImage":true}""");
+        try
+        {
+            var settings = config.ToDictionary();
+            Assert.IsFalse(settings.ContainsKey("BaseUrl"));
+            Assert.IsFalse(settings.ContainsKey("UseHD"));
+            Assert.IsFalse(settings.ContainsKey("KeySetupDismissed"));
+            Assert.IsTrue(config.ExplainImage);
         }
         finally { Cleanup(config, path); }
     }

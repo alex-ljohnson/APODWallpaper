@@ -39,12 +39,10 @@ namespace APODWallpaper.Utils
         // Add to default config
 
         private string ID { get; init; }
-        public bool UseHD { get { return _configuration.GetValueOrDefault(nameof(UseHD), true); } set { _configuration[nameof(UseHD)] = value; AutoSave(); OnPropertyChanged(nameof(UseHD)); } }
         public bool RunStartup { get { return _configuration.GetValueOrDefault(nameof(RunStartup), true); } set { _configuration[nameof(RunStartup)] = value; AutoSave(); OnPropertyChanged(nameof(RunStartup)); ChangeStartup(); } }
         public bool ShowConsole { get { return _configuration.GetValueOrDefault(nameof(ShowConsole), false); } set { _configuration[nameof(ShowConsole)] = value; AutoSave(); OnPropertyChanged(nameof(ShowConsole)); } }
         public bool DownloadInfo { get { return _configuration.GetValueOrDefault(nameof(DownloadInfo), false); } set { _configuration[nameof(DownloadInfo)] = value; AutoSave(); OnPropertyChanged(nameof(DownloadInfo)); } }
         public bool ExplainImage { get { return _configuration.GetValueOrDefault(nameof(ExplainImage), false); } set { _configuration[nameof(ExplainImage)] = value; AutoSave(); OnPropertyChanged(nameof(ExplainImage)); } }
-        public string BaseUrl { get { return _configuration.GetValueOrDefault(nameof(BaseUrl), "https://api.nasa.gov/planetary/apod"); } set { _configuration[nameof(BaseUrl)] = value; AutoSave(); OnPropertyChanged(nameof(BaseUrl)); } }
         public string ConfiguratorTheme { get { return _configuration.GetValueOrDefault(nameof(ConfiguratorTheme), "Light.xaml"); } set { _configuration[nameof(ConfiguratorTheme)] = value; AutoSave(); OnPropertyChanged(nameof(ConfiguratorTheme)); } }
         
         private const long MinNetworkTimeoutSeconds = 1L;
@@ -53,7 +51,6 @@ namespace APODWallpaper.Utils
                 _configuration[nameof(PreviewQuality)] = value; AutoSave(); OnPropertyChanged(nameof(PreviewQuality)); } }
         public long WallpaperStyle { get { return (long)_configuration.GetValueOrDefault(nameof(WallpaperStyle), WallpaperStyleEnum.Fill); } set { _configuration[nameof(WallpaperStyle)] = value; AutoSave(); OnPropertyChanged(nameof(WallpaperStyle)); } }
         public string API_KEY { get { return _configuration.GetValueOrDefault(nameof(API_KEY), ""); } set { _configuration[nameof(API_KEY)] = value; AutoSave(); OnPropertyChanged(nameof(API_KEY)); OnPropertyChanged(nameof(UsingDemoKey)); } }
-        public bool KeySetupDismissed { get { return _configuration.GetValueOrDefault(nameof(KeySetupDismissed), false); } set { _configuration[nameof(KeySetupDismissed)] = value; AutoSave(); OnPropertyChanged(nameof(KeySetupDismissed)); } }
 
         public string EffectiveApiKey => string.IsNullOrWhiteSpace(API_KEY) ? ApiKey.DemoKey : API_KEY.Trim();
         public bool UsingDemoKey => EffectiveApiKey == ApiKey.DemoKey;
@@ -77,7 +74,7 @@ namespace APODWallpaper.Utils
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        public static readonly Configuration DefaultConfiguration = new("Default", false, false) { BaseUrl = "https://api.nasa.gov/planetary/apod", UseHD = true, RunStartup = true, ShowConsole = false, ExplainImage = false, DownloadInfo = false, WallpaperStyle = (int)WallpaperStyleEnum.Fill, ConfiguratorTheme = "Light.xaml", PreviewQuality = 100, NetworkTimeout= 10L};
+        public static readonly Configuration DefaultConfiguration = new("Default", false, false) { RunStartup = true, ShowConsole = false, ExplainImage = false, DownloadInfo = false, WallpaperStyle = (int)WallpaperStyleEnum.Fill, ConfiguratorTheme = "Light.xaml", PreviewQuality = 100, NetworkTimeout= 10L};
         
         public Configuration(string ID = "None", bool autoSave = true, bool file = true)
         {
@@ -123,6 +120,7 @@ namespace APODWallpaper.Utils
                 string jsonString = await reader.ReadToEndAsync();
                 _configuration = JsonConvert.DeserializeAnonymousType(jsonString, new Dictionary<string, dynamic>()) ?? [];
                 ClearLegacyKey();
+                ClearRemovedSettings();
             }
 
             Trace.WriteLine($"-- ID: {ID} --");
@@ -141,6 +139,17 @@ namespace APODWallpaper.Utils
                 _configuration.Remove(nameof(API_KEY));
                 AutoSave();
             }
+        }
+
+        // v1 API only
+        private static readonly string[] RemovedSettings = ["BaseUrl", "UseHD", "KeySetupDismissed"];
+
+        private void ClearRemovedSettings()
+        {
+            bool removed = false;
+            foreach (var name in RemovedSettings)
+                removed |= _configuration.Remove(name);
+            if (removed) AutoSave();
         }
 
         public void LoadThemes(IEnumerable<string> themes)

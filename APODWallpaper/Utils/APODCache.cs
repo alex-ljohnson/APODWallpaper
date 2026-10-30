@@ -1,9 +1,7 @@
 ﻿using APODWallpaper.Interfaces;
 using Newtonsoft.Json;
 using System.Diagnostics;
-using System.Net;
 using System.Net.Http;
-using System.Web;
 
 namespace APODWallpaper.Utils
 {
@@ -12,228 +10,285 @@ namespace APODWallpaper.Utils
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfigurationService config;
         private readonly IApiKeyErrorHandler keyErrorHandler;
-        private static readonly string CacheFolder = Utilities.GetDataPath("cache/");
-        private static readonly string MetadataCacheFile = Utilities.GetDataPath("cache/metadata.cache");
+        private readonly ApodApiClient client;
+        public static readonly string MetadataCacheFile = Utilities.GetDataPath("cache/metadata.v2.cache");
+        private readonly string cacheFile;
 
-        private Dictionary<DateOnly, APODInfo> _metadataCache = [];
+        private readonly Lock cacheLock = new();
+        private readonly SemaphoreSlim saveLock = new(1, 1);
+        private readonly Dictionary<DateOnly, APODInfo> _metadataCache = [];
+        // Past dates with no APOD, memory only
+        private readonly HashSet<DateOnly> knownGaps = [];
 
-        public APODCache(IHttpClientFactory httpClientFactory, IConfigurationService config, IApiKeyErrorHandler keyErrorHandler)
+        private int showingConnectionError;
+
+        private sealed record CacheFile(int MapperVersion, APODInfo[]? Entries);
+
+        public APODCache(IHttpClientFactory httpClientFactory, IConfigurationService config, IApiKeyErrorHandler keyErrorHandler, ApodApiClient client)
+            : this(httpClientFactory, config, keyErrorHandler, client, MetadataCacheFile) { }
+
+        internal APODCache(IHttpClientFactory httpClientFactory, IConfigurationService config, IApiKeyErrorHandler keyErrorHandler, ApodApiClient client, string cacheFile)
         {
             _httpClientFactory = httpClientFactory;
             this.config = config;
             this.keyErrorHandler = keyErrorHandler;
-            EnsureCacheExists();
+            this.client = client;
+            this.cacheFile = cacheFile;
+            Directory.CreateDirectory(Path.GetDirectoryName(cacheFile)!);
             LoadCache();
-        }
-
-        public static void EnsureCacheExists()
-        {
-            Directory.CreateDirectory(CacheFolder);
         }
 
         public bool IsCached(DateOnly date)
         {
-            return _metadataCache.ContainsKey(date);
+            lock (cacheLock) return _metadataCache.ContainsKey(date);
         }
 
+        private bool TryGetCached(DateOnly date, out APODInfo info)
+        {
+            lock (cacheLock) return _metadataCache.TryGetValue(date, out info!);
+        }
+
+        private bool IsKnownGap(DateOnly date)
+        {
+            lock (cacheLock) return knownGaps.Contains(date);
+        }
+
+        // Today may not be out yet
+        private void MarkGap(DateOnly date)
+        {
+            if (date >= APODDate.Today()) return;
+            lock (cacheLock) knownGaps.Add(date);
+        }
 
         #region Cache Ops
         public void LoadCache()
         {
-            if (!File.Exists(MetadataCacheFile)) return;
-            string cacheData = File.ReadAllText(MetadataCacheFile);
-            List<DateOnly> stale = [];
-            JsonConvert.DeserializeObject<APODInfo[]>(cacheData)?.ToList().ForEach(info =>
+            if (!File.Exists(cacheFile)) return;
+            CacheFile? file;
+            try
             {
-                if (!info.IsValid)
-                {
-                    stale.Add(info.Date);
-                }
-                _metadataCache[info.Date] = info;
-            });
-
-            if (stale.Count > 0)
-                _ = Task.Run(() => RefreshStaleEntriesAsync(stale));
-        }
-
-        private async Task RefreshStaleEntriesAsync(List<DateOnly> dates)
-        {
-            foreach (var date in dates)
+                file = JsonConvert.DeserializeObject<CacheFile>(File.ReadAllText(cacheFile));
+            }
+            catch (Exception ex) when (ex is JsonException || ex is IOException)
             {
-                try
+                Trace.WriteLine($"Couldn't read metadata cache, starting empty: {ex.Message}");
+                return;
+            }
+            if (file?.MapperVersion != ApodResponseMapper.Version)
+            {
+                Trace.WriteLine("Metadata cache is from another mapper version, starting empty");
+                return;
+            }
+            lock (cacheLock)
+            {
+                foreach (var info in file.Entries ?? [])
                 {
-                    // Background work, don't pop a dialog per failed date
-                    await SendRequestAsync(date: date, quiet: true);
-                }
-                catch (Exception ex)
-                {
-                    Trace.WriteLine($"Stale refresh failed for {date}: {ex.Message}");
+                    if (info != null) _metadataCache[info.Date] = info;
                 }
             }
         }
+
         public async Task SaveCacheAsync()
         {
-            var serialized = JsonConvert.SerializeObject(_metadataCache.Values.ToArray(), Formatting.Indented);
-            await File.WriteAllTextAsync(MetadataCacheFile, serialized);
+            await saveLock.WaitAsync();
+            try
+            {
+                // Inside saveLock so an older snapshot can't overwrite a newer one
+                APODInfo[] snapshot;
+                lock (cacheLock) snapshot = [.. _metadataCache.Values.OrderBy(info => info.Date)];
+                await File.WriteAllTextAsync(cacheFile, JsonConvert.SerializeObject(new CacheFile(ApodResponseMapper.Version, snapshot), Formatting.Indented));
+            }
+            finally
+            {
+                saveLock.Release();
+            }
         }
 
         public async Task AddToCacheAsync(APODInfo info)
         {
             if (info == null) return;
-            _metadataCache[info.Date] = info;
-            await SaveCacheAsync();
+            await AddToCacheAsync([info]);
         }
         public async Task AddToCacheAsync(IEnumerable<APODInfo> infos)
         {
             if (infos == null) return;
-            
-            foreach (var info in infos)
+            lock (cacheLock)
             {
-                if (info == null) continue;
-                _metadataCache[info.Date] = info;
+                foreach (var info in infos)
+                {
+                    if (info == null) continue;
+                    _metadataCache[info.Date] = info;
+                }
             }
             await SaveCacheAsync();
-            
         }
         #endregion
-        public APODInfo? ReadLatest()
-        {
-            _metadataCache = _metadataCache.OrderByDescending(kv => kv.Key).ToDictionary();
-            return _metadataCache.Values.FirstOrDefault();
-        }
 
+        /// <summary>
+        /// Newest APOD, yesterday's until today's is out
+        /// </summary>
         public async Task<APODInfo?> GetToday()
         {
-            var info = await SendRequestAsync();
-            return info != null && info.Length > 0 ? info[0] : null;
+            var result = await client.GetLatestAsync();
+            if (result.Outcome == ApodOutcome.NotFound)
+            {
+                Console.WriteLine("NASA has no APOD for yesterday or today");
+                return null;
+            }
+            if (result.Outcome == ApodOutcome.Failed)
+            {
+                ReportFailure(result.KeyError);
+                return null;
+            }
+            await AddToCacheAsync(result.Value!);
+            return result.Value;
         }
 
         public async Task<APODInfo?> GetAsync(DateOnly date)
         {
-            // Invalid cache fall through to a fetch.
-            if (_metadataCache.TryGetValue(date, out var info) && info.IsValid)
-            {
-                return info;
-            }
-
-            var reqInfo = await SendRequestAsync(date: date);
-            return reqInfo is { Length: > 0 } ? reqInfo[0] : null;
+            if (TryGetCached(date, out var info)) return info;
+            if (IsKnownGap(date)) return null;
+            return await FetchAsync(date);
         }
 
         public async Task<APODInfo[]?> GetRangeAsync(DateOnly startDate, DateOnly endDate)
         {
             if (endDate > APODDate.Today()) throw new ArgumentException("end_date was in the future");
-            List<APODInfo> infos = [];
-            int count = endDate.DayNumber - startDate.DayNumber + 1;
-            for (int i = 0; i < count; i++)
+
+            // Fetch only the uncached span
+            DateOnly? fetchFrom = null, fetchTo = null;
+            for (var date = startDate; date <= endDate; date = date.AddDays(1))
             {
-                DateOnly date = startDate.AddDays(i);
-                var info = _metadataCache.GetValueOrDefault(date);
-                if (info != null && info.IsValid)
+                if (IsCached(date) || IsKnownGap(date)) continue;
+                fetchFrom ??= date;
+                fetchTo = date;
+            }
+
+            if (fetchFrom is DateOnly from && fetchTo is DateOnly to)
+            {
+                var result = await client.GetRangeAsync(from, to);
+                if (result.Outcome != ApodOutcome.Found)
                 {
-                    infos.Add(info);
+                    ReportFailure(result.KeyError);
+                    return null;
+                }
+                await AddToCacheAsync(result.Value!);
+                if (result.Complete)
+                {
+                    var found = result.Value!.Select(info => info.Date).ToHashSet();
+                    for (var date = from; date <= to; date = date.AddDays(1))
+                    {
+                        if (!found.Contains(date)) MarkGap(date);
+                    }
                 }
             }
-            if (infos.Count == count)
+
+            List<APODInfo> infos = [];
+            for (var date = startDate; date <= endDate; date = date.AddDays(1))
             {
-                return [.. infos];
+                if (TryGetCached(date, out var info)) infos.Add(info);
             }
-            else
-            {
-                return await SendRequestAsync(startDate: startDate, endDate: endDate);
-            }
+            return [.. infos];
         }
 
         /// <summary>
-        /// fetches info for a specific date directly from the API, ignoring and replacing cached entry.
-        /// </summary>
-        public async Task<APODInfo?> RefreshAsync(DateOnly date)
-        {
-            var result = await SendRequestAsync(date: date);
-            return result is { Length: > 0 } ? result[0] : null;
-        }
-
-        /// <summary>
-        /// Fetches info for random APOD images. Randomisation occurs on the server side, so this method does not check the cache, but does cache results.
+        /// Random dates picked client-side, cached where possible. Stops at the first failure with what it has
         /// </summary>
         /// <param name="count">Number of random images to fetch</param>
         public async Task<APODInfo[]?> FetchRandAsync(int count)
         {
-            return await SendRequestAsync(count: count);
+            // Not today, may not be out yet
+            var last = APODDate.Today().AddDays(-1);
+            int span = last.DayNumber - APODDate.InceptionDate.DayNumber + 1;
+            int attemptsLeft = count * 3;
+            HashSet<DateOnly> tried = [];
+            List<APODInfo> found = [];
+            List<APODInfo> fetched = [];
+            ApodResult<APODInfo>? failure = null;
+
+            while (found.Count < count && attemptsLeft > 0 && failure == null)
+            {
+                List<DateOnly> batch = [];
+                while (found.Count + batch.Count < count && attemptsLeft > 0)
+                {
+                    var date = APODDate.InceptionDate.AddDays(Random.Shared.Next(span));
+                    if (!tried.Add(date)) continue;
+                    attemptsLeft--;
+                    if (TryGetCached(date, out var cached)) found.Add(cached);
+                    else if (!IsKnownGap(date)) batch.Add(date);
+                }
+
+                var results = await Task.WhenAll(batch.Select(date => client.GetAsync(date)));
+                for (int i = 0; i < batch.Count; i++)
+                {
+                    switch (results[i].Outcome)
+                    {
+                        case ApodOutcome.Found:
+                            found.Add(results[i].Value!);
+                            fetched.Add(results[i].Value!);
+                            break;
+                        case ApodOutcome.NotFound:
+                            MarkGap(batch[i]);
+                            break;
+                        default:
+                            failure ??= results[i];
+                            break;
+                    }
+                }
+            }
+
+            if (fetched.Count > 0) await AddToCacheAsync(fetched);
+            if (failure != null)
+            {
+                ReportFailure(failure.KeyError);
+                if (found.Count == 0) return null;
+            }
+            return [.. found];
         }
 
-        // TODO: Abstract out requests into another class to remove dependencies and API-specific logic from cache class
-        /// <summary>
-        /// Fetch info from API and add to cache
-        /// </summary>
-        /// <param name="date"></param>
-        /// <param name="startDate"></param>
-        /// <param name="endDate"></param>
-        /// <param name="count"></param>
-        /// <param name="quiet">Log failures without showing a message box</param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentException"></exception>
-        private async Task<APODInfo[]?> SendRequestAsync(DateOnly? date = null, DateOnly? startDate = null, DateOnly? endDate = null, int? count = null, bool quiet = false)
+        private async Task<APODInfo?> FetchAsync(DateOnly date)
         {
-            if (endDate != null && endDate > APODDate.Today()) throw new ArgumentException("end_date was in the future");
-            var urlParams = HttpUtility.ParseQueryString("");
-            if (date != null)
+            var result = await client.GetAsync(date);
+            switch (result.Outcome)
             {
-                urlParams["date"] = date is DateOnly d ? APODDate.ToIsoString(d) : null;
-            } else if (startDate != null || endDate != null)
-            {
-                if (startDate is DateOnly sd) urlParams["start_date"] = APODDate.ToIsoString(sd);
-                
-                if (endDate is DateOnly ed) urlParams["end_date"] = APODDate.ToIsoString(ed);
-            } else if (count != null)
-            {
-                urlParams["count"] = count.ToString();
+                case ApodOutcome.Found:
+                    await AddToCacheAsync(result.Value!);
+                    return result.Value;
+                case ApodOutcome.NotFound:
+                    MarkGap(date);
+                    return null;
+                default:
+                    ReportFailure(result.KeyError);
+                    return null;
             }
-            urlParams["api_key"] = config.EffectiveApiKey;
-            Uri uri = new($"{config.BaseUrl}?{urlParams}");
-            APODInfo[] imageInfo;
-            var httpClient = _httpClientFactory.CreateClient("APODCache");
+        }
+
+        // One connection dialog however many requests fail
+        private void ReportFailure(ApiKeyError? keyError)
+        {
+            if (keyError != null)
+            {
+                keyErrorHandler.Handle(keyError);
+                return;
+            }
+            if (Interlocked.Exchange(ref showingConnectionError, 1) == 1) return;
             try
             {
-                using var response = await httpClient.GetAsync(uri);
-                string responseContent = await response.Content.ReadAsStringAsync();
-                if (ApiKey.ParseError(response.StatusCode, responseContent, config.UsingDemoKey, ApiKey.ReadLimit(response)) is ApiKeyError keyError)
-                {
-                    Console.WriteLine(keyError.Message);
-                    if (!quiet) keyErrorHandler.Handle(keyError);
-                    return null;
-                }
-                response.EnsureSuccessStatusCode();
-
-                if (endDate != null || count != null)
-                {
-                    imageInfo = JsonConvert.DeserializeObject<APODInfo[]>(responseContent)!;
-                }
-                else
-                {
-                    imageInfo = [JsonConvert.DeserializeObject<APODInfo>(responseContent)!];
-                }
-                // Stamp retrieval date
-                var retrieved = APODDate.Today();
-                foreach (var info in imageInfo)
-                    info?.RetrievalDate = retrieved;
-                await AddToCacheAsync(imageInfo);
+                Utilities.ShowMessageBox("Please check your internet connection and try again.\nThis also occurs when the NASA API is down.", "Connection error", Utilities.MessageBoxType.Error);
             }
-            catch (Exception ex) when (ex is JsonException || ex is NotSupportedException || ex is HttpRequestException || ex is TaskCanceledException)
+            finally
             {
-                if (!quiet)
-                    Utilities.ShowMessageBox("Please check your internet connection and try again.\nThis also occurs when the NASA API is down.", "Connection error", Utilities.MessageBoxType.Error);
-                Console.WriteLine(ex.Message);
-                return null;
-            } 
-            return imageInfo;
+                Interlocked.Exchange(ref showingConnectionError, 0);
+            }
         }
 
         public async Task<string> DownloadURLAsync(Uri? url, string filepath, IProgress<(long, long?)>? progress = null)
         {
             //string filename;
             ArgumentNullException.ThrowIfNull(url);
-            var httpClient = _httpClientFactory.CreateClient("APODCache");
+            var httpClient = _httpClientFactory.CreateClient(ApodApiClient.HttpClientName);
+            // Moved into place when complete, a broken download must not look saved
+            var partPath = Path.Combine(Path.GetDirectoryName(cacheFile)!, Path.GetFileName(filepath) + ".part");
             try
             {
                 using HttpResponseMessage response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
@@ -245,34 +300,57 @@ namespace APODWallpaper.Utils
                     Console.WriteLine("Content length not provided");
                 }
                 using Stream contentStream = await response.Content.ReadAsStreamAsync();
-                using FileStream fileStream = new(filepath, FileMode.Create, FileAccess.ReadWrite, FileShare.Write);
-                if (config.DownloadInfo && contentLength.HasValue)
+                using (FileStream fileStream = new(partPath, FileMode.Create, FileAccess.Write, FileShare.None))
                 {
                     long totalReadBytes = 0L;
                     var buffer = new byte[81920];
                     int readBytes;
-                    while ((readBytes = await contentStream.ReadAsync(buffer, 0, buffer.Length)) != 0)
+                    while ((readBytes = await ReadWithTimeoutAsync(contentStream, buffer)) != 0)
                     {
-                        await fileStream.WriteAsync(buffer, 0, readBytes);
+                        await fileStream.WriteAsync(buffer.AsMemory(0, readBytes));
                         totalReadBytes += readBytes;
-                        progress?.Report((totalReadBytes, contentLength));
+                        if (config.DownloadInfo && contentLength.HasValue) progress?.Report((totalReadBytes, contentLength));
                     }
                 }
-                else
-                {
-                    var copyTask = contentStream.CopyToAsync(fileStream);
-                    // Simple progress reporter for copy operation
-                    await copyTask;
-
-                }
+                File.Move(partPath, filepath, overwrite: true);
             }
-            catch (Exception ex) when (ex is HttpRequestException || ex is TimeoutException || ex is TaskCanceledException)
+            catch (Exception ex) when (ex is HttpRequestException || ex is HttpIOException || ex is TimeoutException || ex is TaskCanceledException)
             {
                 Utilities.ShowMessageBox("Please check your internet connection and try again", "Connection error", Utilities.MessageBoxType.Error);
                 Console.WriteLine(ex.StackTrace);
                 throw;
             }
+            finally
+            {
+                DeletePartFile(partPath);
+            }
             return filepath;
+        }
+
+        // Must not hide the download's own exception
+        private static void DeletePartFile(string partPath)
+        {
+            try
+            {
+                File.Delete(partPath);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                Trace.WriteLine($"Couldn't delete '{partPath}': {ex.Message}");
+            }
+        }
+
+        private async Task<int> ReadWithTimeoutAsync(Stream stream, byte[] buffer)
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(config.NetworkTimeout));
+            try
+            {
+                return await stream.ReadAsync(buffer, cts.Token);
+            }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested)
+            {
+                throw new TimeoutException($"Download stalled for {config.NetworkTimeout} seconds");
+            }
         }
     }
 }

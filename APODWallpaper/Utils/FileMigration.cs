@@ -15,6 +15,7 @@ public static partial class FileMigration
     private static readonly IReadOnlyList<Migration> Migrations =
     [
         new(1, "Image filenames to ISO", static ctx => MigrateImageFilenamesToISO(ctx.GetPath("images"))),
+        new(2, "Drop v1 API metadata cache", static ctx => DeleteLegacyMetadataCache(ctx.GetPath("cache/metadata.cache"))),
         // Add future migrations here with the next sequential version number.
     ];
 
@@ -93,6 +94,13 @@ public static partial class FileMigration
                 }
             }
         }
+    }
+
+    public static void DeleteLegacyMetadataCache(string cachePath)
+    {
+        if (!File.Exists(cachePath)) return;
+        File.Delete(cachePath);
+        Trace.WriteLine("FileMigration: deleted v1 metadata cache");
     }
 
     /// <summary>

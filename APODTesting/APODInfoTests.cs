@@ -1,43 +1,47 @@
 using APODWallpaper.Utils;
+using Newtonsoft.Json;
 
 namespace APODTesting;
 
 [TestClass]
 public sealed class APODInfoTests
 {
-    private static APODInfo MakeInfo() =>
-        new(null, DateOnly.FromDateTime(DateTime.UtcNow), "test", null, "image", "v1", "Test", "https://example.com/img.jpg");
+    private static APODInfo MakeInfo(string mediaType = "image", string? imageUrl = "https://example.com/img.jpg") =>
+        new(new DateOnly(2026, 10, 4), "Test", "test", null, mediaType, imageUrl == null ? null : new Uri(imageUrl), new Uri("https://example.com/post/"));
 
     [TestMethod]
-    public void IsValidWithUrlReturnsTrue()
+    public void IsImageWithImageUrl()
+    {
+        Assert.IsTrue(MakeInfo().IsImage);
+    }
+
+    [TestMethod]
+    public void IsImageFalseWithoutImageUrl()
+    {
+        Assert.IsFalse(MakeInfo(imageUrl: null).IsImage);
+    }
+
+    [TestMethod]
+    public void IsImageFalseForVideoWithStill()
+    {
+        Assert.IsFalse(MakeInfo(mediaType: "video").IsImage);
+    }
+
+    [TestMethod]
+    public void CacheFormatRoundTrips()
     {
         var info = MakeInfo();
-        Assert.IsTrue(info.IsValid);
-    }
-
-    [TestMethod]
-    public void IsValidWithNullUrlsReturnsFalse()
-    {
-        var info = MakeInfo();
-        info.Url = null;
-        Assert.IsFalse(info.IsValid);
-    }
-
-    [TestMethod]
-    public void IsValidWithHDUrlOnlyReturnsTrue()
-    {
-        var info = new APODInfo(null, DateOnly.FromDateTime(DateTime.UtcNow), "test", "https://example.com/hd.jpg", "image", "v1", "Test", "https://example.com/img.jpg")
-        {
-            Url = null
-        };
-        Assert.IsTrue(info.IsValid);
-    }
-
-    [TestMethod]
-    public void IsValidWithSiteThemeImageReturnsFalse()
-    {
-        const string logo = "https://science.nasa.gov/wp-content/themes/nasa-child/assets/images/nasa-logo@2x.png";
-        var info = new APODInfo(null, DateOnly.FromDateTime(DateTime.UtcNow), "test", logo, "image", "v1", "NASA Science", logo);
-        Assert.IsFalse(info.IsValid);
+        info.RetrievalDate = new DateOnly(2026, 10, 28);
+        info.Credit = "Someone";
+        info.AltText = "A house under a rainbow";
+        var copy = JsonConvert.DeserializeObject<APODInfo>(JsonConvert.SerializeObject(info))!;
+        Assert.AreEqual(info.Date, copy.Date);
+        Assert.AreEqual(info.Title, copy.Title);
+        Assert.AreEqual(info.Credit, copy.Credit);
+        Assert.AreEqual(info.AltText, copy.AltText);
+        Assert.AreEqual(info.MediaType, copy.MediaType);
+        Assert.AreEqual(info.ImageUrl, copy.ImageUrl);
+        Assert.AreEqual(info.Permalink, copy.Permalink);
+        Assert.AreEqual(info.RetrievalDate, copy.RetrievalDate);
     }
 }

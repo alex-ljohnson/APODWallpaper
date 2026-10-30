@@ -6,35 +6,20 @@ using ConfiguratorGUI.Controls;
 namespace ConfiguratorGUI.Converters
 {
     /// <summary>
-    /// Convert bindings to an ImageRequest for the ImageRequestControl. Accepts either 2 or 4 values for saved image mode or explore tab mode.
+    /// Convert bindings to an ImageRequest for the ImageRequestControl. Takes the source (string path or Uri) then the decode width
     /// </summary>
     internal class ImageRequestConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
             Uri? uri;
-            int decodeWidth;
-
-            if (values.Length >= 4)
-            {
-                // Explore-tab mode: pick HD or standard URL based on UseHD flag
-                bool useHd = values[2] is bool b && b;
-                uri = (useHd && values[1] is Uri hd) ? hd
-                    : values[0] is Uri std ? std
-                    : null;
-                decodeWidth = DecodeWidthOf(values[3]);
-            }
+            if (values[0] is Uri u)
+                uri = u;
+            else if (values[0] is string s && !string.IsNullOrEmpty(s))
+                Uri.TryCreate(s, UriKind.Absolute, out uri);
             else
-            {
-                // saved image mode: single source (string path or Uri)
-                if (values[0] is Uri u)
-                    uri = u;
-                else if (values[0] is string s && !string.IsNullOrEmpty(s))
-                    Uri.TryCreate(s, UriKind.Absolute, out uri);
-                else
-                    uri = null;
-                decodeWidth = values.Length > 1 ? DecodeWidthOf(values[1]) : 0;
-            }
+                uri = null;
+            int decodeWidth = values.Length > 1 ? DecodeWidthOf(values[1]) : 0;
 
             if (uri == null) return DependencyProperty.UnsetValue;
 

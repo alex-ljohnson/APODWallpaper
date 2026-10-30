@@ -7,17 +7,14 @@ namespace APODWallpaper.Interfaces
     {
         Task InitialiseAsync();
 
-        bool UseHD { get; set; }
         bool RunStartup { get; set; }
         bool DownloadInfo { get; set; }
         bool ExplainImage { get; set; }
-        string BaseUrl { get; set; }
         string ConfiguratorTheme { get; set; }
         long NetworkTimeout { get; set; }
         long PreviewQuality { get; set; }
         long WallpaperStyle { get; set; }
         string API_KEY { get; set; }
-        bool KeySetupDismissed { get; set; }
         string EffectiveApiKey { get; }
         bool UsingDemoKey { get; }
 

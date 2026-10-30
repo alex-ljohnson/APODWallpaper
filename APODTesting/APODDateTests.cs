@@ -1,4 +1,5 @@
 using APODWallpaper.Utils;
+using System.Globalization;
 
 namespace APODTesting;
 
@@ -22,6 +23,22 @@ public sealed class APODDateTests
         var result = APODDate.ToIsoString(date);
 
         Assert.AreEqual("2024-03-05", result);
+    }
+
+    [TestMethod]
+    public void ToCodeIgnoresCurrentCulture()
+    {
+        var original = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("th-TH");
+            Assert.AreEqual("261004", APODDate.ToCode(new DateOnly(2026, 10, 4)));
+            Assert.AreEqual("990101", APODDate.ToCode(new DateOnly(1999, 1, 1)));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
     }
 
     [TestMethod]

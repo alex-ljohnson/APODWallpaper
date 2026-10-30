@@ -113,10 +113,6 @@ namespace ConfiguratorGUI
             try
             {
                 await APOD.UpdateAsync(true);
-            } catch (NotImageException ex)
-            {
-                MessageBox.Show(ex.Message, "APOD isn't an image");
-                return;
             }
             finally
             {

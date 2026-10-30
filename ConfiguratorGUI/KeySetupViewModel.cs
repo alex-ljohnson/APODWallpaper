@@ -1,7 +1,6 @@
 using APODWallpaper.Interfaces;
 using APODWallpaper.Utils;
 using System.ComponentModel;
-using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
@@ -11,7 +10,7 @@ namespace ConfiguratorGUI
     /// <summary>
     /// State for the API key setup panel, also receives key errors from APODCache
     /// </summary>
-    public class KeySetupViewModel(IHttpClientFactory httpClientFactory, IConfigurationService config) : INotifyPropertyChanged, IApiKeyErrorHandler
+    public class KeySetupViewModel(ApodApiClient apiClient, IConfigurationService config) : INotifyPropertyChanged, IApiKeyErrorHandler
     {
         private bool isOpen;
         public bool IsOpen { get => isOpen; private set { isOpen = value; OnPropertyChanged(); } }
@@ -62,14 +61,6 @@ namespace ConfiguratorGUI
             IsOpen = true;
         }
 
-        /// <summary>
-        /// Offers setup on launch until the user has a key or picks the demo key
-        /// </summary>
-        public void OpenIfNeeded(bool force)
-        {
-            if (force || (config.UsingDemoKey && !config.KeySetupDismissed)) Open();
-        }
-
         private void OpenSignup()
         {
             try
@@ -90,7 +81,6 @@ namespace ConfiguratorGUI
         private void Dismiss()
         {
             verifyCts?.Cancel();
-            if (config.UsingDemoKey) config.KeySetupDismissed = true;
             IsOpen = false;
         }
 
@@ -109,7 +99,7 @@ namespace ConfiguratorGUI
             ApiKeyCheck check;
             try
             {
-                check = await ApiKey.CheckAsync(httpClientFactory.CreateClient("APODCache"), config.BaseUrl, key, cts.Token);
+                check = await ApiKey.CheckAsync(apiClient, key, cts.Token);
             }
             finally
             {
@@ -132,11 +122,14 @@ namespace ConfiguratorGUI
             config.API_KEY = key;
             Reason = "";
             OnPropertyChanged(nameof(DismissText));
-            Status = check.Error is { Kind: ApiKeyErrorKind.RateLimited }
-                ? "Key saved. It's over its limit right now but resets within the hour."
-                : check.Limit is int limit
-                    ? $"Key saved. NASA allows {limit} requests an hour with it."
-                    : "Key saved.";
+            Status = check switch
+            {
+                { Error.Kind: ApiKeyErrorKind.RateLimited } => "Key saved. It's over its limit right now but resets within the hour.",
+                { Enforced: false } => "Key saved. NASA isn't checking keys at the moment, it'll be used if they start.",
+                { Limit: int limit } => $"Key works and is saved. NASA allows {limit} requests an hour with it.",
+                { Enforced: true } => "Key works and is saved.",
+                _ => "Key saved."
+            };
             KeySaved?.Invoke(this, EventArgs.Empty);
         }
 

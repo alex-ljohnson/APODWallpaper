@@ -7,13 +7,14 @@ namespace ConfiguratorGUI.Templates
     internal class ImageVideoSelector : DataTemplateSelector
     {
         public required DataTemplate ImageTemplate { get; set; }
+        // Any non-image, not just videos
         public required DataTemplate VideoTemplate { get; set; }
 
         public override DataTemplate SelectTemplate(object item, DependencyObject container)
         {
             if (item is APODInfo apodInfo)
             {
-                return apodInfo.MediaType?.StartsWith("image") == true ? ImageTemplate : VideoTemplate;
+                return apodInfo.IsImage ? ImageTemplate : VideoTemplate;
             }
 
             return base.SelectTemplate(item, container);

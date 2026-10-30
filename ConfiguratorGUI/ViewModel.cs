@@ -218,8 +218,9 @@ namespace ConfiguratorGUI
                 _viewContentCommand ??= new RelayCommand<APODInfo>(async (data) =>
                 {
                     if (data == null) return;
-                    var uri = data.GetPreferredUri(config.UseHD);
-                    var mRes = MessageBox.Show($"{data.Explanation}\n\nCopyright: {data.Copyright}\n\nPress OK to open content in browser...", $"{data.Title} - {data.DateFormatted}", MessageBoxButton.OKCancel);
+                    var uri = data.Permalink;
+                    var credit = data.Credit is string c ? $"\n\nCredit: {c}" : "";
+                    var mRes = MessageBox.Show($"{data.Explanation}{credit}\n\nPress OK to open it on NASA's site...", $"{data.Title} - {data.DateFormatted}", MessageBoxButton.OKCancel);
                     if (uri == null || mRes != MessageBoxResult.OK) return;
                     Process.Start(new ProcessStartInfo { FileName = uri.AbsoluteUri, UseShellExecute = true });
                 }, (s) => true);
@@ -272,17 +273,10 @@ namespace ConfiguratorGUI
         }
         private async void SaveExplore(APODInfo? data)
         {
-            if (data == null) return;
+            if (data == null || !data.IsImage) return;
             if (MyPictureData.Any(x => x.Equals(data))) { MessageBox.Show("Image was previously saved!", "Already saved"); return; }
             PictureData? pictureData;
-            Task<PictureData?>? downloadTask = default;
-            try { 
-            
-                downloadTask = apod.DownloadImageAsync(data);
-            } catch (NotImageException)
-            {
-                return;
-            }
+            var downloadTask = apod.DownloadImageAsync(data);
             ExploreData.Remove(data);
             try
             {
@@ -303,9 +297,8 @@ namespace ConfiguratorGUI
             {
                 var exploreStart = exploreEnd.AddDays(-ExploreCount + 1);
                 var data = await cache.GetRangeAsync(exploreStart, exploreEnd);
-                var filteredData = data?.Where(x => x.IsValid);
-                if (filteredData != null)
-                    ExploreData = new(filteredData);
+                if (data != null)
+                    ExploreData = new(data);
             }
             finally
             {
@@ -346,7 +339,7 @@ namespace ConfiguratorGUI
             try
             {
                 var data = await cache.FetchRandAsync(ExploreCount);
-                if (data != null) ExploreData = new(data.Where(x => x.IsValid));
+                if (data != null) ExploreData = new(data);
             }
             finally
             {
@@ -371,15 +364,11 @@ namespace ConfiguratorGUI
             if (IsUpdating) return;
             if (apod.CheckNew())
             {
-                MessageBox.Show("New image found.", "Downloading image");
                 PictureData? newData = default;
                 IsUpdating = true;
                 try
                 {
                     newData = await apod.UpdateAsync(true);
-                } catch (NotImageException ex)
-                {
-                    MessageBox.Show(ex.Message, "APOD isn't an image");
                 }
                 finally
                 {
@@ -387,7 +376,8 @@ namespace ConfiguratorGUI
                 }
                 if (newData != null)
                 {
-                    MyPictureData.Insert(0, newData);
+                    if (!MyPictureData.Any(x => x.Equals(newData))) MyPictureData.Insert(0, newData);
+                    if (!config.ExplainImage || string.IsNullOrEmpty(newData.Description)) MessageBox.Show("New image found and set as the wallpaper.", "New image");
                 }
             }
             else
@@ -437,10 +427,9 @@ namespace ConfiguratorGUI
                     // Image is missing, redownload the image
                     Trace.WriteLine($"Image missing for {itemPath}, attempting to redownload...");
                     var info = await cache.GetAsync(data.Date);
-                    var url = info?.GetPreferredUri(config.UseHD);
-                    if (info != null && url != null)
+                    if (info is { IsImage: true })
                     {
-                        await cache.DownloadURLAsync(url, data.Source);
+                        await cache.DownloadURLAsync(info.ImageUrl, data.Source);
                     }
                 }
             }
@@ -565,8 +554,7 @@ namespace ConfiguratorGUI
 
         private static long GetCacheSize()
         {
-            var cachePath = Utilities.GetDataPath("cache/metadata.cache");
-            var cacheInfo = new FileInfo(cachePath);
+            var cacheInfo = new FileInfo(APODCache.MetadataCacheFile);
             return cacheInfo.Exists ? cacheInfo.Length : 0;
 
         }
@@ -595,25 +583,6 @@ namespace ConfiguratorGUI
             Trace.WriteLine($"Initialisation times: Total: {(endTime - startTime).TotalMilliseconds}ms; Task spinup: {(taskInitTime - startTime).TotalMilliseconds}ms");
         }
 
-        //public MainViewModel(IUpdateService updateSvc, IImageLoader imgLoader)
-        //{
-        //    _updateService = updateSvc;
-        //    _imageLoader = imgLoader;
-
-        //    // Start non-blocking initialization
-        //    _ = InitializeAsync();
-        //}
-
-        //private async Task InitializeAsync()
-        //{
-        //    // 1. Parallel start for speed
-        //    var updateTask = _updateService.CheckForUpdatesAsync();
-        //    var imagesTask = _imageLoader.LoadAllAsync();
-
-        //    await Task.WhenAll(updateTask, imagesTask);
-
-        //    // 2. Update UI properties safely via DataBinding
-        //}
     }
 }
 

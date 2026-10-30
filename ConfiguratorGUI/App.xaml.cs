@@ -44,9 +44,10 @@ namespace ConfiguratorGUI
             // Named HttpClient for APODCache, retries outermost so each attempt gets its own timeout
             services.AddTransient<TransientRetryHandler>();
             services.AddTransient<ConfigurableTimeoutHandler>();
-            services.AddHttpClient("APODCache", client => client.Timeout = Timeout.InfiniteTimeSpan)
+            services.AddHttpClient(ApodApiClient.HttpClientName, ApodApiClient.ConfigureHttpClient)
                     .AddHttpMessageHandler<TransientRetryHandler>()
                     .AddHttpMessageHandler<ConfigurableTimeoutHandler>();
+            services.AddSingleton<ApodApiClient>();
 
             // Key setup panel doubles as the handler for API key errors
             services.AddSingleton<KeySetupViewModel>();
@@ -79,9 +80,9 @@ namespace ConfiguratorGUI
             var themeService = serviceProvider.GetRequiredService<IThemeService>();
             await themeService.InitializeThemesAsync();
             await themeService.ApplyThemeAsync(Resources);
-            // Startup updater passes this when NASA refused the key
-            bool setupRequested = e.Args.Any(a => a.Equals(PromptApiKeyErrorHandler.SetupArg, StringComparison.OrdinalIgnoreCase));
-            serviceProvider.GetRequiredService<KeySetupViewModel>().OpenIfNeeded(setupRequested);
+            // Passed by the updater on key errors
+            if (e.Args.Any(a => a.Equals(PromptApiKeyErrorHandler.SetupArg, StringComparison.OrdinalIgnoreCase)))
+                serviceProvider.GetRequiredService<KeySetupViewModel>().Open();
             Trace.WriteLine($"App startup time: {(DateTime.UtcNow - startTime).TotalMilliseconds}ms");
         }
 

@@ -15,12 +15,10 @@ namespace APODWallpaper.Interfaces
         public Task AddToCacheAsync(APODInfo info);
         public Task SaveCacheAsync();
         public void LoadCache();
-        public APODInfo? ReadLatest();
         public Task<APODInfo?> GetAsync(DateOnly date);
         public Task<APODInfo?> GetToday();
         public Task<APODInfo[]?> GetRangeAsync(DateOnly startDate, DateOnly endDate);
         public Task<APODInfo[]?> FetchRandAsync(int count);
-        public Task<APODInfo?> RefreshAsync(DateOnly date);
         //public Task<APODInfo[]> GetAllFromCacheAsync();
         //public Task<bool> ExistsInCacheAsync(DateOnly date);
         //public Task ClearCacheAsync();

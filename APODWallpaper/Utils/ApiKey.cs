@@ -1,7 +1,6 @@
 using Newtonsoft.Json.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Web;
 
 namespace APODWallpaper.Utils
 {
@@ -40,8 +39,9 @@ namespace APODWallpaper.Utils
 
     /// <summary>
     /// Result of checking a key against the API. Reachable is false when NASA gave no verdict on the key
+    /// Enforced says whether NASA rejected a fake key, null when un-checked
     /// </summary>
-    public sealed record ApiKeyCheck(bool Reachable, ApiKeyError? Error, int? Limit, int? Remaining)
+    public sealed record ApiKeyCheck(bool Reachable, ApiKeyError? Error, int? Limit, int? Remaining, bool? Enforced = null)
     {
         // Over the limit still proves the key exists
         public bool Accepted => Reachable && Error is null or { Kind: ApiKeyErrorKind.RateLimited };
@@ -51,32 +51,39 @@ namespace APODWallpaper.Utils
     {
         public const string DemoKey = "DEMO_KEY";
         public const string SignupUrl = "https://api.nasa.gov/";
-        // Previously shipped as the default, shared by every install so it hits its limit
+        // Previous default key
         public const string LegacySharedKey = "5zgCnpExBIpD6hZvruRRJS48WfKYBe0PlVVaO5NZ";
+        
+        //Real key length but obv fake
+        internal const string MadeUpKey = "APODWallpaperKeyCheck0000000000000000000";
 
-        /// <summary>
-        /// Picks out key failures from an api.nasa.gov response, null for anything else
-        /// </summary>
         public static ApiKeyError? ParseError(HttpStatusCode status, string? body, bool usingDemoKey, int? limit = null)
         {
             if (status == HttpStatusCode.TooManyRequests)
                 return new(ApiKeyErrorKind.RateLimited, usingDemoKey, limit);
+            if (status == HttpStatusCode.Unauthorized)
+                return new(ApiKeyErrorKind.Invalid, usingDemoKey);
             if (status != HttpStatusCode.Forbidden) return null;
 
-            string? code = null;
+            // 403 is page block not key err
+            JObject json;
             try
             {
-                code = (string?)JObject.Parse(body ?? "")["error"]?["code"];
+                json = JObject.Parse(body ?? "");
             }
-            catch (Newtonsoft.Json.JsonException) { }
+            catch (Newtonsoft.Json.JsonException)
+            {
+                return null;
+            }
 
+            // api.data.gov nests it under error
+            var code = (string?)json["error"]?["code"] ?? (string?)json["code"];
+            if (code == null) return null;
             return code switch
             {
                 "OVER_RATE_LIMIT" => new(ApiKeyErrorKind.RateLimited, usingDemoKey, limit),
                 "API_KEY_MISSING" => new(ApiKeyErrorKind.Missing, usingDemoKey),
-                // API_KEY_INVALID, API_KEY_DISABLED, API_KEY_UNVERIFIED etc
-                string c when c.StartsWith("API_KEY_", StringComparison.Ordinal) => new(ApiKeyErrorKind.Invalid, usingDemoKey),
-                _ => null
+                _ => new(ApiKeyErrorKind.Invalid, usingDemoKey)
             };
         }
 
@@ -87,30 +94,17 @@ namespace APODWallpaper.Utils
             response.Headers.TryGetValues(name, out var values) && int.TryParse(values.FirstOrDefault(), out var n) ? n : null;
 
         /// <summary>
-        /// Makes one request with the key to see whether NASA accepts it
+        /// Checks the key, then a fake one to see if keys are enforced
         /// </summary>
-        public static async Task<ApiKeyCheck> CheckAsync(HttpClient client, string baseUrl, string key, CancellationToken cancellationToken = default)
+        public static async Task<ApiKeyCheck> CheckAsync(ApodApiClient client, string key, CancellationToken cancellationToken = default)
         {
-            var urlParams = HttpUtility.ParseQueryString("");
-            urlParams["api_key"] = key;
-            try
-            {
-                using var response = await client.GetAsync($"{baseUrl}?{urlParams}", cancellationToken);
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
-                var limit = ReadLimit(response);
-                var error = ParseError(response.StatusCode, body, key == DemoKey, limit);
-                // Rate limit headers mean NASA's gateway let the key through even if APOD then 5xx'd,
-                // without them a failure never reached the key check so proves nothing
-                if (error is null && !response.IsSuccessStatusCode && limit is null)
-                    return new(false, null, null, null);
-                return new(true, error, limit, ReadRemaining(response));
-            }
-            // OperationCanceledException covers timeouts and the caller cancelling
-            catch (Exception ex) when (ex is HttpRequestException || ex is OperationCanceledException)
-            {
-                Console.WriteLine($"Key check failed: {ex.Message}");
-                return new(false, null, null, null);
-            }
+            var check = await client.CheckKeyAsync(key, cancellationToken);
+            if (!check.Accepted) return check;
+
+            var probe = await client.CheckKeyAsync(MadeUpKey, cancellationToken);
+            // Rate limited proves nothing either way
+            bool? enforced = !probe.Reachable || probe.Error is { Kind: ApiKeyErrorKind.RateLimited } ? null : probe.Error != null;
+            return check with { Enforced = enforced };
         }
     }
 }

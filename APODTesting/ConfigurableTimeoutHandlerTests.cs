@@ -1,6 +1,4 @@
-using APODWallpaper.Interfaces;
 using APODWallpaper.Utils;
-using System.Collections.ObjectModel;
 using System.Net;
 
 namespace APODTesting;
@@ -8,28 +6,6 @@ namespace APODTesting;
 [TestClass]
 public sealed class ConfigurableTimeoutHandlerTests
 {
-    // Only NetworkTimeout matters to the handler
-    private sealed class StubConfig : IConfigurationService
-    {
-        public Task InitialiseAsync() => Task.CompletedTask;
-        public bool UseHD { get; set; }
-        public bool RunStartup { get; set; }
-        public bool DownloadInfo { get; set; }
-        public bool ExplainImage { get; set; }
-        public string BaseUrl { get; set; } = "";
-        public string ConfiguratorTheme { get; set; } = "";
-        public long NetworkTimeout { get; set; } = 1;
-        public long PreviewQuality { get; set; }
-        public long WallpaperStyle { get; set; }
-        public string API_KEY { get; set; } = "";
-        public bool KeySetupDismissed { get; set; }
-        public string EffectiveApiKey => ApiKey.DemoKey;
-        public bool UsingDemoKey => true;
-        public ObservableCollection<string> AvailableThemes { get; } = [];
-        public void LoadThemes(IEnumerable<string> themes) { }
-        public void ChangeStartup() { }
-    }
-
     // Never answers until cancelled
     private sealed class HangingHandler : HttpMessageHandler
     {
@@ -41,6 +17,7 @@ public sealed class ConfigurableTimeoutHandlerTests
     }
 
     private static HttpClient CreateClient() =>
+        // StubConfig times out after 1s
         new(new ConfigurableTimeoutHandler(new StubConfig()) { InnerHandler = new HangingHandler() }) { Timeout = Timeout.InfiniteTimeSpan };
 
     [TestMethod]

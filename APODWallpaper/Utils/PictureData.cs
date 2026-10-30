@@ -21,7 +21,7 @@ namespace APODWallpaper.Utils
             Description = info.Explanation;
             Source = "";
             Date = info.Date;
-            OriginalUrl = info.GetPreferredUri(true)?.ToString();
+            OriginalUrl = info.ImageUrl?.ToString();
 
         }
 

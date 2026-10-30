@@ -23,8 +23,6 @@ if (setKeyAt >= 0)
         using Configuration keyConfig = new("Config");
         await keyConfig.InitialiseAsync();
         keyConfig.API_KEY = key;
-        // Blank means the demo key was chosen, so the Configurator shouldn't ask again
-        if (key.Length == 0) keyConfig.KeySetupDismissed = true;
         await keyConfig.SaveConfigAsync();
         Console.WriteLine(key.Length == 0 ? "API key cleared, using NASA's demo key" : "API key saved");
     }
@@ -70,9 +68,10 @@ services.AddSingleton<IConfigurationService>(config);
 // Retries outermost so each attempt gets its own timeout
 services.AddTransient<TransientRetryHandler>();
 services.AddTransient<ConfigurableTimeoutHandler>();
-services.AddHttpClient("APODCache", client => client.Timeout = Timeout.InfiniteTimeSpan)
+services.AddHttpClient(ApodApiClient.HttpClientName, ApodApiClient.ConfigureHttpClient)
         .AddHttpMessageHandler<TransientRetryHandler>()
         .AddHttpMessageHandler<ConfigurableTimeoutHandler>();
+services.AddSingleton<ApodApiClient>();
 services.AddSingleton<IApiKeyErrorHandler, PromptApiKeyErrorHandler>();
 services.AddSingleton<IAPODCache, APODCache>();
 services.AddSingleton<IAPODWallpaper, APODWallpaper.APODWallpaper>();
@@ -107,14 +106,31 @@ namespace APODWallpaper
         {
             if (force || CheckNew())
             {
-                var fileInfo = await DownloadTodayAsync();
+                var latest = await APODCache.GetToday();
+                if (latest == null)
+                {
+                    // Fetch already told the user
+                    Console.WriteLine("Could not get today's APOD");
+                    return null;
+                }
+                // Not out until 00:05 Eastern, next run retries
+                if (WaitingForToday(latest.Date, ReadLastUpdate(LastUpdateFile), APODDate.Today()))
+                {
+                    Console.WriteLine("Today's APOD isn't out yet");
+                    // Startup runs stay quiet, a user asked for this one
+                    if (force) Utilities.ShowMessageBox("Today's APOD isn't out yet, NASA publishes it at 00:05 US Eastern time.", "Not out yet");
+                    return null;
+                }
+                if (latest.Date != APODDate.Today()) Console.WriteLine($"Today's APOD isn't out yet, using {latest.DateFormatted}");
+                var fileInfo = await DownloadImageAsync(latest, announceSaved: force);
                 if (fileInfo == null) {
-                    // Cause already shown to the user by the fetch or URL check
+                    // Download already told the user. Non-image days count as done so that's shown once
+                    if (!latest.IsImage) WriteLastUpdate(LastUpdateFile, latest.Date);
                     Console.WriteLine("Could not download image");
                     return null;
                 }
                 UpdateBackground(fileInfo.Source, style: (WallpaperStyleEnum)Config.WallpaperStyle);
-                // Reuse downloaded info, a second API call can fail after the wallpaper is already set
+                WriteLastUpdate(LastUpdateFile, latest.Date);
                 string? todayExp = fileInfo.Description;
                 if (Config.ExplainImage && !string.IsNullOrEmpty(todayExp)) { Utilities.ShowMessageBox(todayExp, "Image Updated", Utilities.MessageBoxType.Information | Utilities.MessageBoxType.OK); }
                 return fileInfo;
@@ -126,41 +142,65 @@ namespace APODWallpaper
             }
         }
                 
-        public async Task<PictureData?> DownloadImageAsync(APODInfo? information = null)
+        public Task<PictureData?> DownloadImageAsync(APODInfo? information = null) => DownloadImageAsync(information, announceSaved: true);
+
+        private async Task<PictureData?> DownloadImageAsync(APODInfo? information, bool announceSaved)
         {
             APODInfo? imageInfo = information ?? await APODCache.GetToday();
             if (imageInfo == null) return null;
-            if (imageInfo.GetPreferredUri(Config.UseHD) == null) { Utilities.ShowMessageBox("No media URL is given.", "No URL available"); Environment.Exit(1); }
-            if (!imageInfo.IsValid) { Utilities.ShowMessageBox("NASA returned an invalid image URL, the API may be having issues. Try again later.", "Invalid image"); return null; }
-            if (imageInfo.MediaType != "image") { Utilities.ShowMessageBox("APOD is not an image.", "Not an image"); throw new NotImageException("APOD is not an image"); }
+            if (!imageInfo.IsImage)
+            {
+                Utilities.ShowMessageBox($"The APOD for {imageInfo.DateFormatted} isn't an image, so it can't be saved or set as the wallpaper.\nSee it at {imageInfo.Permalink}", "Not an image");
+                return null;
+            }
             Console.WriteLine("Getting image data");
 
             DateTime startTime = DateTime.UtcNow;
             string filepath = Utilities.GetDataPath("images/" + imageInfo.Filename);
             if (File.Exists(filepath))
             {
-                Utilities.ShowMessageBox("Image already downloaded", "Already downloaded");
-                return new PictureData(imageInfo.Title, imageInfo.Explanation, filepath, imageInfo.Date, imageInfo.GetPreferredUri(Config.UseHD)?.ToString());
+                if (announceSaved) Utilities.ShowMessageBox("Image already downloaded", "Already downloaded");
+                return new PictureData(imageInfo.Title, imageInfo.Explanation, filepath, imageInfo.Date, imageInfo.ImageUrl?.ToString());
             }
-            var filename = await APODCache.DownloadURLAsync(imageInfo.GetPreferredUri(Config.UseHD), filepath);
-            PictureData downloadedInfo = new(imageInfo.Title, imageInfo.Explanation, filename, imageInfo.Date, imageInfo.GetPreferredUri(Config.UseHD)?.ToString());
+            var filename = await APODCache.DownloadURLAsync(imageInfo.ImageUrl, filepath);
+            PictureData downloadedInfo = new(imageInfo.Title, imageInfo.Explanation, filename, imageInfo.Date, imageInfo.ImageUrl?.ToString());
             var infoJson = JsonConvert.SerializeObject(downloadedInfo, Formatting.Indented);
             await File.WriteAllTextAsync(filename + ".json", infoJson);
             Console.WriteLine($"Time Taken: {(DateTime.UtcNow - startTime).TotalSeconds} seconds");
             return downloadedInfo;
         }
-        public async Task<PictureData?> DownloadTodayAsync(APODInfo? info = null)
+
+        public static readonly string LastUpdateFile = Utilities.GetDataPath("last-update.state");
+
+        public bool CheckNew() => ReadLastUpdate(LastUpdateFile) != APODDate.Today();
+
+        internal static bool WaitingForToday(DateOnly latest, DateOnly? lastUpdate, DateOnly today) =>
+            latest != today && latest <= lastUpdate;
+
+        internal static DateOnly? ReadLastUpdate(string statePath)
         {
-            info ??= await APODCache.GetToday();
-            return await DownloadImageAsync(info);
+            try
+            {
+                return File.Exists(statePath) ? APODDate.ParseIso(File.ReadAllText(statePath).Trim()) : null;
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is FormatException)
+            {
+                Console.WriteLine($"Couldn't read last update '{statePath}': {ex.Message}");
+                return null;
+            }
         }
 
-        public bool CheckNew()
+        internal static void WriteLastUpdate(string statePath, DateOnly date)
         {
-            var latest = APODCache.ReadLatest();
-            var date = latest?.Date;
-            var today = APODDate.Today();
-            return date != today;
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(statePath)!);
+                File.WriteAllText(statePath, APODDate.ToIsoString(date));
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                Console.WriteLine($"Couldn't save last update: {ex.Message}");
+            }
         }
 
 

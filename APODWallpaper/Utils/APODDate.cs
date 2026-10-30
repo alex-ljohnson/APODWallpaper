@@ -11,6 +11,8 @@ public static class APODDate
         TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 
     private const string IsoFormat = "yyyy-MM-dd";
+    // NASA's legacy date code, used in API routes and filters
+    private const string CodeFormat = "yyMMdd";
 
     /// <summary>
     /// Earliest date with APOD image.
@@ -24,18 +26,16 @@ public static class APODDate
     {
         return DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Eastern));
     }
-
-    /// <summary>
-    /// Formats date as "yyyy-MM-dd" with invariant culture.
-    /// </summary>
     public static string ToIsoString(DateOnly date)
     {
         return date.ToString(IsoFormat, CultureInfo.InvariantCulture);
     }
 
-    /// <summary>
-    /// Parses an "yyyy-MM-dd" string with invariant culture.
-    /// </summary>
+    public static string ToCode(DateOnly date)
+    {
+        return date.ToString(CodeFormat, CultureInfo.InvariantCulture);
+    }
+
     public static DateOnly ParseIso(string s)
     {
         return DateOnly.ParseExact(s, IsoFormat, CultureInfo.InvariantCulture);

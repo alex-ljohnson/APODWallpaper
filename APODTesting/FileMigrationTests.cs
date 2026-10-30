@@ -200,6 +200,28 @@ public sealed class FileMigrationTests
     }
 
     [TestMethod]
+    public void RunDeletesLegacyMetadataCacheOnly()
+    {
+        var cacheDir = Path.Combine(testDir, "cache");
+        Directory.CreateDirectory(cacheDir);
+        var legacy = Path.Combine(cacheDir, "metadata.cache");
+        var current = Path.Combine(cacheDir, "metadata.v2.cache");
+        File.WriteAllText(legacy, "[]");
+        File.WriteAllText(current, "[]");
+
+        FileMigration.Run(new MigrationContext(testDir));
+
+        Assert.IsFalse(File.Exists(legacy));
+        Assert.IsTrue(File.Exists(current));
+    }
+
+    [TestMethod]
+    public void DeleteLegacyMetadataCacheIgnoresMissingFile()
+    {
+        FileMigration.DeleteLegacyMetadataCache(Path.Combine(testDir, "cache", "metadata.cache"));
+    }
+
+    [TestMethod]
     public void RunAdvancesStateAfterEachMigration()
     {
         var statePath = Path.Combine(testDir, "migrations.state");

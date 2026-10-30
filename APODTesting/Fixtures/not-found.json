@@ -1,0 +1,7 @@
+{
+  "code": "apod_basic_not_found",
+  "message": "APOD not found.",
+  "data": {
+    "status": 404
+  }
+}

@@ -148,8 +148,8 @@ var
 begin
   ApiKeyPage := CreateInputQueryPage(wpSelectTasks,
     'NASA API key', 'Pictures come from NASA''s free API',
-    'Without a key APODWallpaper uses NASA''s demo key, which only allows a few requests an hour from your network. ' +
-    'A free personal key avoids running out and takes about a minute to get.' + #13#10#13#10 +
+    'NASA doesn''t require a key at the moment but may in future. Adding one now avoids interruptions, ' +
+    'and a free personal key takes about a minute to get.' + #13#10#13#10 +
     'Paste your key below, or leave it blank to use the demo key. You can change it later in the Configurator.');
   ApiKeyPage.Add('&API key:', False);
   ApiKeyPage.Values[0] := ReadExistingApiKey();
