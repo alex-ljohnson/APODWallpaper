@@ -256,6 +256,24 @@ public sealed class FileMigrationTests
         Assert.AreEqual(1, FileMigration.ReadSchemaVersion(statePath));
     }
 
+    [TestMethod]
+    public void RunFileErrorStopsQuietlyWithoutAdvancing()
+    {
+        var statePath = Path.Combine(testDir, "migrations.state");
+        var ranThird = false;
+        var migrations = new List<Migration>
+        {
+            new(1, "ok", _ => { }),
+            new(2, "locked", _ => throw new IOException("locked")),
+            new(3, "later", _ => ranThird = true),
+        };
+
+        FileMigration.Run(new MigrationContext(testDir), migrations, statePath);
+
+        Assert.IsFalse(ranThird);
+        Assert.AreEqual(1, FileMigration.ReadSchemaVersion(statePath));
+    }
+
     private string? wallpaper;
 
     private void AddExtensions() => FileMigration.AddImageExtensions(testDir, () => wallpaper, path => wallpaper = path);
@@ -386,10 +404,30 @@ public sealed class FileMigrationTests
         File.WriteAllBytes(free, TestImages.Gif(10, 10));
 
         using (new FileStream(locked, FileMode.Open, FileAccess.Read, FileShare.None))
-            AddExtensions();
+            Assert.ThrowsException<IOException>(AddExtensions);
 
         Assert.IsTrue(File.Exists(locked));
         Assert.IsTrue(File.Exists(free + ".gif"));
+    }
+
+    [TestMethod]
+    public void RunRetriesALockedImageNextStart()
+    {
+        var images = Path.Combine(testDir, "images");
+        Directory.CreateDirectory(images);
+        var locked = Path.Combine(images, "2026-08-05");
+        File.WriteAllBytes(locked, TestImages.Gif(10, 10));
+        var statePath = Path.Combine(testDir, "migrations.state");
+        FileMigration.WriteSchemaVersion(statePath, 2);
+        var ctx = new MigrationContext(testDir) { ReadWallpaper = () => null, WriteWallpaper = _ => { } };
+
+        using (new FileStream(locked, FileMode.Open, FileAccess.Read, FileShare.None))
+            FileMigration.Run(ctx);
+        Assert.AreEqual(2, FileMigration.ReadSchemaVersion(statePath));
+
+        FileMigration.Run(ctx);
+        Assert.IsTrue(File.Exists(locked + ".gif"));
+        Assert.AreEqual(3, FileMigration.ReadSchemaVersion(statePath));
     }
 
     [TestMethod]

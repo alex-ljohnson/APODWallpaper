@@ -19,6 +19,7 @@ public static partial class FileMigration
         new(2, "Drop v1 API metadata cache", static ctx => DeleteLegacyMetadataCache(ctx.GetPath("cache/metadata.cache"))),
         new(3, "Image file extensions", static ctx => AddImageExtensions(ctx.GetPath("images"), ctx.ReadWallpaper, ctx.WriteWallpaper)),
         // Add future migrations here with the next sequential version number.
+        // Steps must be safe to rerun, an IOException leaves the version so the step runs again next start
     ];
 
     /// <summary>Runs all pending migrations for the given context, advancing the persisted schema version.</summary>
@@ -31,8 +32,17 @@ public static partial class FileMigration
         foreach (var migration in migrations.Where(m => m.Version > current).OrderBy(m => m.Version))
         {
             Trace.WriteLine($"FileMigration: running migration {migration.Version} '{migration.Name}'");
-            migration.Run(ctx);
-            WriteSchemaVersion(statePath, migration.Version);
+            try
+            {
+                migration.Run(ctx);
+                WriteSchemaVersion(statePath, migration.Version);
+            }
+            // Locked files or the other app migrating, steps are safe to rerun so try again next start
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                Trace.WriteLine($"FileMigration: migration {migration.Version} incomplete, retrying next start: {ex.Message}");
+                return;
+            }
         }
     }
 
@@ -100,6 +110,7 @@ public static partial class FileMigration
 
     /// <summary>
     /// Gives extensionless {date} images the extension of their content, the sidecar and desktop wallpaper path follow
+    /// Throws IOException after the rest are done if any couldn't be renamed
     /// </summary>
     public static void AddImageExtensions(string imagesDirectory, Func<string?> readWallpaper, Action<string> writeWallpaper)
     {
@@ -107,6 +118,7 @@ public static partial class FileMigration
 
         string? wallpaper = null;
         bool wallpaperRead = false;
+        int failed = 0;
         foreach (var imagePath in Directory.GetFiles(imagesDirectory).Where(f => IsoDatePattern.IsMatch(Path.GetFileName(f))))
         {
             string? newImagePath;
@@ -114,10 +126,11 @@ public static partial class FileMigration
             {
                 newImagePath = AddImageExtension(imagePath);
             }
-            // Locked, or another app migrating at the same time, the file still loads without an extension
+            // Locked, or another app migrating at the same time, carry on with the rest
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
             {
                 Trace.WriteLine($"FileMigration: couldn't rename '{Path.GetFileName(imagePath)}': {ex.Message}");
+                failed++;
                 continue;
             }
             if (newImagePath == null) continue;
@@ -134,6 +147,7 @@ public static partial class FileMigration
                 wallpaper = null;
             }
         }
+        if (failed > 0) throw new IOException($"{failed} image(s) couldn't be renamed");
     }
 
     // New path or null when left alone, only throws before the image is moved
