@@ -11,8 +11,6 @@ namespace APODWallpaper.Utils
         private static extern int MessageBoxW(nint hWnd, string msg, string title, int type);
         private static readonly nint hwnd = GetConsoleWindow();
 
-        public static readonly string current = GetDataPath("current.jpg");
-        public static readonly string last = GetDataPath("last.jpg");
         public static string GetDataPath(string? path = null)
         {
             var appdata = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);

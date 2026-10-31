@@ -48,6 +48,30 @@ public sealed class APODTests
     }
 
     [TestMethod]
+    [DataRow("image", true, true, true)]
+    [DataRow("image", true, false, true)]
+    [DataRow("video", true, true, true)]
+    [DataRow("video", true, false, false)]
+    // Old videos only have the placeholder, mapped to no image
+    [DataRow("video", false, true, false)]
+    [DataRow("other", false, true, false)]
+    public void WallpaperUsesStillsOnlyWhenAllowed(string mediaType, bool hasImage, bool useStills, bool expected)
+    {
+        var info = new APODWallpaper.Utils.APODInfo(new DateOnly(2026, 10, 28), "T", "E", null, mediaType,
+            hasImage ? new Uri("https://example.test/a.jpg") : null, new Uri("https://example.test/post/"));
+        Assert.AreEqual(expected, APODWallpaper.APODWallpaper.ShouldSetWallpaper(info, useStills));
+    }
+
+    [TestMethod]
+    [DataRow("video", "a video")]
+    [DataRow("iframe", "interactive")]
+    [DataRow("other", "not an image")]
+    public void DescribesMediaByType(string mediaType, string expected)
+    {
+        Assert.AreEqual(expected, APODWallpaper.APODWallpaper.DescribeMedia(mediaType));
+    }
+
+    [TestMethod]
     public void UnreadableStateMeansNeverUpdated()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(statePath)!);

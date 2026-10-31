@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Text.RegularExpressions;
+using System.Web;
 
 namespace APODWallpaper.Utils
 {
@@ -144,5 +145,60 @@ namespace APODWallpaper.Utils
         private static partial Regex TitleBeforeCredit();
         [GeneratedRegex(@"^Credits?\s+(?=\p{Lu})")]
         private static partial Regex BareCreditLabel();
+    }
+
+    /// <summary>
+    /// Observed assets.science.nasa.gov URL forms, each null when hdurl isn't one so callers use hdurl as given
+    /// </summary>
+    public static class ApodImageUrl
+    {
+        private const string Host = "assets.science.nasa.gov";
+        // Serves the original file, ignores the query
+        private const string OriginalPrefix = "/content/dam/";
+        // Resizing proxy, re-encodes JPEGs at q80 and upscales past the original
+        private const string ProxyPrefix = "/dynamicimage/assets/";
+
+        /// <summary>
+        /// Original file, null when hdurl already serves it (any query is ignored there)
+        /// </summary>
+        public static Uri? Original(Uri hdurl)
+        {
+            if (AssetPath(hdurl) is not string asset || IsOriginal(hdurl)) return null;
+            return new Uri($"{hdurl.Scheme}://{hdurl.Authority}{OriginalPrefix}{asset}");
+        }
+
+        private static bool IsOriginal(Uri hdurl) => hdurl.AbsolutePath.StartsWith(OriginalPrefix, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Resized by the proxy, never wider than the original
+        /// </summary>
+        public static Uri? Resized(Uri hdurl, int width)
+        {
+            if (width <= 0 || AssetPath(hdurl) is not string asset) return null;
+            if (ExpectedSize(hdurl) is ImageSize expected) width = Math.Min(width, expected.Width);
+            return new Uri($"{hdurl.Scheme}://{hdurl.Authority}{ProxyPrefix}{asset}?w={width}");
+        }
+
+        /// <summary>
+        /// The w and h hdurl carries, the original's size in every sample
+        /// </summary>
+        public static ImageSize? ExpectedSize(Uri hdurl)
+        {
+            if (AssetPath(hdurl) == null) return null;
+            var query = HttpUtility.ParseQueryString(hdurl.Query);
+            return int.TryParse(query["w"], NumberStyles.None, CultureInfo.InvariantCulture, out var w) && w > 0
+                && int.TryParse(query["h"], NumberStyles.None, CultureInfo.InvariantCulture, out var h) && h > 0
+                ? new ImageSize(w, h) : null;
+        }
+
+        // Escaped path after either prefix
+        private static string? AssetPath(Uri hdurl)
+        {
+            if (!hdurl.Host.Equals(Host, StringComparison.OrdinalIgnoreCase)) return null;
+            var path = hdurl.AbsolutePath;
+            if (path.StartsWith(OriginalPrefix, StringComparison.OrdinalIgnoreCase)) return path[OriginalPrefix.Length..];
+            if (path.StartsWith(ProxyPrefix, StringComparison.OrdinalIgnoreCase)) return path[ProxyPrefix.Length..];
+            return null;
+        }
     }
 }

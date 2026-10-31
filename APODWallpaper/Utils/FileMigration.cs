@@ -11,11 +11,13 @@ namespace APODWallpaper.Utils;
 public static partial class FileMigration
 {
     private static readonly Regex IsoDatePattern = IsoDateRegex();
+    private static readonly Regex IsoNamePattern = IsoNameRegex();
 
     private static readonly IReadOnlyList<Migration> Migrations =
     [
         new(1, "Image filenames to ISO", static ctx => MigrateImageFilenamesToISO(ctx.GetPath("images"))),
         new(2, "Drop v1 API metadata cache", static ctx => DeleteLegacyMetadataCache(ctx.GetPath("cache/metadata.cache"))),
+        new(3, "Image file extensions", static ctx => AddImageExtensions(ctx.GetPath("images"), ctx.ReadWallpaper, ctx.WriteWallpaper)),
         // Add future migrations here with the next sequential version number.
     ];
 
@@ -50,7 +52,7 @@ public static partial class FileMigration
         {
             var filename = Path.GetFileName(imagePath);
 
-            if (IsoDatePattern.IsMatch(filename)) continue;
+            if (IsoNamePattern.IsMatch(filename)) continue;
 
             var oldJsonPath = imagePath + ".json";
             if (!TryResolveDate(filename, oldJsonPath, out var date))
@@ -93,6 +95,110 @@ public static partial class FileMigration
                         File.Move(oldJsonPath, newJsonPath);
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Gives extensionless {date} images the extension of their content, the sidecar and desktop wallpaper path follow
+    /// </summary>
+    public static void AddImageExtensions(string imagesDirectory, Func<string?> readWallpaper, Action<string> writeWallpaper)
+    {
+        if (!Directory.Exists(imagesDirectory)) return;
+
+        string? wallpaper = null;
+        bool wallpaperRead = false;
+        foreach (var imagePath in Directory.GetFiles(imagesDirectory).Where(f => IsoDatePattern.IsMatch(Path.GetFileName(f))))
+        {
+            string? newImagePath;
+            try
+            {
+                newImagePath = AddImageExtension(imagePath);
+            }
+            // Locked, or another app migrating at the same time, the file still loads without an extension
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                Trace.WriteLine($"FileMigration: couldn't rename '{Path.GetFileName(imagePath)}': {ex.Message}");
+                continue;
+            }
+            if (newImagePath == null) continue;
+
+            if (!wallpaperRead)
+            {
+                wallpaper = TryWallpaper(readWallpaper);
+                wallpaperRead = true;
+            }
+            if (wallpaper != null && string.Equals(wallpaper, Path.GetFullPath(imagePath), StringComparison.OrdinalIgnoreCase))
+            {
+                // Registry only, the desktop is already showing it
+                TryWallpaper(() => { writeWallpaper(newImagePath); return newImagePath; });
+                wallpaper = null;
+            }
+        }
+    }
+
+    // New path or null when left alone, only throws before the image is moved
+    private static string? AddImageExtension(string imagePath)
+    {
+        var filename = Path.GetFileName(imagePath);
+        if (ImageFile.Detect(imagePath) is not ImageFormat format)
+        {
+            Trace.WriteLine($"FileMigration: '{filename}' isn't a recognised image, leaving it");
+            return null;
+        }
+        var newImagePath = imagePath + ImageFile.Extension(format);
+        if (File.Exists(newImagePath))
+        {
+            Trace.WriteLine($"FileMigration: '{Path.GetFileName(newImagePath)}' already exists, skipping '{filename}'");
+            return null;
+        }
+
+        File.Move(imagePath, newImagePath);
+        Trace.WriteLine($"FileMigration: renamed '{filename}' -> '{Path.GetFileName(newImagePath)}'");
+        try
+        {
+            MoveSidecar(imagePath + ".json", newImagePath);
+        }
+        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+        {
+            Trace.WriteLine($"FileMigration: couldn't move the sidecar for '{filename}': {ex.Message}");
+        }
+        return newImagePath;
+    }
+
+    private static string? TryWallpaper(Func<string?> access)
+    {
+        try
+        {
+            var path = access();
+            return string.IsNullOrWhiteSpace(path) ? null : Path.GetFullPath(path);
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException || ex is UnauthorizedAccessException || ex is IOException || ex is ArgumentException)
+        {
+            Trace.WriteLine($"FileMigration: couldn't use the wallpaper path: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static void MoveSidecar(string oldJsonPath, string newImagePath)
+    {
+        if (!File.Exists(oldJsonPath)) return;
+        var newJsonPath = newImagePath + ".json";
+        if (File.Exists(newJsonPath))
+        {
+            Trace.WriteLine($"FileMigration: '{Path.GetFileName(newJsonPath)}' already exists, leaving '{Path.GetFileName(oldJsonPath)}'");
+            return;
+        }
+        try
+        {
+            var obj = JObject.Parse(File.ReadAllText(oldJsonPath));
+            obj["Source"] = newImagePath;
+            File.WriteAllText(newJsonPath, obj.ToString(Formatting.Indented));
+            File.Delete(oldJsonPath);
+        }
+        catch (JsonException ex)
+        {
+            Trace.WriteLine($"FileMigration: couldn't update '{Path.GetFileName(oldJsonPath)}': {ex.Message}");
+            File.Move(oldJsonPath, newJsonPath);
         }
     }
 
@@ -156,4 +262,6 @@ public static partial class FileMigration
 
     [GeneratedRegex(@"^\d{4}-\d{2}-\d{2}$")]
     private static partial Regex IsoDateRegex();
+    [GeneratedRegex(@"^\d{4}-\d{2}-\d{2}(\.[A-Za-z0-9]+)?$")]
+    private static partial Regex IsoNameRegex();
 }

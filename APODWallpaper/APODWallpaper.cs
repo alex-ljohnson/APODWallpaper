@@ -122,10 +122,26 @@ namespace APODWallpaper
                     return null;
                 }
                 if (latest.Date != APODDate.Today()) Console.WriteLine($"Today's APOD isn't out yet, using {latest.DateFormatted}");
-                var fileInfo = await DownloadImageAsync(latest, announceSaved: force);
+                if (!ShouldSetWallpaper(latest, Config.UseVideoStills))
+                {
+                    Utilities.ShowMessageBox($"The APOD for {latest.DateFormatted} isn't an image, so it won't be set as the wallpaper.\nSee it at {latest.Permalink}", "Not an image");
+                    WriteLastUpdate(LastUpdateFile, latest.Date);
+                    return null;
+                }
+                if (!latest.IsImage) Console.WriteLine($"The APOD for {latest.DateFormatted} is {DescribeMedia(latest.MediaType)}, using its still. See it at {latest.Permalink}");
+                PictureData? fileInfo;
+                try
+                {
+                    fileInfo = await DownloadImageAsync(latest, announceSaved: force);
+                }
+                // Already shown, a connection error retries next run
+                catch (Exception ex) when (Utils.APODCache.IsReportedDownloadError(ex))
+                {
+                    Console.WriteLine($"Could not download image: {ex.Message}");
+                    if (ex is InvalidDataException) WriteLastUpdate(LastUpdateFile, latest.Date);
+                    return null;
+                }
                 if (fileInfo == null) {
-                    // Download already told the user. Non-image days count as done so that's shown once
-                    if (!latest.IsImage) WriteLastUpdate(LastUpdateFile, latest.Date);
                     Console.WriteLine("Could not download image");
                     return null;
                 }
@@ -148,24 +164,24 @@ namespace APODWallpaper
         {
             APODInfo? imageInfo = information ?? await APODCache.GetToday();
             if (imageInfo == null) return null;
-            if (!imageInfo.IsImage)
+            if (!imageInfo.HasImage)
             {
-                Utilities.ShowMessageBox($"The APOD for {imageInfo.DateFormatted} isn't an image, so it can't be saved or set as the wallpaper.\nSee it at {imageInfo.Permalink}", "Not an image");
+                Utilities.ShowMessageBox($"The APOD for {imageInfo.DateFormatted} has no image, so it can't be saved or set as the wallpaper.\nSee it at {imageInfo.Permalink}", "Not an image");
                 return null;
             }
             Console.WriteLine("Getting image data");
 
             DateTime startTime = DateTime.UtcNow;
-            string filepath = Utilities.GetDataPath("images/" + imageInfo.Filename);
-            if (File.Exists(filepath))
+            string imagesPath = Directory.CreateDirectory(Utilities.GetDataPath("images")).FullName;
+            if (ImageFile.FindSaved(imagesPath, imageInfo.Date) is string saved)
             {
                 if (announceSaved) Utilities.ShowMessageBox("Image already downloaded", "Already downloaded");
-                return new PictureData(imageInfo.Title, imageInfo.Explanation, filepath, imageInfo.Date, imageInfo.ImageUrl?.ToString());
+                return new PictureData(imageInfo.Title, imageInfo.Explanation, saved, imageInfo.Date, imageInfo.ImageUrl?.ToString());
             }
-            var filename = await APODCache.DownloadURLAsync(imageInfo.ImageUrl, filepath);
-            PictureData downloadedInfo = new(imageInfo.Title, imageInfo.Explanation, filename, imageInfo.Date, imageInfo.ImageUrl?.ToString());
+            var image = await APODCache.DownloadImageAsync(imageInfo, Path.Combine(imagesPath, imageInfo.Filename));
+            PictureData downloadedInfo = new(imageInfo.Title, imageInfo.Explanation, image.Path, imageInfo.Date, image.Source.ToString());
             var infoJson = JsonConvert.SerializeObject(downloadedInfo, Formatting.Indented);
-            await File.WriteAllTextAsync(filename + ".json", infoJson);
+            await File.WriteAllTextAsync(image.Path + ".json", infoJson);
             Console.WriteLine($"Time Taken: {(DateTime.UtcNow - startTime).TotalSeconds} seconds");
             return downloadedInfo;
         }
@@ -173,6 +189,16 @@ namespace APODWallpaper
         public static readonly string LastUpdateFile = Utilities.GetDataPath("last-update.state");
 
         public bool CheckNew() => ReadLastUpdate(LastUpdateFile) != APODDate.Today();
+
+        internal static bool ShouldSetWallpaper(APODInfo info, bool useVideoStills) =>
+            info.IsImage || (info.HasImage && useVideoStills);
+
+        internal static string DescribeMedia(string mediaType) => mediaType switch
+        {
+            "video" => "a video",
+            "iframe" => "interactive",
+            _ => "not an image",
+        };
 
         internal static bool WaitingForToday(DateOnly latest, DateOnly? lastUpdate, DateOnly today) =>
             latest != today && latest <= lastUpdate;

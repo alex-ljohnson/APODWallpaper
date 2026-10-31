@@ -43,6 +43,7 @@ namespace APODWallpaper.Utils
         public bool ShowConsole { get { return _configuration.GetValueOrDefault(nameof(ShowConsole), false); } set { _configuration[nameof(ShowConsole)] = value; AutoSave(); OnPropertyChanged(nameof(ShowConsole)); } }
         public bool DownloadInfo { get { return _configuration.GetValueOrDefault(nameof(DownloadInfo), false); } set { _configuration[nameof(DownloadInfo)] = value; AutoSave(); OnPropertyChanged(nameof(DownloadInfo)); } }
         public bool ExplainImage { get { return _configuration.GetValueOrDefault(nameof(ExplainImage), false); } set { _configuration[nameof(ExplainImage)] = value; AutoSave(); OnPropertyChanged(nameof(ExplainImage)); } }
+        public bool UseVideoStills { get { return _configuration.GetValueOrDefault(nameof(UseVideoStills), true); } set { _configuration[nameof(UseVideoStills)] = value; AutoSave(); OnPropertyChanged(nameof(UseVideoStills)); } }
         public string ConfiguratorTheme { get { return _configuration.GetValueOrDefault(nameof(ConfiguratorTheme), "Light.xaml"); } set { _configuration[nameof(ConfiguratorTheme)] = value; AutoSave(); OnPropertyChanged(nameof(ConfiguratorTheme)); } }
         
         private const long MinNetworkTimeoutSeconds = 1L;
@@ -74,7 +75,7 @@ namespace APODWallpaper.Utils
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        public static readonly Configuration DefaultConfiguration = new("Default", false, false) { RunStartup = true, ShowConsole = false, ExplainImage = false, DownloadInfo = false, WallpaperStyle = (int)WallpaperStyleEnum.Fill, ConfiguratorTheme = "Light.xaml", PreviewQuality = 100, NetworkTimeout= 10L};
+        public static readonly Configuration DefaultConfiguration = new("Default", false, false) { RunStartup = true, ShowConsole = false, ExplainImage = false, UseVideoStills = true, DownloadInfo = false, WallpaperStyle = (int)WallpaperStyleEnum.Fill, ConfiguratorTheme = "Light.xaml", PreviewQuality = 100, NetworkTimeout= 10L};
         
         public Configuration(string ID = "None", bool autoSave = true, bool file = true)
         {

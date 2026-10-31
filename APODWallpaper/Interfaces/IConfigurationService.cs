@@ -10,6 +10,7 @@ namespace APODWallpaper.Interfaces
         bool RunStartup { get; set; }
         bool DownloadInfo { get; set; }
         bool ExplainImage { get; set; }
+        bool UseVideoStills { get; set; }
         string ConfiguratorTheme { get; set; }
         long NetworkTimeout { get; set; }
         long PreviewQuality { get; set; }

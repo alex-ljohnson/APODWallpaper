@@ -273,7 +273,7 @@ namespace ConfiguratorGUI
         }
         private async void SaveExplore(APODInfo? data)
         {
-            if (data == null || !data.IsImage) return;
+            if (data == null || !data.HasImage) return;
             if (MyPictureData.Any(x => x.Equals(data))) { MessageBox.Show("Image was previously saved!", "Already saved"); return; }
             PictureData? pictureData;
             var downloadTask = apod.DownloadImageAsync(data);
@@ -284,9 +284,13 @@ namespace ConfiguratorGUI
                 if (pictureData == null) return;
                 MyPictureData.Insert(0, pictureData);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (!APODCache.IsReportedDownloadError(ex))
             {
                 MessageBox.Show(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"Saving {data.DateFormatted} failed: {ex.Message}");
             }
             SortData();
         }
@@ -390,7 +394,8 @@ namespace ConfiguratorGUI
             Trace.WriteLine("Saving image");
             PictureData? item = param ?? SelectedItem;
             if (item == null) { return; }
-            SaveFileDialog sf = new() { Title = "Save image as...", AddExtension = true, FileName = "Wallpaper.jpg", Filter = "JPEG Image (*.jpg)|*.jpg|Bitmap Image (*.bmp)|*.bmp|PNG Image (*.png)|*.png" };
+            var extension = Path.GetExtension(item.Source);
+            SaveFileDialog sf = new() { Title = "Save image as...", AddExtension = true, FileName = APODDate.ToIsoString(item.Date) + extension, Filter = SaveFilter(extension) };
             bool? result = sf.ShowDialog();
             if (result != null && (bool)result)
             {
@@ -399,6 +404,16 @@ namespace ConfiguratorGUI
                 MessageBox.Show($"Copied image to {outStream.Name}", "Wallpaper saved");
             }
         }
+
+        private static string SaveFilter(string extension) => ImageFile.FromExtension(extension) switch
+        {
+            ImageFormat.Jpeg => $"JPEG Image (*{extension})|*{extension}",
+            ImageFormat.Png => $"PNG Image (*{extension})|*{extension}",
+            ImageFormat.Gif => $"GIF Image (*{extension})|*{extension}",
+            ImageFormat.Bmp => $"Bitmap Image (*{extension})|*{extension}",
+            ImageFormat.Tiff => $"TIFF Image (*{extension})|*{extension}",
+            _ => "All files (*.*)|*.*",
+        };
 
         public void ReadDescription(PictureData? param)
         {
@@ -424,12 +439,26 @@ namespace ConfiguratorGUI
                 data = await Task.Run(() => JsonConvert.DeserializeObject<PictureData>(json)).ConfigureAwait(false);
                 if (data != null && !File.Exists(data.Source))
                 {
-                    // Image is missing, redownload the image
-                    Trace.WriteLine($"Image missing for {itemPath}, attempting to redownload...");
-                    var info = await cache.GetAsync(data.Date);
-                    if (info is { IsImage: true })
+                    var imagesPath = Utilities.GetDataPath("images");
+                    // Renamed under another extension, otherwise redownload it
+                    var found = ImageFile.FindSaved(imagesPath, data.Date);
+                    Uri? source = null;
+                    if (found == null)
                     {
-                        await cache.DownloadURLAsync(info.ImageUrl, data.Source);
+                        Trace.WriteLine($"Image missing for {itemPath}, attempting to redownload...");
+                        var info = await cache.GetAsync(data.Date);
+                        if (info is { HasImage: true })
+                        {
+                            var image = await cache.DownloadImageAsync(info, Path.Combine(imagesPath, info.Filename));
+                            (found, source) = (image.Path, image.Source);
+                        }
+                    }
+                    if (found != null && found != data.Source)
+                    {
+                        data.Source = found;
+                        if (source != null) data.OriginalUrl = source.ToString();
+                        await data.SaveFileAsync().ConfigureAwait(false);
+                        if (itemPath != data.Source + ".json") File.Delete(itemPath);
                     }
                 }
             }

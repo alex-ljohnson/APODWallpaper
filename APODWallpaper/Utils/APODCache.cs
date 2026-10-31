@@ -1,6 +1,7 @@
 ﻿using APODWallpaper.Interfaces;
 using Newtonsoft.Json;
 using System.Diagnostics;
+using System.Net;
 using System.Net.Http;
 
 namespace APODWallpaper.Utils
@@ -282,49 +283,118 @@ namespace APODWallpaper.Utils
             }
         }
 
-        public async Task<string> DownloadURLAsync(Uri? url, string filepath, IProgress<(long, long?)>? progress = null)
+        public static bool IsReportedDownloadError(Exception ex) => IsConnectionError(ex) || ex is InvalidDataException;
+
+        private static bool IsConnectionError(Exception ex) =>
+            ex is HttpRequestException || ex is HttpIOException || ex is TimeoutException || ex is TaskCanceledException;
+
+        /// <summary>
+        /// Saves to basePath plus the extension of what arrived, the original file first and hdurl as given if that fails.
+        /// Tells the user and throws when neither gives an image
+        /// </summary>
+        public async Task<SavedImage> DownloadImageAsync(APODInfo info, string basePath, IProgress<(long, long?)>? progress = null)
         {
-            //string filename;
-            ArgumentNullException.ThrowIfNull(url);
-            var httpClient = _httpClientFactory.CreateClient(ApodApiClient.HttpClientName);
+            ArgumentNullException.ThrowIfNull(info.ImageUrl);
+            Uri[] candidates = ApodImageUrl.Original(info.ImageUrl) is Uri original ? [original, info.ImageUrl] : [info.ImageUrl];
+            var expected = ApodImageUrl.ExpectedSize(info.ImageUrl);
             // Moved into place when complete, a broken download must not look saved
-            var partPath = Path.Combine(Path.GetDirectoryName(cacheFile)!, Path.GetFileName(filepath) + ".part");
+            var partPath = Path.Combine(Path.GetDirectoryName(cacheFile)!, Path.GetFileName(basePath) + ".part");
+            var sparePath = Path.Combine(Path.GetDirectoryName(cacheFile)!, Path.GetFileName(basePath) + ".spare.part");
+            (ImageFormat Format, Uri Url)? spare = null;
             try
             {
-                using HttpResponseMessage response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
-                Console.WriteLine(response.Content.Headers.ToString());
-                response.EnsureSuccessStatusCode();
-                var contentLength = response.Content.Headers.ContentLength;
-                if (!contentLength.HasValue)
+                for (int i = 0; i < candidates.Length; i++)
                 {
-                    Console.WriteLine("Content length not provided");
-                }
-                using Stream contentStream = await response.Content.ReadAsStreamAsync();
-                using (FileStream fileStream = new(partPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                {
-                    long totalReadBytes = 0L;
-                    var buffer = new byte[81920];
-                    int readBytes;
-                    while ((readBytes = await ReadWithTimeoutAsync(contentStream, buffer)) != 0)
+                    var url = candidates[i];
+                    bool last = i == candidates.Length - 1;
+                    try
                     {
-                        await fileStream.WriteAsync(buffer.AsMemory(0, readBytes));
-                        totalReadBytes += readBytes;
-                        if (config.DownloadInfo && contentLength.HasValue) progress?.Report((totalReadBytes, contentLength));
+                        await DownloadToPartAsync(url, partPath, progress);
                     }
+                    // Timeouts aren't retried, the next URL would wait out another one
+                    catch (HttpRequestException ex) when (!last && ex.StatusCode is HttpStatusCode status && status != HttpStatusCode.RequestTimeout)
+                    {
+                        Trace.WriteLine($"{url} gave {(int)status}, trying {candidates[i + 1]}");
+                        continue;
+                    }
+                    catch (Exception ex) when (spare != null && IsConnectionError(ex))
+                    {
+                        Trace.WriteLine($"{url} failed ({ex.Message}), keeping {spare.Value.Url}");
+                        break;
+                    }
+                    var check = ImageFile.Check(partPath, expected);
+                    if (check == null)
+                    {
+                        Trace.WriteLine($"{url} isn't an allowed image");
+                        continue;
+                    }
+                    if (check.Undersized)
+                    {
+                        Trace.WriteLine($"{url} is {check.Size}, expected {expected}");
+                        // The expected size is observed, a valid image beats none
+                        if (!last)
+                        {
+                            File.Move(partPath, sparePath, overwrite: true);
+                            spare = (check.Format, url);
+                            continue;
+                        }
+                    }
+                    return MoveIntoPlace(partPath, basePath, check.Format, url);
                 }
-                File.Move(partPath, filepath, overwrite: true);
+                if (spare is { } kept) return MoveIntoPlace(sparePath, basePath, kept.Format, kept.Url);
+                throw new InvalidDataException($"No allowed image for {info.DateFormatted} from {string.Join(", ", candidates.AsEnumerable())}");
             }
-            catch (Exception ex) when (ex is HttpRequestException || ex is HttpIOException || ex is TimeoutException || ex is TaskCanceledException)
+            catch (Exception ex) when (IsConnectionError(ex))
             {
                 Utilities.ShowMessageBox("Please check your internet connection and try again", "Connection error", Utilities.MessageBoxType.Error);
                 Console.WriteLine(ex.StackTrace);
                 throw;
             }
+            catch (InvalidDataException ex)
+            {
+                Utilities.ShowMessageBox($"NASA's image for {info.DateFormatted} couldn't be used.\nSee it at {info.Permalink}", "Image not usable", Utilities.MessageBoxType.Error);
+                Console.WriteLine(ex.Message);
+                throw;
+            }
             finally
             {
                 DeletePartFile(partPath);
+                DeletePartFile(sparePath);
             }
-            return filepath;
+        }
+
+        private static SavedImage MoveIntoPlace(string downloaded, string basePath, ImageFormat format, Uri url)
+        {
+            var path = basePath + ImageFile.Extension(format);
+            File.Move(downloaded, path, overwrite: true);
+            Console.WriteLine($"Saved {url} to {path}");
+            return new SavedImage(path, url);
+        }
+
+        private async Task DownloadToPartAsync(Uri url, string partPath, IProgress<(long, long?)>? progress)
+        {
+            var httpClient = _httpClientFactory.CreateClient(ApodApiClient.HttpClientName);
+            using HttpResponseMessage response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            Console.WriteLine(response.Content.Headers.ToString());
+            response.EnsureSuccessStatusCode();
+            var contentLength = response.Content.Headers.ContentLength;
+            if (!contentLength.HasValue)
+            {
+                Console.WriteLine("Content length not provided");
+            }
+            using Stream contentStream = await response.Content.ReadAsStreamAsync();
+            using FileStream fileStream = new(partPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            long totalReadBytes = 0L;
+            var buffer = new byte[81920];
+            int readBytes;
+            while ((readBytes = await ReadWithTimeoutAsync(contentStream, buffer)) != 0)
+            {
+                await fileStream.WriteAsync(buffer.AsMemory(0, readBytes));
+                totalReadBytes += readBytes;
+                if (config.DownloadInfo && contentLength.HasValue) progress?.Report((totalReadBytes, contentLength));
+            }
+            if (contentLength.HasValue && totalReadBytes != contentLength)
+                throw new HttpIOException(HttpRequestError.ResponseEnded, $"Got {totalReadBytes} of {contentLength} bytes from {url}");
         }
 
         // Must not hide the download's own exception

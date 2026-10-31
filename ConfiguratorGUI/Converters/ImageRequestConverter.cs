@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
+using APODWallpaper.Utils;
 using ConfiguratorGUI.Controls;
 
 namespace ConfiguratorGUI.Converters
@@ -23,6 +24,9 @@ namespace ConfiguratorGUI.Converters
 
             if (uri == null) return DependencyProperty.UnsetValue;
 
+            // NASA's proxy resizes server side, the full image is the fallback
+            if (!uri.IsFile && ApodImageUrl.Resized(uri, decodeWidth) is Uri resized)
+                return new ImageRequest(resized, decodeWidth, Fallback: uri);
             return new ImageRequest(uri, decodeWidth);
         }
 

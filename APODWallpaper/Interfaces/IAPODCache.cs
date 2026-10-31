@@ -23,7 +23,8 @@ namespace APODWallpaper.Interfaces
         //public Task<bool> ExistsInCacheAsync(DateOnly date);
         //public Task ClearCacheAsync();
 
-        public Task<string> DownloadURLAsync(Uri? url, string filepath, IProgress<(long, long?)>? progress = null);
+        // basePath is images/{date}, the extension comes from the downloaded content
+        public Task<SavedImage> DownloadImageAsync(APODInfo info, string basePath, IProgress<(long, long?)>? progress = null);
 
     }
 }

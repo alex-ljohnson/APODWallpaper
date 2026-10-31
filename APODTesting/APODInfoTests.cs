@@ -28,6 +28,13 @@ public sealed class APODInfoTests
     }
 
     [TestMethod]
+    public void HasImageForVideoWithStill()
+    {
+        Assert.IsTrue(MakeInfo(mediaType: "video").HasImage);
+        Assert.IsFalse(MakeInfo(mediaType: "video", imageUrl: null).HasImage);
+    }
+
+    [TestMethod]
     public void CacheFormatRoundTrips()
     {
         var info = MakeInfo();

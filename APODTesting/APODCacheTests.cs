@@ -138,29 +138,134 @@ public sealed class APODCacheTests
         Assert.IsFalse(Create(NoRequests()).IsCached(date));
     }
 
-    [TestMethod]
-    public async Task DownloadWritesTheCompleteFile()
+    private const string ProxyUrl = "https://assets.science.nasa.gov/dynamicimage/assets/science/cds/apod/apod/2026/october/NocClouds_Hofer_6048.jpg?w=6048&h=4030&fit=clip&crop=faces%2Cfocalpoint";
+    private const string OriginalUrl = "https://assets.science.nasa.gov/content/dam/science/cds/apod/apod/2026/october/NocClouds_Hofer_6048.jpg";
+
+    private string BasePath => Path.Combine(Path.GetDirectoryName(cacheFile)!, "images", "2026-10-27");
+
+    private static HttpResponseMessage Bytes(byte[] body) => new(HttpStatusCode.OK) { Content = new ByteArrayContent(body) };
+    private static HttpResponseMessage Status(HttpStatusCode status) => new(status) { Content = new StringContent("<html>Not found</html>") };
+
+    private async Task<(SavedImage Image, FakeHandler Handler)> DownloadAsync(Func<Uri, HttpResponseMessage> respond, string imageUrl = ProxyUrl)
     {
-        var target = Path.Combine(Path.GetDirectoryName(cacheFile)!, "2026-10-04.jpg");
-        var cache = Create(new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent([1, 2, 3]) }));
+        var handler = new FakeHandler(respond);
+        Directory.CreateDirectory(Path.GetDirectoryName(BasePath)!);
+        var image = await Create(handler).DownloadImageAsync(Info(new DateOnly(2026, 10, 27), imageUrl: imageUrl), BasePath);
+        return (image, handler);
+    }
 
-        await cache.DownloadURLAsync(new Uri("https://example.test/a.jpg"), target);
+    [TestMethod]
+    public async Task DownloadSavesTheOriginal()
+    {
+        var jpeg = TestImages.Jpeg(6048, 4030);
+        var (image, handler) = await DownloadAsync(_ => Bytes(jpeg));
 
-        CollectionAssert.AreEqual(new byte[] { 1, 2, 3 }, File.ReadAllBytes(target));
-        Assert.IsFalse(File.Exists(Path.Combine(Path.GetDirectoryName(cacheFile)!, "2026-10-04.jpg.part")));
+        Assert.AreEqual(BasePath + ".jpg", image.Path);
+        Assert.AreEqual(new Uri(OriginalUrl), image.Source);
+        CollectionAssert.AreEqual(jpeg, File.ReadAllBytes(image.Path));
+        Assert.AreEqual(1, handler.Requests.Count);
+        Assert.IsFalse(Directory.EnumerateFiles(Path.GetDirectoryName(cacheFile)!, "*.part").Any());
+    }
+
+    [TestMethod]
+    public async Task MissingOriginalFallsBackToHdurl()
+    {
+        var (image, handler) = await DownloadAsync(uri => uri.AbsolutePath.StartsWith("/content/dam/") ? Status(HttpStatusCode.NotFound) : Bytes(TestImages.Jpeg(6054, 4030)));
+
+        Assert.AreEqual(new Uri(ProxyUrl), image.Source);
+        Assert.AreEqual(2, handler.Requests.Count);
+    }
+
+    [TestMethod]
+    public async Task NonImageOriginalFallsBackToHdurl()
+    {
+        var (image, _) = await DownloadAsync(uri => uri.AbsolutePath.StartsWith("/content/dam/") ? Bytes(TestImages.Html) : Bytes(TestImages.Jpeg(6048, 4030)));
+
+        Assert.AreEqual(new Uri(ProxyUrl), image.Source);
+    }
+
+    [TestMethod]
+    public async Task UndersizedOriginalFallsBackToHdurl()
+    {
+        var (image, _) = await DownloadAsync(uri => uri.AbsolutePath.StartsWith("/content/dam/") ? Bytes(TestImages.Png(594, 516)) : Bytes(TestImages.Jpeg(6048, 4030)));
+
+        Assert.AreEqual(new Uri(ProxyUrl), image.Source);
+        Assert.AreEqual(BasePath + ".jpg", image.Path);
+    }
+
+    [TestMethod]
+    public async Task UndersizedOriginalIsKeptWhenHdurlFails()
+    {
+        var (image, handler) = await DownloadAsync(uri => uri.AbsolutePath.StartsWith("/content/dam/") ? Bytes(TestImages.Png(594, 516)) : Status(HttpStatusCode.NotFound));
+
+        Assert.AreEqual(new Uri(OriginalUrl), image.Source);
+        Assert.AreEqual(BasePath + ".png", image.Path);
+        Assert.AreEqual(2, handler.Requests.Count);
+        Assert.IsFalse(Directory.EnumerateFiles(Path.GetDirectoryName(cacheFile)!, "*.part").Any());
+    }
+
+    [TestMethod]
+    public async Task UndersizedOriginalIsKeptWhenHdurlIsNotAnImage()
+    {
+        var (image, _) = await DownloadAsync(uri => uri.AbsolutePath.StartsWith("/content/dam/") ? Bytes(TestImages.Png(594, 516)) : Bytes(TestImages.Html));
+
+        Assert.AreEqual(new Uri(OriginalUrl), image.Source);
+    }
+
+    [TestMethod]
+    public async Task ContentDamHdurlIsOneRequest()
+    {
+        const string dam = "https://assets.science.nasa.gov/content/dam/science/cds/apod/apod/2021/october/DarkMatter_KipacAmnh_1200.jpg?w=1200&h=900&fit=clip&crop=faces%2Cfocalpoint";
+        var (image, handler) = await DownloadAsync(_ => Bytes(TestImages.Jpeg(1200, 900)), imageUrl: dam);
+
+        Assert.AreEqual(new Uri(dam), image.Source);
+        Assert.AreEqual(1, handler.Requests.Count);
+    }
+
+    [TestMethod]
+    public void ReportedDownloadErrors()
+    {
+        Assert.IsTrue(APODCache.IsReportedDownloadError(new HttpRequestException()));
+        Assert.IsTrue(APODCache.IsReportedDownloadError(new InvalidDataException()));
+        Assert.IsTrue(APODCache.IsReportedDownloadError(new TimeoutException()));
+        // Disk errors aren't shown by the cache
+        Assert.IsFalse(APODCache.IsReportedDownloadError(new IOException()));
+    }
+
+    [TestMethod]
+    public async Task UndersizedHdurlIsStillKept()
+    {
+        var (image, _) = await DownloadAsync(_ => Bytes(TestImages.Jpeg(100, 100)));
+
+        Assert.AreEqual(new Uri(ProxyUrl), image.Source);
+        Assert.IsTrue(File.Exists(image.Path));
+    }
+
+    [TestMethod]
+    public async Task ExtensionComesFromTheContent()
+    {
+        var (image, _) = await DownloadAsync(_ => Bytes(TestImages.Png(6048, 4030)));
+
+        Assert.AreEqual(BasePath + ".png", image.Path);
+    }
+
+    [TestMethod]
+    public async Task ForeignHdurlIsDownloadedAsGiven()
+    {
+        var (image, handler) = await DownloadAsync(_ => Bytes(TestImages.Gif(10, 10)), imageUrl: "https://example.test/a.jpg");
+
+        Assert.AreEqual(new Uri("https://example.test/a.jpg"), image.Source);
+        Assert.AreEqual(BasePath + ".gif", image.Path);
+        Assert.AreEqual(1, handler.Requests.Count);
     }
 
     [TestMethod]
     public async Task BrokenDownloadLeavesNoFile()
     {
-        var target = Path.Combine(Path.GetDirectoryName(cacheFile)!, "2026-10-04.jpg");
-        var cache = Create(new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(new BreakingStream()) }));
+        await Assert.ThrowsExceptionAsync<IOException>(() => DownloadAsync(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(new BreakingStream()) }, imageUrl: "https://example.test/a.jpg"));
 
-        await Assert.ThrowsExceptionAsync<IOException>(() => cache.DownloadURLAsync(new Uri("https://example.test/a.jpg"), target));
-
-        Assert.IsFalse(File.Exists(target));
-        Assert.IsFalse(File.Exists(target + ".part"));
-        Assert.IsFalse(File.Exists(Path.Combine(Path.GetDirectoryName(cacheFile)!, "2026-10-04.jpg.part")));
+        Assert.IsFalse(Directory.EnumerateFiles(Path.GetDirectoryName(BasePath)!).Any());
+        Assert.IsFalse(Directory.EnumerateFiles(Path.GetDirectoryName(cacheFile)!, "*.part").Any());
     }
 
     // Gives some bytes then fails, like a dropped connection

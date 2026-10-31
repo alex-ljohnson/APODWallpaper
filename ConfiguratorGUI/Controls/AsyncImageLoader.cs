@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace ConfiguratorGUI.Controls
@@ -10,7 +11,7 @@ namespace ConfiguratorGUI.Controls
     /// Produced by <see cref="Converters.ImageRequestConverter"/> and consumed by
     /// <see cref="AsyncImageLoader"/>. Value equality lets the cache key on (uri, width).
     /// </summary>
-    public sealed record ImageRequest(Uri Uri, int DecodeWidth);
+    public sealed record ImageRequest(Uri Uri, int DecodeWidth, Uri? Fallback = null);
 
     /// <summary>
     /// Attached property that loads an <see cref="Image.Source"/> off the UI thread.
@@ -64,8 +65,18 @@ namespace ConfiguratorGUI.Controls
 
             if (!req.Uri.IsFile)
             {
-                // Remote: let WPF download and decode asynchronously, as before. Not cached.
-                image.Source = DecodeOnUiThread(req);
+                var remote = DecodeOnUiThread(req.Uri, req.DecodeWidth);
+                if (req.Fallback is Uri fallback)
+                {
+                    // Unless the tile was recycled meanwhile
+                    void UseFallback(object? sender, ExceptionEventArgs args)
+                    {
+                        if ((int)image.GetValue(TokenProperty) == token) image.Source = DecodeOnUiThread(fallback, req.DecodeWidth);
+                    }
+                    remote.DownloadFailed += UseFallback;
+                    remote.DecodeFailed += UseFallback;
+                }
+                image.Source = remote;
                 return;
             }
 
@@ -106,14 +117,14 @@ namespace ConfiguratorGUI.Controls
 
         // Remote URLs: build on the UI thread and let WPF complete the download in the
         // background (the image is still loading, so CanFreeze is false and it isn't cached).
-        private static BitmapImage DecodeOnUiThread(ImageRequest req)
+        private static BitmapImage DecodeOnUiThread(Uri uri, int decodeWidth)
         {
             var bmp = new BitmapImage();
             bmp.BeginInit();
-            bmp.UriSource = req.Uri;
+            bmp.UriSource = uri;
             bmp.CacheOption = BitmapCacheOption.OnLoad;
-            if (req.DecodeWidth > 0)
-                bmp.DecodePixelWidth = req.DecodeWidth;
+            if (decodeWidth > 0)
+                bmp.DecodePixelWidth = decodeWidth;
             bmp.EndInit();
             return bmp;
         }

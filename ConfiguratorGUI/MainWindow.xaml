@@ -322,7 +322,7 @@
                                     <Button.ContextMenu>
                                         <ContextMenu x:Name="itemContext" StaysOpen="True">
                                             <MenuItem Header="Save Image..." Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding Path=PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                      Visibility="{Binding IsImage, Converter={StaticResource boolVisConverter}}"/>
+                                                      Visibility="{Binding HasImage, Converter={StaticResource boolVisConverter}}"/>
                                             <MenuItem Header="View Content..." Command="{Binding DataContext.ViewContentCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding Path=PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                         </ContextMenu>
                                     </Button.ContextMenu>
@@ -370,6 +370,7 @@
                         <Label Content="   General" FontWeight="Bold" FontSize="14" Height="30"/>
                         <StackPanel Margin="10" Grid.Row="1">
                             <CheckBox x:Name="ChkExplainImage" Content="Show image explanation on update" IsChecked="{Binding Config.ExplainImage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <CheckBox x:Name="ChkUseVideoStills" Content="Use a video's still as the wallpaper" IsChecked="{Binding Config.UseVideoStills, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="API Key: " VerticalAlignment="Center"/>
                                 <TextBox x:Name="TxtApiKey" Text="{Binding Config.API_KEY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="270"/>

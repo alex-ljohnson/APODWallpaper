@@ -29,9 +29,12 @@ namespace APODWallpaper.Utils
         [JsonIgnore]
         public string DateFormatted => Filename;
 
-        // Can be saved and set as the wallpaper
         [JsonIgnore]
         public bool IsImage => MediaType == "image" && ImageUrl != null;
+
+        // Something to save, the image or a video's still
+        [JsonIgnore]
+        public bool HasImage => ImageUrl != null;
 
         public bool Equals(APODInfo? other)
         {
