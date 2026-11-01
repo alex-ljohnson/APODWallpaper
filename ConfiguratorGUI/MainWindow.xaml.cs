@@ -198,7 +198,7 @@ namespace ConfiguratorGUI
 
         private void BtnOpenHelp_Click(object sender, RoutedEventArgs e)
         {
-            Process.Start(new ProcessStartInfo("Resources\\help.html") { UseShellExecute=true});
+            Process.Start(new ProcessStartInfo(ViewModel.HelpPath) { UseShellExecute=true});
         }
 
         private void BitmapImage_DownloadCompleted(object sender, EventArgs e)

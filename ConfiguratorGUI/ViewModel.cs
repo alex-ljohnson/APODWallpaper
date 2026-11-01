@@ -27,7 +27,8 @@ namespace ConfiguratorGUI
 
         const int ExploreCount = 12;
 
-        public static string HelpText { get; } = File.ReadAllText("Resources/help.html");
+        public static string HelpPath { get; } = Path.Combine(AppContext.BaseDirectory, "Resources", "help.html");
+        public static string HelpText { get; } = File.ReadAllText(HelpPath);
 
         private Cursor windowCursor = Cursors.Arrow;
         public Cursor WindowCursor

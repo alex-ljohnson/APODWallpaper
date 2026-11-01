@@ -8,9 +8,10 @@ TODO list:
  - Update help.html with new features
  - Update version number in build scripts
 
- - Setup APOD wallpaper as a background service that runs in the background and updates the wallpaper at specified intervals without needing to open the configurator GUI. This would allow users to have a seamless experience with their APOD wallpapers without needing to manually update them through the configurator.
- - Add favourite folders to the left panel 
- - Handle file types and extensions. Add sub media type support to properly handle jpg vs png vs webp etc. when type is set to "image"
+ - Run updates from a per-user scheduled task instead of the startup registry key: at logon, daily after the APOD release (or every few hours) and on wake after a missed run. The PC sleeping instead of logging off leaves the wallpaper days behind. Keep the run-and-exit console app, a Windows Service can't set the user's wallpaper and a resident process is too heavy for one job a day
+ - Startup action setting (None/Daily/Rotate favourites) replacing RunStartup
+ - Favourites (collections.json by date, works without downloading), shown as a filter in the left panel. Named collections later if useful
+ - Console commands for favourites and setting a date as the wallpaper (--favourite, --unfavourite, --favourites, --set)
  - Enable advanced customisation of config through a "custom options" loader in the Configuration which won't show in UI but allows for all unrecognised options to be loaded and saved in the config file, allowing for more advanced users to have access to features that aren't fully supported in the UI yet, without needing to wait for them to be implemented in the UI.
 
  POTENTIAL IDEAS:

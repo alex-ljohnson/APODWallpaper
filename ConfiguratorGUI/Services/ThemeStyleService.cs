@@ -20,7 +20,7 @@ namespace ConfiguratorGUI.Services
     public partial class ThemeStyleService(IConfigurationService configService) : IThemeService
     {
         private static readonly string[] DefaultThemes = ["Light.xaml", "Dark.xaml"];
-        private const string StylesDirectory = "./Styles";
+        private static readonly string StylesDirectory = Path.Combine(AppContext.BaseDirectory, "Styles");
 
         public async Task InitializeThemesAsync()
         {
@@ -68,13 +68,10 @@ namespace ConfiguratorGUI.Services
 
             try
             {
-                var themeUri = new Uri($"{StylesDirectory}/{themeName}", UriKind.Relative);
-                resources.MergedDictionaries[0].Source = themeUri;
-            }
-            catch (IOException)
-            {
-                var absolutePath = Path.GetFullPath($"{StylesDirectory}/{themeName}");
-                resources.MergedDictionaries[0].Source = new Uri(absolutePath, UriKind.Absolute);
+                // Defaults are compiled in, custom themes are loose files
+                resources.MergedDictionaries[0].Source = DefaultThemes.Contains(themeName)
+                    ? new Uri($"/Styles/{themeName}", UriKind.Relative)
+                    : new Uri(Path.Combine(StylesDirectory, themeName), UriKind.Absolute);
             }
             catch (Exception ex)
             {
