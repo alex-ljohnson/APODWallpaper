@@ -50,4 +50,4 @@ can no longer update your wallpaper. This version uses NASA's new API.
 
 ## Under the hood
 - Settings that only existed for the old API (`BaseUrl`, `UseHD`) are removed from your config.
-- 188 unit tests covering NASA's responses, downloads, API keys and the file migration.
+- 193 unit tests covering NASA's responses, downloads, API keys and the file migration.
