@@ -8,7 +8,7 @@ This is a program to download the "Astronomy Picture Of the Day" (APOD) from the
 ### Recommended
 > Download all dependencies listed above
 
-> Download an installer from the [releases page](https://github.com/MrTransparentBox/APODWallpaper/releases).
+> Download an installer from the [releases page](https://github.com/alex-ljohnson/APODWallpaper/releases).
 
 ### From Source
 > Can be compiled from source using [dotnet 10 sdk](https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/sdk-10.0.102-windows-x64-installer).
@@ -16,9 +16,9 @@ This is a program to download the "Astronomy Picture Of the Day" (APOD) from the
 ## Usage
 ### First Run
 #### API Key
-Pictures come from NASA's APOD API, which needs an API key. Get a free one from [api.nasa.gov](https://api.nasa.gov/), it takes about a minute.
+Pictures come from NASA's APOD API. NASA doesn't check API keys at the moment, so without one APODWallpaper uses NASA's `DEMO_KEY` and works out of the box.
 
-Without a key, APODWallpaper uses NASA's `DEMO_KEY`, which is limited to a few requests per hour per network. This is enough for the daily wallpaper but runs out quickly when browsing Explore. When it runs out you'll be told so and offered the key setup.
+NASA may start requiring keys, so adding your own free key from [api.nasa.gov](https://api.nasa.gov/) now avoids interruptions. It takes about a minute. If your key is ever missing, invalid or rate limited you'll be told so and offered the key setup.
 
 You can enter your key:
 - in the installer, on the "NASA API key" page

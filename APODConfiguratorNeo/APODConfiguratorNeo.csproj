@@ -14,7 +14,7 @@
 	  <Nullable>enable</Nullable>
     <EnableMsixTooling>true</EnableMsixTooling>
 	<StartupObject>APODConfiguratorNeo.Program</StartupObject>
-	<RepositoryUrl>https://github.com/MrTransparentBox/APODWallpaper</RepositoryUrl>
+	<RepositoryUrl>https://github.com/alex-ljohnson/APODWallpaper</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>

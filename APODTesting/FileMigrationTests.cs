@@ -278,9 +278,9 @@ public sealed class FileMigrationTests
 
     private void AddExtensions() => FileMigration.AddImageExtensions(testDir, () => wallpaper, path => wallpaper = path);
 
-    private string WriteSidecar(string imagePath)
+    private string WriteSidecar(string imagePath, string url = "https://example.test/a.gif")
     {
-        File.WriteAllText(imagePath + ".json", "{\"Name\":\"Test\",\"Description\":\"d\",\"Source\":\"" + imagePath.Replace("\\", "\\\\") + "\",\"Date\":\"2026-08-05\",\"OriginalUrl\":\"https://example.test/a.gif\"}");
+        File.WriteAllText(imagePath + ".json", "{\"Name\":\"Test\",\"Description\":\"d\",\"Source\":\"" + imagePath.Replace("\\", "\\\\") + "\",\"Date\":\"2026-08-05\",\"OriginalUrl\":\"" + url + "\"}");
         return imagePath + ".json";
     }
 
@@ -427,7 +427,7 @@ public sealed class FileMigrationTests
 
         FileMigration.Run(ctx);
         Assert.IsTrue(File.Exists(locked + ".gif"));
-        Assert.AreEqual(3, FileMigration.ReadSchemaVersion(statePath));
+        Assert.AreEqual(4, FileMigration.ReadSchemaVersion(statePath));
     }
 
     [TestMethod]
@@ -465,5 +465,94 @@ public sealed class FileMigrationTests
 
         Assert.IsTrue(File.Exists(isoPath));
         Assert.IsTrue(FileMigration.ReadSchemaVersion(Path.Combine(testDir, "migrations.state")) >= 1);
+    }
+
+    // What the broken v1 API returned as url/hdurl
+    private const string LogoUrl = "https://science.nasa.gov/wp-content/themes/nasa-child/assets/images/nasa-logo@2x.png";
+
+    [TestMethod]
+    public void DeleteSavedLogosRemovesTheImageAndSidecar()
+    {
+        var named = Path.Combine(testDir, "2026-10-05.png");
+        var extensionless = Path.Combine(testDir, "2026-10-06");
+        File.WriteAllBytes(named, TestImages.Png(10, 10));
+        File.WriteAllBytes(extensionless, TestImages.Png(10, 10));
+        WriteSidecar(named, LogoUrl);
+        WriteSidecar(extensionless, LogoUrl);
+
+        FileMigration.DeleteSavedLogos(testDir);
+
+        Assert.AreEqual(0, Directory.GetFiles(testDir).Length);
+    }
+
+    [TestMethod]
+    public void DeleteSavedLogosKeepsPictures()
+    {
+        var v1 = Path.Combine(testDir, "2026-09-29.jpg");
+        var v2 = Path.Combine(testDir, "2026-10-30.jpg");
+        File.WriteAllBytes(v1, TestImages.Jpeg(10, 10));
+        File.WriteAllBytes(v2, TestImages.Jpeg(10, 10));
+        WriteSidecar(v1, "https://apod.nasa.gov/apod/image/2609/Shrimp_Pawel_2048.jpg");
+        WriteSidecar(v2, "https://assets.science.nasa.gov/content/dam/science/cds/apod/2026/10/a.jpg");
+
+        FileMigration.DeleteSavedLogos(testDir);
+
+        Assert.AreEqual(4, Directory.GetFiles(testDir).Length);
+    }
+
+    [TestMethod]
+    public void DeleteSavedLogosLeavesSidecarsItCantRead()
+    {
+        var garbage = Path.Combine(testDir, "2026-10-05.png");
+        var noUrl = Path.Combine(testDir, "2026-10-06.png");
+        var notString = Path.Combine(testDir, "2026-10-07.png");
+        var other = Path.Combine(testDir, "config.json");
+        File.WriteAllText(garbage + ".json", "not json");
+        File.WriteAllText(noUrl + ".json", "{\"Name\":\"NASA Science\"}");
+        File.WriteAllText(notString + ".json", "{\"OriginalUrl\":{\"href\":\"" + LogoUrl + "\"}}");
+        File.WriteAllText(other, "{\"OriginalUrl\":\"" + LogoUrl + "\"}");
+
+        FileMigration.DeleteSavedLogos(testDir);
+
+        Assert.AreEqual(4, Directory.GetFiles(testDir).Length);
+    }
+
+    [TestMethod]
+    public void DeleteSavedLogosSkipsLockedFiles()
+    {
+        var locked = Path.Combine(testDir, "2026-10-05.png");
+        var free = Path.Combine(testDir, "2026-10-06.png");
+        File.WriteAllBytes(locked, TestImages.Png(10, 10));
+        File.WriteAllBytes(free, TestImages.Png(10, 10));
+        WriteSidecar(locked, LogoUrl);
+        WriteSidecar(free, LogoUrl);
+
+        using (new FileStream(locked, FileMode.Open, FileAccess.Read, FileShare.None))
+            Assert.ThrowsException<IOException>(() => FileMigration.DeleteSavedLogos(testDir));
+
+        Assert.IsTrue(File.Exists(locked));
+        Assert.IsTrue(File.Exists(locked + ".json"), "the sidecar finds it again next start");
+        Assert.IsFalse(File.Exists(free));
+        Assert.IsFalse(File.Exists(free + ".json"));
+    }
+
+    [TestMethod]
+    public void RunDeletesLogosAfterAddingExtensions()
+    {
+        var images = Path.Combine(testDir, "images");
+        Directory.CreateDirectory(images);
+        var logo = Path.Combine(images, "2026-10-05");
+        var picture = Path.Combine(images, "2026-09-29");
+        File.WriteAllBytes(logo, TestImages.Png(10, 10));
+        File.WriteAllBytes(picture, TestImages.Jpeg(10, 10));
+        WriteSidecar(logo, LogoUrl);
+        WriteSidecar(picture);
+        var statePath = Path.Combine(testDir, "migrations.state");
+        FileMigration.WriteSchemaVersion(statePath, 2);
+
+        FileMigration.Run(new MigrationContext(testDir) { ReadWallpaper = () => null, WriteWallpaper = _ => { } });
+
+        CollectionAssert.AreEquivalent(new[] { picture + ".jpg", picture + ".jpg.json" }, Directory.GetFiles(images));
+        Assert.AreEqual(4, FileMigration.ReadSchemaVersion(statePath));
     }
 }

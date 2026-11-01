@@ -87,7 +87,7 @@ Press the download button below to download and install it.";
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
             client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("APODWallpaper_Configurator", App.AppVersion));
             HttpResponseMessage response;
-            Task<HttpResponseMessage> responseTask = client.GetAsync("https://api.github.com/repos/MrTransparentBox/APODWallpaper/releases/latest");
+            Task<HttpResponseMessage> responseTask = client.GetAsync("https://api.github.com/repos/alex-ljohnson/APODWallpaper/releases/latest");
             response = await responseTask;
             try
             {

@@ -18,6 +18,7 @@ public static partial class FileMigration
         new(1, "Image filenames to ISO", static ctx => MigrateImageFilenamesToISO(ctx.GetPath("images"))),
         new(2, "Drop v1 API metadata cache", static ctx => DeleteLegacyMetadataCache(ctx.GetPath("cache/metadata.cache"))),
         new(3, "Image file extensions", static ctx => AddImageExtensions(ctx.GetPath("images"), ctx.ReadWallpaper, ctx.WriteWallpaper)),
+        new(4, "Delete saved NASA logos", static ctx => DeleteSavedLogos(ctx.GetPath("images"))),
         // Add future migrations here with the next sequential version number.
         // Steps must be safe to rerun, an IOException leaves the version so the step runs again next start
     ];
@@ -213,6 +214,50 @@ public static partial class FileMigration
         {
             Trace.WriteLine($"FileMigration: couldn't update '{Path.GetFileName(oldJsonPath)}': {ex.Message}");
             File.Move(oldJsonPath, newJsonPath);
+        }
+    }
+
+    /// <summary>
+    /// Deletes images saved when the broken v1 API returned NASA's site logo instead of the picture, found by the URL in their sidecar
+    /// Throws IOException after the rest are done if any couldn't be deleted
+    /// </summary>
+    public static void DeleteSavedLogos(string imagesDirectory)
+    {
+        if (!Directory.Exists(imagesDirectory)) return;
+
+        int failed = 0;
+        foreach (var jsonPath in Directory.GetFiles(imagesDirectory, "*.json").Where(f => IsoNamePattern.IsMatch(Path.GetFileNameWithoutExtension(f))))
+        {
+            try
+            {
+                if (!IsLogoSidecar(jsonPath)) continue;
+                // Image first so a failure leaves the sidecar to find next start
+                File.Delete(jsonPath[..^".json".Length]);
+                File.Delete(jsonPath);
+                Trace.WriteLine($"FileMigration: deleted saved logo '{Path.GetFileNameWithoutExtension(jsonPath)}'");
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                Trace.WriteLine($"FileMigration: couldn't delete '{Path.GetFileNameWithoutExtension(jsonPath)}': {ex.Message}");
+                failed++;
+            }
+        }
+        if (failed > 0) throw new IOException($"{failed} saved logo(s) couldn't be deleted");
+    }
+
+    // v1 saved the URL it downloaded, the logo was a WordPress theme asset (science.nasa.gov/wp-content/themes/.../nasa-logo@2x.png)
+    private static bool IsLogoSidecar(string jsonPath)
+    {
+        try
+        {
+            var url = (JObject.Parse(File.ReadAllText(jsonPath))["OriginalUrl"] as JValue)?.Value as string;
+            return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                && uri.AbsolutePath.Contains("/wp-content/themes/", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (JsonException ex)
+        {
+            Trace.WriteLine($"FileMigration: couldn't read '{Path.GetFileName(jsonPath)}': {ex.Message}");
+            return false;
         }
     }
 

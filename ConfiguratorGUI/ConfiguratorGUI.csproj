@@ -37,10 +37,11 @@
       <Page Remove="bin\**" />
     </ItemGroup>
     <ItemGroup>
-      <None Remove="Resources\Splash.bmp" />
+      <None Remove="Resources\Splash.jpg" />
     </ItemGroup>
     <ItemGroup>
-      <SplashScreen Include="Resources\Splash.bmp" />
+      <!-- Shown at its pixel size whatever the display scaling, regenerate with scripts/Set-Splash.ps1 -->
+      <SplashScreen Include="Resources\Splash.jpg" />
     </ItemGroup>
   <ItemGroup>
     <Content Include="..\README.md">
