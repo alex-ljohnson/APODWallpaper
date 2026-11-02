@@ -58,14 +58,15 @@ namespace ConfiguratorGUI.Services
             var themeName = configService.ConfiguratorTheme;
 
             // Validate custom themes
-            if (!DefaultThemes.Contains(themeName) && !await ValidateThemeAsync(themeName))
+            bool valid = DefaultThemes.Contains(themeName) || await ValidateThemeAsync(themeName);
+            // Another theme was picked while this one was being checked
+            if (themeName != configService.ConfiguratorTheme) return;
+            if (!valid)
             {
                     Trace.WriteLine($"Invalid theme: {themeName}");
                     await ResetThemeAsync(resources);
                     return;
             }
-            // Another theme was picked while this one was being checked
-            if (themeName != configService.ConfiguratorTheme) return;
 
 
             try
