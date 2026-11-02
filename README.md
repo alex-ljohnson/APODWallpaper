@@ -22,7 +22,7 @@ NASA may start requiring keys, so adding your own free key from [api.nasa.gov](h
 
 You can enter your key:
 - in the installer, on the "NASA API key" page
-- in the Configurator, under Settings > API Key > Set up... (it checks the key with NASA before saving)
+- in the Configurator, under Settings > NASA connection > Set up... (it checks the key with NASA before saving)
 - from the command line: `APODWallpaper.exe --set-key YOUR_KEY` (pass an empty key to go back to `DEMO_KEY`)
 
 Older versions shipped a shared key that every install used, so it kept hitting its limit. It is no longer used, and is cleared from existing settings automatically.
