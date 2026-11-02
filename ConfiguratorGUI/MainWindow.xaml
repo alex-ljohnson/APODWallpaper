@@ -12,7 +12,7 @@
         mc:Ignorable="d"
         Title="APODWallpaper Configurator" 
         
-        Height="500" Width="1000" MinWidth="860" MinHeight="460"
+        Height="560" Width="1000" MinWidth="860" MinHeight="460"
         Background="Transparent" WindowStyle="None" 
         AllowsTransparency="True"
         ResizeMode="CanResizeWithGrip"
@@ -29,8 +29,6 @@
                                          From="0.0" To="1.0" Duration="0:0:0:0.3"/>
                     <DoubleAnimation Storyboard.TargetName="window" Storyboard.TargetProperty="Height"
                                          From="460" To="560.0" Duration="0:0:0.38" FillBehavior="Stop"/>
-                    <DoubleAnimation Storyboard.TargetName="window" Storyboard.TargetProperty="MinHeight"
-                                         From="400" To="460" Duration="0:0:0.35" FillBehavior="Stop"/>
                 </Storyboard>
             </BeginStoryboard>
         </EventTrigger>
