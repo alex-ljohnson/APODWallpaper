@@ -87,15 +87,21 @@ Press the download button below to download and install it.";
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
             client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("APODWallpaper_Configurator", App.AppVersion));
             HttpResponseMessage response;
-            Task<HttpResponseMessage> responseTask = client.GetAsync("https://api.github.com/repos/alex-ljohnson/APODWallpaper/releases/latest");
-            response = await responseTask;
             try
             {
-                response.EnsureSuccessStatusCode();
+                response = await client.GetAsync("https://api.github.com/repos/alex-ljohnson/APODWallpaper/releases/latest");
             }
-            catch (HttpRequestException)
+            // Offline or timed out, escaping here closes the app
+            catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException)
+            {
+                Trace.WriteLine($"Update check failed: {ex.Message}");
+                if (!startUp) MessageBox.Show("Couldn't reach GitHub to check for updates. Check your connection and try again.", "Update check failed");
+                return;
+            }
+            if (!response.IsSuccessStatusCode)
             {
                 Trace.WriteLine($"{(int)response.StatusCode}: {response.ReasonPhrase}");
+                if (!startUp) MessageBox.Show($"GitHub didn't answer the update check ({(int)response.StatusCode}). Try again later.", "Update check failed");
                 return;
             }
             string contents = await response.Content.ReadAsStringAsync();

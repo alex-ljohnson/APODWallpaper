@@ -321,9 +321,9 @@
                                 <Button Cursor="Hand">
                                     <Button.ContextMenu>
                                         <ContextMenu x:Name="itemContext" StaysOpen="True">
-                                            <MenuItem Header="Save Image..." Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding Path=PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                            <MenuItem Header="Save Image..." Command="{Binding DataContext.DownloadCommand, Source={x:Reference exploreView}}" CommandParameter="{Binding Path=PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                       Visibility="{Binding HasImage, Converter={StaticResource boolVisConverter}}"/>
-                                            <MenuItem Header="View Content..." Command="{Binding DataContext.ViewContentCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding Path=PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                            <MenuItem Header="View Content..." Command="{Binding DataContext.ViewContentCommand, Source={x:Reference exploreView}}" CommandParameter="{Binding Path=PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                         </ContextMenu>
                                     </Button.ContextMenu>
                                     <StackPanel Width="220" Height="240" Margin="5">

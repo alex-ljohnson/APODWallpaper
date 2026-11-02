@@ -2,6 +2,7 @@
 using Microsoft.Win32;
 using Newtonsoft.Json;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -70,10 +71,16 @@ namespace ConfiguratorGUI
             get => myPictureData;
             private set
             {
+                myPictureData.CollectionChanged -= OnPicturesChanged;
                 myPictureData = value;
+                myPictureData.CollectionChanged += OnPicturesChanged;
                 OnPropertyChanged(nameof(MyPictureData));
+                OnPropertyChanged(nameof(ItemQuantity));
             }
         }
+
+        // ItemQuantity counts files on disk, so change the files before the collection
+        private void OnPicturesChanged(object? sender, NotifyCollectionChangedEventArgs e) => OnPropertyChanged(nameof(ItemQuantity));
 
 #pragma warning disable CA1822 // Mark members as static
         public string ItemQuantity { get {
@@ -276,14 +283,14 @@ namespace ConfiguratorGUI
         {
             if (data == null || !data.HasImage) return;
             if (MyPictureData.Any(x => x.Equals(data))) { MessageBox.Show("Image was previously saved!", "Already saved"); return; }
-            PictureData? pictureData;
-            var downloadTask = apod.DownloadImageAsync(data);
-            ExploreData.Remove(data);
+            // Hidden while downloading so it can't be saved twice
+            var page = ExploreData;
+            var index = page.IndexOf(data);
+            page.Remove(data);
+            PictureData? pictureData = null;
             try
             {
-                pictureData = await downloadTask;
-                if (pictureData == null) return;
-                MyPictureData.Insert(0, pictureData);
+                pictureData = await apod.DownloadImageAsync(data);
             }
             catch (Exception ex) when (!APODCache.IsReportedDownloadError(ex))
             {
@@ -293,6 +300,13 @@ namespace ConfiguratorGUI
             {
                 Trace.WriteLine($"Saving {data.DateFormatted} failed: {ex.Message}");
             }
+            if (pictureData == null)
+            {
+                // Back where it was so it can be retried
+                if (index >= 0) page.Insert(Math.Min(index, page.Count), data);
+                return;
+            }
+            MyPictureData.Insert(0, pictureData);
             SortData();
         }
         private async Task LoadExplore()
@@ -355,9 +369,9 @@ namespace ConfiguratorGUI
         public void DeleteOption(string? source)
         {
             if (source == null) { return; }
-            MyPictureData.Remove(MyPictureData.First(x => x.Source == source));
             File.Delete(source);
             File.Delete(source + ".json");
+            MyPictureData.Remove(MyPictureData.First(x => x.Source == source));
         }
         public void SelectOption(string? source)
         {

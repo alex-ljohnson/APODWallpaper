@@ -254,10 +254,11 @@ namespace APODWallpaper
                     key.SetValue(@"WallpaperStyle", ((int)style).ToString());
                     key.SetValue(@"TileWallpaper", 0.ToString());
                 }
-                if (file == null) return;
-                key.SetValue(@"WallPaper", file);
+                // No file means a style change, reapply the current wallpaper so Windows uses it
+                if (file == null) file = key.GetValue(@"WallPaper") as string;
+                else key.SetValue(@"WallPaper", file);
             }
-            if (file == null) return;
+            if (string.IsNullOrEmpty(file)) return;
             Console.WriteLine(file);
             uint SPI_SETDESKWALLPAPER = 0x0014;
             uint SPIF_UPDATEINIFILE = 0x01;

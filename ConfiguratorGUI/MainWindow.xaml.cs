@@ -8,7 +8,6 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
-using MColor = System.Windows.Media.Color;
 using SPath = System.Windows.Shapes.Path;
 namespace ConfiguratorGUI
 {
@@ -17,8 +16,17 @@ namespace ConfiguratorGUI
     /// </summary>
     public partial class MainWindow : Window
     {
-        private static readonly SPath PathNotMax = new() { Data = new RectangleGeometry() { Rect = new Rect(0, 0, 8, 8) }, Stroke = new SolidColorBrush(MColor.FromRgb(240, 240, 240)) };
-        private static readonly SPath PathMax = new() { Fill = new SolidColorBrush(MColor.FromRgb(70, 72, 89)), Data = new GeometryGroup() { Children = { new RectangleGeometry() { Rect = new Rect(0, 0, 8, 8) }, new RectangleGeometry() { Rect = new Rect(2, -2, 8, 8) } } }, Stroke = new SolidColorBrush(MColor.FromRgb(240, 240, 240)) };
+        private readonly SPath pathNotMax = TitleBarIcon("M 0,0 H 8 V 8 H 0 Z");
+        // Back square drawn only where it shows, so no fill is needed to hide it
+        private readonly SPath pathMax = TitleBarIcon("M 0,2 H 8 V 10 H 0 Z M 2,2 V 0 H 10 V 8 H 8");
+
+        // Follows the theme, a fixed colour vanished on Light
+        private static SPath TitleBarIcon(string data)
+        {
+            var path = new SPath { Data = Geometry.Parse(data) };
+            path.SetResourceReference(SPath.StrokeProperty, "Foreground");
+            return path;
+        }
 
         private readonly ViewModel VM;
         private readonly StdOutRedirect redirect;
@@ -79,12 +87,12 @@ namespace ConfiguratorGUI
             if (window.WindowState == WindowState.Maximized)
             {
                 WindowState = WindowState.Normal;
-                BtnMaximise.Content = PathNotMax;
+                BtnMaximise.Content = pathNotMax;
             }
             else
             {
                 WindowState = WindowState.Maximized;
-                BtnMaximise.Content = PathMax;
+                BtnMaximise.Content = pathMax;
             }
         }
 
