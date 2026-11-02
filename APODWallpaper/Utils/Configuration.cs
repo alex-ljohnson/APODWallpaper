@@ -184,8 +184,11 @@ namespace APODWallpaper.Utils
             }
         }
 
+        internal bool OwnsStartup => autoSave && fileTied;
+
         public void ChangeStartup()
         {
+            if (!OwnsStartup) return;
             string APOD = Path.Combine(base_path, "APODWallpaper.exe");
             RegistryKey? key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
             if (RunStartup)
@@ -194,7 +197,7 @@ namespace APODWallpaper.Utils
             }
             else
             {
-                key?.DeleteValue("APODWallpaper");
+                key?.DeleteValue("APODWallpaper", throwOnMissingValue: false);
             }
         }
         public static bool CheckStartupSet()
@@ -213,6 +216,9 @@ namespace APODWallpaper.Utils
                 _configuration[key] = val;
             }
             AutoSave();
+            // Bypasses the setters, so apply their side effects and refresh everything bound to this
+            ChangeStartup();
+            OnPropertyChanged("");
             return this;
         }
 

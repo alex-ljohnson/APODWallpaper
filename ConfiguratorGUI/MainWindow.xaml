@@ -12,7 +12,7 @@
         mc:Ignorable="d"
         Title="APODWallpaper Configurator" 
         
-        Height="450" Width="1000"
+        Height="500" Width="1000" MinWidth="860" MinHeight="460"
         Background="Transparent" WindowStyle="None" 
         AllowsTransparency="True"
         ResizeMode="CanResizeWithGrip"
@@ -28,7 +28,7 @@
                     <DoubleAnimation Storyboard.TargetName="grdMain" Storyboard.TargetProperty="Opacity" 
                                          From="0.0" To="1.0" Duration="0:0:0:0.3"/>
                     <DoubleAnimation Storyboard.TargetName="window" Storyboard.TargetProperty="Height" 
-                                         From="400" To="500.0" Duration="0:0:0.35"/>
+                                         From="400" To="500.0" Duration="0:0:0.35" FillBehavior="Stop"/>
                 </Storyboard>
             </BeginStoryboard>
         </EventTrigger>
@@ -53,7 +53,7 @@
             <DoubleAnimation Storyboard.TargetName="grdMain" Storyboard.TargetProperty="Opacity"
                              From="1.0" To="0.0" Duration="0:0:0.4"/>
             <DoubleAnimation Storyboard.TargetName="window" Storyboard.TargetProperty="Width" 
-                                         To="750" From="800.0" Duration="0:0:0.2"/>
+                                         By="-50" Duration="0:0:0.2"/>
         </Storyboard>
         
         <ObjectDataProvider x:Key="StyleEnumSource" ObjectType="{x:Type sys:Enum}" MethodName="GetValues">
@@ -213,7 +213,7 @@
             </Setter>
         </Style>
     </Window.Resources>
-    <Grid x:Name="grdMain" Width="{Binding Width, ElementName=window}" Height="{Binding Height, ElementName=window}" Background="{DynamicResource Dark}">
+    <Grid x:Name="grdMain" Background="{DynamicResource Dark}">
         <Grid.RowDefinitions>
             <RowDefinition Height="30"/>
             <RowDefinition Height="*"/>
@@ -432,17 +432,17 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <Label Content="   Tools" FontWeight="Bold" FontSize="14" Height="30"/>
-                        <Grid Margin="0 4" Grid.Row="1">
+                        <Grid Margin="0 4" Grid.Row="1" VerticalAlignment="Top">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="*" MinHeight="32"/>
-                                <RowDefinition Height="*" MinHeight="32"/>
-                                <RowDefinition Height="*" MinHeight="32"/>
-                                <RowDefinition Height="*" MinHeight="32"/>
+                                <RowDefinition Height="36"/>
+                                <RowDefinition Height="36"/>
+                                <RowDefinition Height="36"/>
+                                <RowDefinition Height="36"/>
                             </Grid.RowDefinitions>
-                            <Button x:Name="BtnExploreFolder" Content="Explore images folder..." Grid.Row="0" Width="250" Height="32" Click="BtnExploreFolder_Click"/>
+                            <Button x:Name="BtnExploreFolder" Content="Open images folder..." Grid.Row="0" Width="250" Height="32" Click="BtnExploreFolder_Click"/>
                             <Button x:Name="BtnUpdate" Content="Check for update..." Grid.Row="1" Width="250" Height="32"  Click="BtnUpdate_Click"/>
-                            <Button x:Name="BtnForceRun" Content="Force Run" Grid.Row="2" Width="250" Height="32" Click="BtnForceRun_Click" IsEnabled="{Binding IsUpdating, Converter={StaticResource inverseBoolConverter}}"/>
-                            <Button x:Name="BtnResetDefault" Content="Reset to Defaults" Grid.Row="3" Width="250" Height="32" Click="BtnResetDefault_Click"/>
+                            <Button x:Name="BtnForceRun" Content="Force run" Grid.Row="2" Width="250" Height="32" Click="BtnForceRun_Click" IsEnabled="{Binding IsUpdating, Converter={StaticResource inverseBoolConverter}}"/>
+                            <Button x:Name="BtnResetDefault" Content="Reset to defaults" Grid.Row="3" Width="250" Height="32" Click="BtnResetDefault_Click"/>
                         </Grid>
                     </Grid>
                     <Border Grid.Column="1" Grid.Row="1" BorderThickness="10" CornerRadius="25" BorderBrush="{DynamicResource Light}"/>

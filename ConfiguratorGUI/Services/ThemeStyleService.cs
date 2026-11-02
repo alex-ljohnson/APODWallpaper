@@ -64,7 +64,9 @@ namespace ConfiguratorGUI.Services
                     await ResetThemeAsync(resources);
                     return;
             }
-            
+            // Another theme was picked while this one was being checked
+            if (themeName != configService.ConfiguratorTheme) return;
+
 
             try
             {

@@ -276,4 +276,17 @@ public sealed class ConfigurationApiKeyTests
     {
         Assert.IsFalse(Configuration.DefaultConfiguration.ToDictionary().ContainsKey(nameof(Configuration.API_KEY)));
     }
+
+    // Both used to repoint the real startup entry at whichever exe built them
+    [TestMethod]
+    public async Task UnsavedConfigsDontOwnStartupEntry()
+    {
+        Assert.IsFalse(Configuration.DefaultConfiguration.OwnsStartup);
+        var (config, path) = await LoadAsync("{}");
+        try
+        {
+            Assert.IsFalse(config.OwnsStartup);
+        }
+        finally { Cleanup(config, path); }
+    }
 }
