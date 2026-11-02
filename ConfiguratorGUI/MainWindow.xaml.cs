@@ -2,9 +2,12 @@
 using APODWallpaper.Utils;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
@@ -17,10 +20,8 @@ namespace ConfiguratorGUI
     public partial class MainWindow : Window
     {
         private readonly SPath pathNotMax = TitleBarIcon("M 0,0 H 8 V 8 H 0 Z");
-        // Back square drawn only where it shows, so no fill is needed to hide it
         private readonly SPath pathMax = TitleBarIcon("M 0,2 H 8 V 10 H 0 Z M 2,2 V 0 H 10 V 8 H 8");
 
-        // Follows the theme, a fixed colour vanished on Light
         private static SPath TitleBarIcon(string data)
         {
             var path = new SPath { Data = Geometry.Parse(data) };
@@ -61,7 +62,7 @@ namespace ConfiguratorGUI
         }
         private async void window_Loaded(object sender, RoutedEventArgs e)
         {
-            BtnUpdateTheme_Click(sender, e);
+            ApplyTheme();
             var startTime = DateTime.UtcNow;
             await VM.Initialise();
             Trace.WriteLine($"Init time: {(DateTime.UtcNow - startTime).TotalMilliseconds}ms");
@@ -84,17 +85,58 @@ namespace ConfiguratorGUI
 
         private void BtnMaximise_Click(object sender, RoutedEventArgs e)
         {
-            if (window.WindowState == WindowState.Maximized)
-            {
-                WindowState = WindowState.Normal;
-                BtnMaximise.Content = pathNotMax;
-            }
-            else
-            {
-                WindowState = WindowState.Maximized;
-                BtnMaximise.Content = pathMax;
-            }
+            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
         }
+
+        protected override void OnStateChanged(EventArgs e)
+        {
+            base.OnStateChanged(e);
+            BtnMaximise.Content = WindowState == WindowState.Maximized ? pathMax : pathNotMax;
+        }
+
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+            HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WindowProc);
+        }
+
+        // Borderless windows maximise past the screen edges and over the taskbar, so cap them to the work area
+        private IntPtr WindowProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            const int WM_GETMINMAXINFO = 0x0024;
+            const uint MONITOR_DEFAULTTONEAREST = 2;
+            if (msg != WM_GETMINMAXINFO) return IntPtr.Zero;
+            var monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+            var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+            if (monitor == IntPtr.Zero || !GetMonitorInfo(monitor, ref info)) return IntPtr.Zero;
+            var mmi = Marshal.PtrToStructure<MINMAXINFO>(lParam);
+            // Relative to the monitor
+            mmi.ptMaxPosition.X = info.rcWork.Left - info.rcMonitor.Left;
+            mmi.ptMaxPosition.Y = info.rcWork.Top - info.rcMonitor.Top;
+            mmi.ptMaxSize.X = info.rcWork.Right - info.rcWork.Left;
+            mmi.ptMaxSize.Y = info.rcWork.Bottom - info.rcWork.Top;
+            Marshal.StructureToPtr(mmi, lParam, false);
+            return IntPtr.Zero;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct POINT { public int X, Y; }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RECT { public int Left, Top, Right, Bottom; }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MINMAXINFO { public POINT ptReserved, ptMaxSize, ptMaxPosition, ptMinTrackSize, ptMaxTrackSize; }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MONITORINFO { public int cbSize; public RECT rcMonitor, rcWork; public uint dwFlags; }
 
         private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
         {
@@ -138,7 +180,6 @@ namespace ConfiguratorGUI
         {
             if (!Configuration.DefaultConfiguration.isReady) await Configuration.DefaultConfiguration.InitialiseAsync();
             Config.CopyConfiguration(Configuration.DefaultConfiguration);
-            BtnUpdateTheme_Click(sender, e);
         }
 
         private void BtnClearOut_Click(object sender, RoutedEventArgs e)
@@ -146,10 +187,13 @@ namespace ConfiguratorGUI
             TxtOutput.Clear();
         }
 
-        private async void BtnUpdateTheme_Click(object sender, RoutedEventArgs e)
+        private void CmbConfiguratorTheme_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            Trace.WriteLine(CmbConfiguratorTheme.SelectedItem);
-            Trace.WriteLine(Config.ConfiguratorTheme);
+            if (IsLoaded) ApplyTheme();
+        }
+
+        private async void ApplyTheme()
+        {
             if (CmbConfiguratorTheme.SelectedItem == null) { return; }
             await ((App)Application.Current).SetTheme();
         }
